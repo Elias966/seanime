@@ -1,0 +1,52 @@
+#!/bin/bash
+# Unofficial Seanime Arabic font/translation repair launcher.
+set -u
+APPDIR="${APPDIR:-$(dirname "$(readlink -f "$0")")}"
+export APPDIR
+if ! command -v python3 >/dev/null 2>&1; then
+    echo 'This Seanime translation build requires Python 3 (standard library only).' >&2
+    exit 1
+fi
+port="${SEANIME_TRANSLATION_PORT:-11435}"
+helper_pid=''
+app_pid=''
+cleanup() {
+    if [ -n "$helper_pid" ]; then
+        kill "$helper_pid" 2>/dev/null || true
+        wait "$helper_pid" 2>/dev/null || true
+    fi
+}
+trap cleanup EXIT
+trap 'if [ -n "$app_pid" ]; then kill "$app_pid" 2>/dev/null || true; fi; exit 130' INT
+trap 'if [ -n "$app_pid" ]; then kill "$app_pid" 2>/dev/null || true; fi; exit 143' TERM
+helper_ready() {
+    python3 - "$port" <<'PY'
+import json,sys,urllib.request
+try:
+    with urllib.request.urlopen('http://127.0.0.1:' + sys.argv[1] + '/health',timeout=0.5) as r:
+        assert json.load(r).get('ok') is True
+except Exception:
+    raise SystemExit(1)
+PY
+}
+if ! helper_ready; then
+    python3 "$APPDIR/resources/seanime-translation-helper.py" --port "$port" &
+    helper_pid=$!
+    ready=0
+    for attempt in {1..30}; do
+        if helper_ready; then ready=1; break; fi
+        if ! kill -0 "$helper_pid" 2>/dev/null; then break; fi
+        sleep 0.1
+    done
+    if [ "$ready" -ne 1 ]; then
+        echo "Could not start the local subtitle helper on 127.0.0.1:$port." >&2
+        exit 1
+    fi
+fi
+if [ "${1:-}" = '--translation-helper-check' ]; then
+    echo "Bundled translation helper ready at http://127.0.0.1:$port/v1"
+    exit 0
+fi
+"$APPDIR/AppRun.upstream" "$@" &
+app_pid=$!
+wait "$app_pid"

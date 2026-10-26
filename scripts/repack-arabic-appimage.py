@@ -98,6 +98,13 @@ def main():
         app_dir = temp / 'AppDir'
         subprocess.run(['unsquashfs', '-no-progress', '-o', str(SQUASHFS_OFFSET), '-d', str(app_dir), str(original)], check=True)
         patch_asar(app_dir / 'resources/app.asar')
+        # Preserve upstream startup and bundle the Python standard-library adapter.
+        app_run = app_dir / 'AppRun'
+        app_run.rename(app_dir / 'AppRun.upstream')
+        shutil.copyfile(ROOT / 'scripts/arabic-translation/AppRun', app_run)
+        app_run.chmod(0o755)
+        shutil.copyfile(ROOT / 'scripts/arabic-translation/translation_helper.py',
+                        app_dir / 'resources/seanime-translation-helper.py')
         filesystem = temp / 'patched.squashfs'
         subprocess.run(['mksquashfs', str(app_dir), str(filesystem), '-noappend', '-comp', 'xz', '-processors', str(args.processors), '-quiet'], check=True)
         with output.open('xb') as dest:

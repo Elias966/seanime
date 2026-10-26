@@ -4,15 +4,33 @@ This is an unofficial Linux x86_64 AppImage release by this fork of [5rahim/sean
 
 ## Download and run
 
-Download `Seanime-3.10.4-Arabic-Fixed-1.AppImage` and `SHA256SUMS` from [the release](https://github.com/Elias966/seanime/releases/tag/v3.10.4-arabic-fix.1). In their download directory:
+Download `Seanime-3.10.4-Arabic-Fixed-2.AppImage` and `SHA256SUMS` from [the release](https://github.com/Elias966/seanime/releases/tag/v3.10.4-arabic-fix.2). In their download directory:
 
 ```sh
 sha256sum -c SHA256SUMS
-chmod +x Seanime-3.10.4-Arabic-Fixed-1.AppImage
-./Seanime-3.10.4-Arabic-Fixed-1.AppImage
+chmod +x Seanime-3.10.4-Arabic-Fixed-2.AppImage
+./Seanime-3.10.4-Arabic-Fixed-2.AppImage
 ```
 
 Close any existing Seanime instance first. The build uses the existing Seanime profile. To roll back, close it and launch the original official AppImage. Installing a later official update can replace this repair; it has not been integrated upstream.
+
+## Faster local translation in release 2
+
+This AppImage includes a local Ollama adapter. Its launcher starts the adapter on `127.0.0.1:11435` before Seanime and stops it when Seanime exits. If the previously installed standalone helper is already running, it reuses it. **Python 3 is required**; no pip packages or separate helper installation are needed.
+
+In Seanime's OpenAI-compatible translation settings, use:
+
+- Base URL: `http://127.0.0.1:11435/v1`
+- Model: `gemma4:e2b`
+- Target language: Arabic
+
+Ollama itself continues to run at `127.0.0.1:11434`. The helper adds `reasoning_effort: "none"`, retries missing/blank translation rows and clearly untranslated English sentences, and preserves row IDs. All model requests stay local. Short names/interjections can legitimately remain untranslated; the detection is a heuristic and cannot guarantee translation accuracy or detect every mixed-language sentence.
+
+On the tested machine, an identical three-line request took 3.06 seconds with default reasoning and 0.45 seconds without reasoning. An eight-line request through the helper completed in 1.17 seconds with Arabic in every result. Five automated tests passed, including requests to a mock upstream server. A deliberately missing line and untranslated English sentence were also successfully repaired using the real local Gemma model.
+
+If English lines were cached before changing settings, reload the episode/subtitle track once. For rollback, set the translation base URL back to `http://127.0.0.1:11434/v1`, then use the original AppImage.
+
+The adapter and tests are in [`scripts/arabic-translation`](../../scripts/arabic-translation). The font-only release remains available as tag `v3.10.4-arabic-fix.1`.
 
 ## What was repaired
 
@@ -34,7 +52,7 @@ The implementation is in [`seanime-web/public/jassub/jassub-worker.js`](../../se
 The user confirmed successful Arabic translation with this repaired AppImage and **`gemma4:e2b`** after restarting Seanime and switching the translation mode away and back to the desired provider/model.
 
 - Provider: OpenAI-compatible local model
-- Base URL: `http://127.0.0.1:11434/v1`
+- Base URL: `http://127.0.0.1:11435/v1`
 - Model: `gemma4:e2b`
 - Target language: Arabic
 
@@ -42,7 +60,7 @@ The user confirmed successful Arabic translation with this repaired AppImage and
 ollama pull gemma4:e2b
 ```
 
-Ollama must already be running. After changing models, save the settings, quit Seanime completely, reopen this build, switch translation mode/provider away and back if the old selection appears to persist, then reload the subtitles. This is a user-confirmed workaround; the repair does not change model loading, translation requests, JSON validation, or provider caching. No model weights are bundled.
+Ollama must already be running. After changing models, save the settings, quit Seanime completely, reopen this build, switch translation mode/provider away and back if the old selection appears to persist, then reload the subtitles. This is a user-confirmed workaround; the font repair does not change model loading or provider caching; release 2 adds the adapter described above. No model weights are bundled.
 
 ## How this AppImage was produced
 
@@ -54,14 +72,14 @@ Original SHA256:
 bc1d3b5b045b1be1378f4501afc436bf282c052d5fb254513addf2e3af7014f5
 ```
 
-The official AppImage runtime is preserved. The SquashFS filesystem is extracted, and its Electron ASAR archive is rewritten with exactly three file changes: the worker, `DejaVuSans.ttf`, and `DejaVuSans.LICENSE.txt`. Packed file offsets and changed-file SHA256 integrity metadata are recalculated. The filesystem is then repacked with xz compression and appended to the original runtime. There is no recompile of the Go backend, Electron runtime or WebAssembly binaries.
+The official AppImage runtime is preserved. The SquashFS filesystem is extracted, and its Electron ASAR archive is rewritten with exactly three file changes: the worker, `DejaVuSans.ttf`, and `DejaVuSans.LICENSE.txt`. Packed file offsets and changed-file SHA256 integrity metadata are recalculated. The AppRun entry point is preserved as `AppRun.upstream` and replaced with a wrapper that starts `resources/seanime-translation-helper.py`. These are the only additional filesystem changes. The filesystem is then repacked with xz compression and appended to the original runtime. There is no recompile of the Go backend, Electron runtime or WebAssembly binaries.
 
 The fork includes the upstream source plus the modified worker/font and this packaging script. Check out the release tag, install Python 3 and `squashfs-tools`, and run from the repository root:
 
 ```sh
 python3 scripts/repack-arabic-appimage.py \
   /path/to/seanime-denshi-3.10.4_Linux_x86_64.AppImage \
-  ./Seanime-3.10.4-Arabic-Fixed-1.AppImage
+  ./Seanime-3.10.4-Arabic-Fixed-2.AppImage
 ```
 
 The script rejects an input with a different SHA256 or original worker. Allow several GB of temporary disk space. Filesystem timestamps/tool versions can change the final compressed AppImage checksum on a rebuild; the release's `SHA256SUMS` applies to the uploaded artifact.
@@ -70,7 +88,7 @@ The script rejects an input with a different SHA256 or original worker. Allow se
 
 The original packaged worker reproduced square glyphs in a controlled fixture. The modified worker was visually checked with the actual packaged JavaScript and WebAssembly renderer for Arabic, diacritics, mixed Latin/Arabic, punctuation, multiple ASS styles and inline font overrides. Live event creation and updates were checked in the repaired Electron AppImage. Representative samples from three local episode ASS tracks with different style counts were also rendered. These checks were not uninterrupted playback of every episode.
 
-The published build preserves the already tested worker byte-for-byte; the final packaging adds its font license. Automated archive comparison verifies that all other packed files and unpacked application files are unchanged. The user subsequently confirmed normal playback and Arabic translation using `gemma4:e2b`.
+The published build preserves the already tested worker byte-for-byte. Automated archive comparison verifies the three intended ASAR changes; release 2 additionally contains the startup wrapper, original entry point and helper. The user subsequently confirmed normal playback and Arabic translation using `gemma4:e2b`.
 
 Synthetic regression fixture, before:
 
