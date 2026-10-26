@@ -1,3 +1,7 @@
+> **Unofficial Arabic subtitle fix (Linux x86_64, Seanime 3.10.4)**
+> [Download the repaired AppImage](https://github.com/Elias966/seanime/releases/tag/v3.10.4-arabic-fix.1) · [How the fix works, tests, and rebuilding](docs/arabic-subtitles/README.md)
+> Fork of [5rahim/seanime](https://github.com/5rahim/seanime). This release is maintained independently of upstream.
+
 <p align="center">
 <a href="https://seanime.app/">
 <img src="docs/images/seanime-logo.png" alt="preview" width="70px"/>
@@ -50,7 +54,7 @@ Seanime is a **media server** with a **web interface** and **desktop app** for m
 - **Seanime Denshi**: Desktop client with built-in libmpv-based video player (support for SSA/ASS subtitles, shaders, and more)
 - **Seanime Tenji**: Companion app for iOS and Android to browse your library, manage your AniList, stream content, and enjoy offline access. Connect to your existing Seanime server or host your own directly on your mobile device with the Mobile Server app
 - **AniList Integration**: Browse and manage your lists, discover anime and manga
-- **Custom Sources**: Support for adding non-AniList anime and manga series 
+- **Custom Sources**: Support for adding non-AniList anime and manga series
 - **Library Management**: Fast and smart scanning of local files without strict naming conventions or folder structures
 - **Torrent Integration**: Built-in torrent search engine via extensions and downloading support with qBittorrent, Transmission, Torbox, Real-Debrid, AllDebrid and Premiumize
 - **Torrent Streaming**: Stream torrents directly to the media player without waiting for downloads (supports Bittorrent, Torbox, Real-Debrid, AllDebrid and Premiumize)

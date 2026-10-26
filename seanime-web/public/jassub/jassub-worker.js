@@ -3481,6 +3481,32 @@ void main() {
 
   // node_modules/jassub/dist/worker/worker.js
   var constructor = /* @__PURE__ */ Symbol.for("constructor");
+  // SEANIME_ARABIC_FONT_REPAIR_V1: explicit multilingual font for Arabic events.
+  // libass's embedded provider cannot rely on host fontconfig or per-episode fonts.
+  function repairArabicText(text) {
+    if (typeof text !== "string" || !/[\u0600-\u06ff\u0750-\u077f\u08a0-\u08ff\ufb50-\ufdff\ufe70-\ufeff]/u.test(text)) return text;
+    // Preserve timing, position, colors, and all other styling. Font resets must
+    // not switch translated Arabic back to an English/Japanese-only face.
+    text = text.replace(/\\fn[^\\}]*/g, "\\fnDejaVu Sans");
+    text = text.replace(/\\r([^\\}]*)/g, "\\r$1\\fnDejaVu Sans");
+    return "{\\fnDejaVu Sans}" + text;
+  }
+  function repairArabicAss(content) {
+    if (typeof content !== "string") return content;
+    let section = "", textIndex = 9;
+    return content.split(/\r?\n/).map(line => {
+      if (/^\[/.test(line)) section=line.trim().toLowerCase();
+      if (section !== "[events]") return line;
+      if (/^Format\s*:/i.test(line)) {
+        const columns=line.slice(line.indexOf(":")+1).split(",").map(s=>s.trim().toLowerCase());
+        const found=columns.indexOf("text");if(found>=0)textIndex=found;return line;
+      }
+      if (!/^Dialogue\s*:/i.test(line)) return line;
+      let index=line.indexOf(":")+1;
+      for(let i=0;i<textIndex;i++){index=line.indexOf(",",index)+1;if(index===0)return line;}
+      return line.slice(0,index)+repairArabicText(line.slice(index));
+    }).join("\n");
+  }
   var ASSRenderer = class {
     _wasm;
     _subtitleColorSpace;
@@ -3492,6 +3518,8 @@ void main() {
       return this[constructor](...args);
     }
     async [constructor](data, getFont, ctrl) {
+      data.fonts = [...(data.fonts || []), new URL("../fonts/DejaVuSans.ttf", self.location.href).href];
+      data.subContent = repairArabicAss(data.subContent);
       this._availableFonts = Object.fromEntries(Object.entries(data.availableFonts).map(([k, v]) => [k.trim().toLowerCase(), v]));
       this.debug = data.debug;
       this.queryFonts = data.queryFonts;
@@ -3531,13 +3559,13 @@ void main() {
       this._wasm.processData(events);
     }
     createEvent(event) {
-      this._wasm.createEvent(event);
+      this._wasm.createEvent({ ...event, Text: repairArabicText(event.Text) });
     }
     getEvents() {
       return this._wasm.getEvents();
     }
     setEvent(event, index) {
-      this._wasm.setEvent(index, event);
+      this._wasm.setEvent(index, { ...event, Text: repairArabicText(event.Text) });
     }
     removeEvent(index) {
       this._wasm.removeEvent(index);
@@ -3561,7 +3589,7 @@ void main() {
       this._wasm.disableStyleOverride();
     }
     setTrack(content) {
-      this._wasm.createTrackMem(content);
+      this._wasm.createTrackMem(repairArabicAss(content));
       this._subtitleColorSpace = LIBASS_YCBCR_MAP[this._wasm.trackColorSpace];
     }
     freeTrack() {
