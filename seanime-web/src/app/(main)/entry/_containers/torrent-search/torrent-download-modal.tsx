@@ -21,7 +21,6 @@ import { Switch } from "@/components/ui/switch"
 import { Tooltip } from "@/components/ui/tooltip"
 import { Vaul, VaulContent } from "@/components/vaul"
 import { openTab } from "@/lib/helpers/browser"
-import { useRouter } from "@/lib/navigation"
 import { TORRENT_CLIENT } from "@/lib/server/settings"
 import { atom } from "jotai"
 import { useAtom, useAtomValue, useSetAtom } from "jotai/react"
@@ -39,7 +38,6 @@ export function TorrentDownloadModal({ onToggleTorrent, media, entry }: {
     entry: Anime_Entry
 }) {
 
-    const router = useRouter()
     const serverStatus = useServerStatus()
     const libraryPath = serverStatus?.settings?.library?.libraryPath
 
@@ -93,7 +91,6 @@ export function TorrentDownloadModal({ onToggleTorrent, media, entry }: {
     const { mutate, isPending } = useTorrentClientDownload(() => {
         setConfirmationModalOpen(false)
         setTorrentDrawerIsOpen(undefined)
-        router.push("/torrent-list")
     })
 
     // download torrent file
@@ -118,7 +115,6 @@ export function TorrentDownloadModal({ onToggleTorrent, media, entry }: {
     const { mutate: debridAddTorrents, isPending: isDownloadingDebrid } = useDebridAddTorrents(() => {
         setConfirmationModalOpen(false)
         setTorrentDrawerIsOpen(undefined)
-        router.push("/debrid")
     })
 
     const isDisabled = isPending || isDownloadingFiles || isDownloadingDebrid

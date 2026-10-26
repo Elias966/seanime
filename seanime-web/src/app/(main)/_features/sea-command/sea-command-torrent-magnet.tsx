@@ -122,9 +122,7 @@ export function SeaCommandTorrentMagnet() {
     const { setDebridstreamAutoplayInfo } = useDebridstreamAutoplay()
     const { handleStreamSelection: startTorrentStream } = useHandleStartTorrentStream()
     const { handleStreamSelection: startDebridStream } = useHandleStartDebridStream()
-    const { mutate: downloadTorrent } = useTorrentClientDownload(() => {
-        router.push("/torrent-list")
-    })
+    const { mutate: downloadTorrent } = useTorrentClientDownload()
 
     const setTorrentSearchSelection = useSetAtom(__torrentSearch_selectionAtom)
     const setTorrentSearchSelectionEpisode = useSetAtom(__torrentSearch_selectionEpisodeAtom)

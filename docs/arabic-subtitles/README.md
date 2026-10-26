@@ -4,12 +4,12 @@ Unofficial Linux x86_64 Seanime 3.10.4 build, forked from [5rahim/seanime](https
 
 ## Download and run
 
-Download `Seanime-3.10.4-Arabic-Fixed-11.AppImage` and `SHA256SUMS` from [release 11](https://github.com/Elias966/seanime/releases/tag/v3.10.4-arabic-fix.11). Close any running Seanime instance, then:
+Download `Seanime-3.10.4-Arabic-Fixed-12.AppImage` and `SHA256SUMS` from [release 12](https://github.com/Elias966/seanime/releases/tag/v3.10.4-arabic-fix.12). Close any running Seanime instance, then:
 
 ```sh
 sha256sum -c SHA256SUMS
-chmod +x Seanime-3.10.4-Arabic-Fixed-11.AppImage
-./Seanime-3.10.4-Arabic-Fixed-11.AppImage
+chmod +x Seanime-3.10.4-Arabic-Fixed-12.AppImage
+./Seanime-3.10.4-Arabic-Fixed-12.AppImage
 ```
 
 Python 3 is required; no pip packages are needed. The build uses the existing Seanime profile. The launcher starts the bundled local helper on `127.0.0.1:11435`, or reuses a compatible already-running helper. Helper revision is checked so an older helper cannot silently override these fixes. If an old standalone service occupies this port, update it or stop it before opening the AppImage:
@@ -32,6 +32,12 @@ For local Ollama:
 Ollama itself remains at `http://127.0.0.1:11434`. All model requests stay local; no cloud fallback or model weights are bundled. Keep Ollama running.
 
 **Restart Seanime and reload the episode/subtitle track after upgrading**, because old untranslated results can remain in the player/backend caches. The user also reported that toggling translation mode away and back after changing models helped stale model selection.
+
+## Release 12: stay on the page after starting a download
+
+Starting a torrent download no longer navigates automatically to the Downloads page. This applies to the normal confirmation dialog, individual file selection and magnet-command downloads. Debrid downloads also stay on the current page. Successful downloads still close their dialogs/drawers and show the existing “Download started” notification. The Downloads and Debrid pages remain accessible through normal navigation.
+
+Only the success-callback redirects were removed. Download requests, destinations, file selections and streaming navigation retain their existing behavior. The packaged callbacks were checked for dialog cleanup and absence of navigation without starting additional downloads. The complete existing regression suite passed. All earlier subtitle, artwork and search-return fixes are retained.
 
 ## Release 11: anime back arrow and search return state
 
@@ -218,7 +224,7 @@ Check out the release tag, install Python 3 and `squashfs-tools`, then:
 ```sh
 python3 scripts/repack-arabic-appimage.py \
   /path/to/seanime-denshi-3.10.4_Linux_x86_64.AppImage \
-  ./Seanime-3.10.4-Arabic-Fixed-11.AppImage
+  ./Seanime-3.10.4-Arabic-Fixed-12.AppImage
 ```
 
 The script verifies the official image and original worker hashes. Allow several GB of temporary disk space. Filesystem timestamps/tool versions can change the final compressed AppImage checksum; `SHA256SUMS` applies to the uploaded asset.

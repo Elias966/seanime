@@ -13,7 +13,6 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { Vaul, VaulContent } from "@/components/vaul"
 import { logger } from "@/lib/helpers/debug"
 import { upath } from "@/lib/helpers/upath"
-import { useRouter } from "@/lib/navigation"
 import { atom } from "jotai"
 import { useAtom, useAtomValue, useSetAtom } from "jotai/react"
 import React from "react"
@@ -46,7 +45,6 @@ export function sanitizeDirectoryName(input: string): string {
 }
 
 export function TorrentDownloadFileSelection({ entry }: { entry: Anime_Entry }) {
-    const router = useRouter()
     const serverStatus = useServerStatus()
     const libraryPath = serverStatus?.settings?.library?.libraryPath
 
@@ -91,7 +89,6 @@ export function TorrentDownloadFileSelection({ entry }: { entry: Anime_Entry }) 
     const { mutate, isPending } = useTorrentClientDownload(() => {
         setFileSelection(undefined)
         setTorrentDrawerIsOpen(undefined)
-        router.push("/torrent-list")
     })
 
     // Convert file paths to file previews format

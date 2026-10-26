@@ -8,6 +8,7 @@ import shutil
 import struct
 import subprocess
 import tempfile
+from patch_download_navigation import MAGNET_PATH, patch_download_entry, patch_magnet, patch_download_bootstrap
 from patch_entry_navigation import SEARCH_PATH, patch_search, patch_entry, patch_bootstrap
 from patch_subtitle_scheduler import BUNDLE_PATH, patch_player_bundle
 
@@ -52,7 +53,13 @@ def patch_asar(path):
     for part in BUNDLE_PATH.split('/'):
         bundle_entry = bundle_entry['files'][part]
     start = base + int(bundle_entry['offset'])
-    bundle_data = patch_entry(patch_player_bundle(raw[start:start + bundle_entry['size']]))
+    bundle_data = patch_download_entry(patch_entry(patch_player_bundle(raw[start:start + bundle_entry['size']])))
+    magnet_entry=tree
+    for part in MAGNET_PATH.split('/'): magnet_entry=magnet_entry['files'][part]
+    magnet_start=base+int(magnet_entry['offset'])
+    magnet_data=patch_magnet(raw[magnet_start:magnet_start+magnet_entry['size']])
+    magnet_hash=sha256(magnet_data)[:8]
+    changed[MAGNET_PATH.replace('77c02207',magnet_hash)]=magnet_data
     search_entry=tree
     for part in SEARCH_PATH.split('/'): search_entry=search_entry['files'][part]
     search_start=base+int(search_entry['offset'])
@@ -83,7 +90,7 @@ def patch_asar(path):
         raise ValueError('Unexpected shared Image retry effect')
     bootstrap = bootstrap.replace(image_reset,
         '(0,i.useEffect)(()=>{n();window.addEventListener("online",n);window.addEventListener("seanime:artwork-ready",n);return()=>{window.removeEventListener("online",n);window.removeEventListener("seanime:artwork-ready",n)}},[b.src,n]);let x=u&&b.src', 1)
-    bootstrap_data = patch_bootstrap(bootstrap.encode(), search_hash)
+    bootstrap_data = patch_download_bootstrap(patch_bootstrap(bootstrap.encode(), search_hash), magnet_hash)
     new_bootstrap_path = bootstrap_path.replace('c4fd1c85', sha256(bootstrap_data)[:8])
     changed[new_bootstrap_path] = bootstrap_data
     index_entry = tree['files']['web-denshi']['files']['index.html']
