@@ -3481,31 +3481,56 @@ void main() {
 
   // node_modules/jassub/dist/worker/worker.js
   var constructor = /* @__PURE__ */ Symbol.for("constructor");
-  // SEANIME_ARABIC_FONT_REPAIR_V1: explicit multilingual font for Arabic events.
-  // libass's embedded provider cannot rely on host fontconfig or per-episode fonts.
+  // SEANIME_ARABIC_FONT_REPAIR_V2: cover every libass ingress path.
+  // Only font commands change; layout, drawing and transform commands stay intact.
   function repairArabicText(text) {
-    if (typeof text !== "string" || !/[\u0600-\u06ff\u0750-\u077f\u08a0-\u08ff\ufb50-\ufdff\ufe70-\ufeff]/u.test(text)) return text;
-    // Preserve timing, position, colors, and all other styling. Font resets must
-    // not switch translated Arabic back to an English/Japanese-only face.
-    text = text.replace(/\\fn[^\\}]*/g, "\\fnDejaVu Sans");
-    text = text.replace(/\\r([^\\}]*)/g, "\\r$1\\fnDejaVu Sans");
-    return "{\\fnDejaVu Sans}" + text;
-  }
-  function repairArabicAss(content) {
-    if (typeof content !== "string") return content;
-    let section = "", textIndex = 9;
-    return content.split(/\r?\n/).map(line => {
-      if (/^\[/.test(line)) section=line.trim().toLowerCase();
-      if (section !== "[events]") return line;
-      if (/^Format\s*:/i.test(line)) {
-        const columns=line.slice(line.indexOf(":")+1).split(",").map(s=>s.trim().toLowerCase());
-        const found=columns.indexOf("text");if(found>=0)textIndex=found;return line;
+    if (typeof text !== "string" || !/[\u0600-\u06ff\u0750-\u077f\u08a0-\u08ff\ufb50-\ufdff\ufe70-\ufeff]/u.test(text.replace(/\{[^}]*\}/g, ""))) return text;
+    const font = "\\fnDejaVu Sans";
+    text = text.replace(/\{([^}]*)\}/g, (_, block) => {
+      let result = "", depth = 0;
+      for (let i = 0; i < block.length;) {
+        const isFont = block.startsWith("\\fn", i);
+        const isReset = block.startsWith("\\r", i);
+        if (isFont || isReset) {
+          let end = i + (isFont ? 3 : 2);
+          // ')' terminates a command inside a transform, not the transform itself.
+          while (end < block.length && block[end] !== "\\" && !(depth > 0 && block[end] === ")")) end++;
+          if (isFont) result += font;
+          else {
+            result += block.slice(i, end);
+            if (!block.startsWith(font, end)) result += font;
+          }
+          i = end;
+        } else {
+          if (block[i] === "(") depth++;
+          else if (block[i] === ")") depth = Math.max(0, depth - 1);
+          result += block[i++];
+        }
       }
-      if (!/^Dialogue\s*:/i.test(line)) return line;
-      let index=line.indexOf(":")+1;
-      for(let i=0;i<textIndex;i++){index=line.indexOf(",",index)+1;if(index===0)return line;}
-      return line.slice(0,index)+repairArabicText(line.slice(index));
-    }).join("\n");
+      return "{" + result + "}";
+    });
+    return text.startsWith("{" + font + "}") ? text : "{" + font + "}" + text;
+  }
+  function repairArabicAss(content, state = { section: "", textIndex: 9 }) {
+    if (typeof content !== "string") return content;
+    // Keep line endings and every field outside Text byte-for-byte.
+    return content.split(/(\r\n|\n|\r)/).map(line => {
+      if (/^\s*\[/.test(line)) state.section = line.trim().toLowerCase();
+      if (state.section !== "[events]") return line;
+      if (/^\s*Format\s*:/i.test(line)) {
+        const columns = line.slice(line.indexOf(":") + 1).split(",").map(s => s.trim().toLowerCase());
+        const found = columns.indexOf("text");
+        if (found >= 0) state.textIndex = found;
+        return line;
+      }
+      if (!/^\s*Dialogue\s*:/i.test(line)) return line;
+      let index = line.indexOf(":") + 1;
+      for (let i = 0; i < state.textIndex; i++) {
+        index = line.indexOf(",", index) + 1;
+        if (index === 0) return line;
+      }
+      return line.slice(0, index) + repairArabicText(line.slice(index));
+    }).join("");
   }
   var ASSRenderer = class {
     _wasm;
@@ -3519,7 +3544,6 @@ void main() {
     }
     async [constructor](data, getFont, ctrl) {
       data.fonts = [...(data.fonts || []), new URL("../fonts/DejaVuSans.ttf", self.location.href).href];
-      data.subContent = repairArabicAss(data.subContent);
       this._availableFonts = Object.fromEntries(Object.entries(data.availableFonts).map(([k, v]) => [k.trim().toLowerCase(), v]));
       this.debug = data.debug;
       this.queryFonts = data.queryFonts;
@@ -3545,7 +3569,8 @@ void main() {
       this._wasm.setThreads(THREAD_COUNT);
       if (!this._loadedInitialFonts)
         await this._loadInitialFonts(data.fonts);
-      this._wasm.createTrackMem(data.subContent ?? await fetchtext(data.subUrl));
+      this._assStreamState = { section: "[events]", textIndex: 9 };
+      this._wasm.createTrackMem(repairArabicAss(data.subContent ?? await fetchtext(data.subUrl), this._assStreamState));
       this._subtitleColorSpace = LIBASS_YCBCR_MAP[this._wasm.trackColorSpace];
       if (data.libassMemoryLimit > 0 || data.libassGlyphLimit > 0) {
         this._wasm.setMemoryLimits(data.libassGlyphLimit || 0, data.libassMemoryLimit || 0);
@@ -3556,7 +3581,7 @@ void main() {
     // this passes a string of track data to libass, be it styles, events etc, which it then processes and adds to the track
     // useful for streaming subtitles
     processData(events) {
-      this._wasm.processData(events);
+      this._wasm.processData(repairArabicAss(events, this._assStreamState ??= { section: "[events]", textIndex: 9 }));
     }
     createEvent(event) {
       this._wasm.createEvent({ ...event, Text: repairArabicText(event.Text) });
@@ -3589,10 +3614,12 @@ void main() {
       this._wasm.disableStyleOverride();
     }
     setTrack(content) {
-      this._wasm.createTrackMem(repairArabicAss(content));
+      this._assStreamState = { section: "[events]", textIndex: 9 };
+      this._wasm.createTrackMem(repairArabicAss(content, this._assStreamState));
       this._subtitleColorSpace = LIBASS_YCBCR_MAP[this._wasm.trackColorSpace];
     }
     freeTrack() {
+      this._assStreamState = { section: "[events]", textIndex: 9 };
       this._wasm.removeTrack();
     }
     async setTrackByUrl(url) {

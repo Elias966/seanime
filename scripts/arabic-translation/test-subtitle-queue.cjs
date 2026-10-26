@@ -37,7 +37,7 @@ test('actual patched compiled player preserves every repeated ASS event',{skip:!
  const Manager=vm.runInContext('(class{'+raw.slice(a,b)+'})',ctx),m=new Manager(),sent=[],rendered=[];
  m.videoElement={currentTime:0};m.currentTrackNumber=3;m.sendTranslateRequest=text=>sent.push(text);
  m.libassRenderer={renderer:{createEvent:event=>rendered.push(event)}};
- for(const start of [100,1000,9000])m._queueEventTranslation({event:{text:'Hello',startTime:start,duration:500,trackNumber:3},assEvent:{Start:start,Duration:500,Style:7},isTranslating:true});
+ for(const start of [100,1000,9000])m._queueEventTranslation({event:{text:'Hello',startTime:start,duration:500,trackNumber:3},assEvent:{Start:start,Duration:500,Style:7,Text:'Hello'},isTranslating:true});
  assert.equal(sent.length,1);m.processEventTranslationQueue('Hello','مرحبا');
  assert.equal(rendered.length,3);assert.deepEqual(rendered.map(x=>x.Start),[100,1000,9000]);assert.ok(rendered.every(x=>x.Text==='مرحبا'&&x.Style===7));m.eventTranslationScheduler.clear();
 });

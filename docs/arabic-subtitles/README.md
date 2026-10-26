@@ -4,12 +4,12 @@ Unofficial Linux x86_64 Seanime 3.10.4 build, forked from [5rahim/seanime](https
 
 ## Download and run
 
-Download `Seanime-3.10.4-Arabic-Fixed-5.AppImage` and `SHA256SUMS` from [release 4](https://github.com/Elias966/seanime/releases/tag/v3.10.4-arabic-fix.5). Close any running Seanime instance, then:
+Download `Seanime-3.10.4-Arabic-Fixed-6.AppImage` and `SHA256SUMS` from [release 6](https://github.com/Elias966/seanime/releases/tag/v3.10.4-arabic-fix.6). Close any running Seanime instance, then:
 
 ```sh
 sha256sum -c SHA256SUMS
-chmod +x Seanime-3.10.4-Arabic-Fixed-5.AppImage
-./Seanime-3.10.4-Arabic-Fixed-5.AppImage
+chmod +x Seanime-3.10.4-Arabic-Fixed-6.AppImage
+./Seanime-3.10.4-Arabic-Fixed-6.AppImage
 ```
 
 Python 3 is required; no pip packages are needed. The build uses the existing Seanime profile. The launcher starts the bundled local helper on `127.0.0.1:11435`, or reuses a compatible already-running helper. Helper revision is checked so an older helper cannot silently override these fixes. If an old standalone service occupies this port, update it or stop it before opening the AppImage:
@@ -32,6 +32,34 @@ For local Ollama:
 Ollama itself remains at `http://127.0.0.1:11434`. All model requests stay local; no cloud fallback or model weights are bundled. Keep Ollama running.
 
 **Restart Seanime and reload the episode/subtitle track after upgrading**, because old untranslated results can remain in the player/backend caches. The user also reported that toggling translation mode away and back after changing models helped stale model selection.
+
+## Release 6: preserve signs and close font-repair gaps
+
+The reported screenshots show missing glyphs, literal formatting fragments, and on-screen signs enlarged into default dialogue. Code inspection and controlled renderer tests reproduced relevant causes; the reporter's exact subtitle file was not supplied.
+
+The prior event translator replaced the complete ASS `Text` field, throwing away inline size, position, color, rotation, line breaks and style resets. The backend whole-file translator also reconstructed text through an intermediate subtitle representation that discarded inline formatting. This release keeps ASS formatting outside the model entirely:
+
+- Translate plain text runs, then rebuild each original event with its own override blocks and hard breaks. Repeated dialogue can still share a translation without sharing its visual styling.
+- Drawing commands and coordinates stay unchanged. Drawing-only/formatting-only events need no model call.
+- Libass file tracks use the same bounded plain-text queue, rebuilding the original ASS document with metadata, styles and event fields retained. A separate translated track is added when ready, leaving the source track intact.
+- Multi-style file tracks bypass global subtitle customization and clear stale style overrides. Arabic uses the bundled DejaVu Sans family; original Latin-only font families cannot necessarily render Arabic. Sizes, positions and other supported ASS properties remain.
+- Initial URL-loaded tracks and streamed `processData` events now receive the font repair. They previously bypassed it, reproducing square glyphs even with the bundled font installed.
+- Font-command rewriting only touches ASS override blocks. Fonts inside transforms retain closing parentheses, and repeated repair is stable.
+- Model responses containing broken braces/formatting commands, replacement characters or private-use glyphs trigger a local retry. Invalid text is not accepted as Arabic success or inserted as executable ASS.
+
+The last local episode's full 362-event track retained every metadata line, event prefix, all 18 override blocks and all 75 hard breaks during queue reconstruction. It produces 437 translatable runs / 426 unique requests. This structural audit used deterministic replacements, not a claim of semantic translation quality. [Aggregate structural results](validation-ass-preservation-6.json).
+
+The actual packaged JASSUB JavaScript and WebAssembly renderer was visually tested with styled signs and dialogue: direct content, initial URL loading and streamed `processData` all displayed Arabic without square glyphs. The previous worker reproduced squares on the same URL-loaded fixture. A four-line real `gemma4:e2b` check (English and Japanese) returned Arabic in 6.4 seconds. The automated suite has 12 helper tests and 30 JavaScript tests, including compiled player adapters and all worker ingress paths.
+
+The final full-track run used the actual patched compiled manager, current queue, new local helper and real `gemma4:e2b`: **362/362 Arabic events**, **426 requests / 107 HTTP batches**, **121.25 seconds**, maximum **4 outstanding requests**, **zero request errors**, and **zero tag, hard-break or event metadata mismatches**. [Aggregate live results](validation-live-6.json). The harness used a stale progress classifier during the run; its 75 hard-break warnings were reclassified with the corrected script without replacing any model outputs. This was a delivery/formatting harness with a renderer callback, not uninterrupted video playback or independent review of every translation's meaning.
+
+The precheck ASAR was also statically analyzed with REA, scoped to the compiled player, queue and worker (parent evidence `ev_2f4146f6925e181351f4546c76c17b3927866e5d52d6465ddbbd9d777916886d`). Its static graph is partial and does not prove execution. Those three assets are byte-identical in the final image; the last rebuild updated the progress classifier. Final extraction verifies the shipped assets against source.
+
+![Controlled fixture with preserved Arabic sign sizes and positions](arabic-styled-subtitles-fixed.png)
+
+[Previous URL path showing boxes](arabic-url-subtitles-before.png) · [Fixed streamed captions](arabic-stream-subtitles-fixed.png)
+
+These checks do not establish that the external reporter's entire episode is fixed: screenshots cannot recover the original ASS, embedded fonts or already-corrupted text. Text already saved as literal squares cannot be reconstructed by choosing a font. Translation quality still depends on the model; translating separate styled runs can reduce linguistic context. This release does not redesign karaoke syllable timing or resize translated text to fit longer Arabic wording.
 
 ## Release 5: prevent skipped captions under full-episode load
 
@@ -93,7 +121,7 @@ A compact top-left overlay observes existing player WebSocket requests and resul
 
 For event tracks it shows Arabic-ready results, percentage, processed lines, pending lines, untranslated/mixed-language results and timeouts. The denominator includes observed requests and the bounded scheduler backlog, and can increase as more subtitle events arrive. Repeated source text can share one translation job while all caption occurrences receive its result. It is not an estimate of every line in the whole episode.
 
-For whole subtitle files the existing backend provides no intermediate line counts. The overlay shows activity until the file returns, then inspects its dialogue. It does not invent an intermediate file percentage. Requests without a response after 75 seconds and files still pending after five minutes produce warnings; late responses can still update status.
+Libass ASS file tracks in release 6 use the bounded text queue and therefore report known text-run progress. For other whole subtitle files the existing backend provides no intermediate line counts. The overlay shows activity until the file returns, then inspects its dialogue. It does not invent an intermediate file percentage. Requests without a response after 75 seconds and files still pending after five minutes produce warnings; late responses can still update status.
 
 The overlay supports DOM fullscreen, resets for a new episode, ignores mouse input, respects reduced-motion settings and has accessible status labels. Successful received results hide after ten seconds; incomplete results remain visible. Disabled translation and non-Arabic targets hide it.
 
@@ -103,7 +131,7 @@ Implementation: [`seanime-web/public/translation-progress.js`](../../seanime-web
 
 The packaged JASSUB/libass WebAssembly renderer did not reliably select an Arabic-capable font. The default Roboto lacks Arabic, embedded fonts vary by episode, and some multi-style subtitle tracks bypass user font customization. Installing a Linux font alone did not solve the tested cases.
 
-The repair bundles unmodified DejaVu Sans and its license, loads it in JASSUB before rendering, and applies explicit font selection to Arabic-containing events. It covers initial ASS content, track replacements, live MKV event creation/updates, inline font changes and style resets. Timing, placement, colors and other ASS properties are retained; font selection changes only on Arabic-containing events. It cannot recover text already replaced with literal square characters or fix mistranslations.
+The repair bundles unmodified DejaVu Sans and its license, loads it in JASSUB before rendering, and applies explicit font selection to Arabic-containing events. It covers initial ASS content and URL loading, track replacements, live MKV event creation/updates, streamed ASS chunks, inline font changes and style resets. Timing, placement, colors and other ASS properties are retained; font selection changes only on Arabic-containing events. It cannot recover text already replaced with literal square characters or fix mistranslations.
 
 [Original square-glyph fixture](subtitles-before.png) · [Repaired rendering](subtitles-repaired.png).
 
@@ -124,7 +152,7 @@ Check out the release tag, install Python 3 and `squashfs-tools`, then:
 ```sh
 python3 scripts/repack-arabic-appimage.py \
   /path/to/seanime-denshi-3.10.4_Linux_x86_64.AppImage \
-  ./Seanime-3.10.4-Arabic-Fixed-5.AppImage
+  ./Seanime-3.10.4-Arabic-Fixed-6.AppImage
 ```
 
 The script verifies the official image and original worker hashes. Allow several GB of temporary disk space. Filesystem timestamps/tool versions can change the final compressed AppImage checksum; `SHA256SUMS` applies to the uploaded asset.
@@ -133,7 +161,7 @@ The script verifies the official image and original worker hashes. Allow several
 
 ```sh
 python3 -m unittest discover -s scripts/arabic-translation -v
-node --test scripts/arabic-translation/test-progress.cjs scripts/arabic-translation/test-subtitle-queue.cjs
+node --test scripts/arabic-translation/test-progress.cjs scripts/arabic-translation/test-subtitle-queue.cjs scripts/arabic-translation/test-ass-format.cjs scripts/arabic-translation/test-worker-font.cjs
 # To test the compiled adapter too, set SEANIME_PLAYER_BUNDLE to the extracted patched 9195.*.js path.
 ```
 

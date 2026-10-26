@@ -607,7 +607,11 @@ Style: Default, Roboto Medium,24,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0
     }
 
     private _queueEventTranslation(cached: CachedEvent) {
-        this.eventTranslationScheduler ||= window.SeanimeCreateSubtitleTranslationQueue<CachedEvent>({
+        this._ensureTranslationScheduler().enqueueFormatted(cached.assEvent.Text, cached)
+    }
+
+    private _ensureTranslationScheduler() {
+        return this.eventTranslationScheduler ||= window.SeanimeCreateSubtitleTranslationQueue<CachedEvent>({
             send: text => this.sendTranslateRequest?.(text),
             getTime: () => this.videoElement.currentTime * 1000,
             getStart: item => item.event.startTime,
@@ -620,7 +624,21 @@ Style: Default, Roboto Medium,24,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0
                 }
             },
         })
-        this.eventTranslationScheduler.enqueue(cached.event.text, cached)
+    }
+
+    private _queueFileTranslation(trackNumber: number) {
+        const track = this.fileTracks[trackNumber]
+        if (!track?.content) { this.translatedFileTracks.delete(trackNumber); return }
+        this._ensureTranslationScheduler().enqueueAss(track.content, content => {
+            if (!this.translatedFileTracks.get(trackNumber)?.translating) return
+            if (this.currentTrackNumber !== trackNumber) { this.translatedFileTracks.delete(trackNumber); return }
+            // Mark the new track before selectTrack can request its translation again.
+            const keys = Object.keys(this.fileTracks)
+            const next = keys.length ? Number(keys[keys.length - 1]) + 1 : 1000
+            this.translatedFileTracks.set(next, { translating: false })
+            void this.addFileTrack({ ...track.info, index: trackNumber, src: "", content,
+                type: "ass", language: this.shouldTranslate || "ar", label: `${track.info.label} (translated)` })
+        })
     }
 
     processEventTranslationQueue(original: string, translated: string) {
@@ -830,13 +848,17 @@ Style: Default, Roboto Medium,24,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0
             found = true
             if (eventTrack.styles && Object.keys(eventTrack.styles).length > 1) {
                 subtitleLog.info("Track has multiple styles, not applying customization")
+                this.libassRenderer.renderer.disableStyleOverride()
                 return
             }
         }
         const fileTrack = this.fileTracks[this.currentTrackNumber]
         if (fileTrack) {
             found = true
-            // if it's a file track, it was converted from another format so has only one style
+            if ((fileTrack.content?.match(/^Style:/gm)?.length || 0) > 1) {
+                this.libassRenderer.renderer.disableStyleOverride()
+                return
+            }
         }
 
         if (!found) return
@@ -1100,8 +1122,8 @@ Style: Default, Roboto Medium,24,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0
 
         // Add it, then send translate request
         this.translatedFileTracks.set(trackNumber, { translating: true })
-        // Send server translate request
-        this.sendTranslateRequest(undefined, trackToTranslate.info)
+        // Translate plain runs and keep the original ASS document and event metadata.
+        this._queueFileTranslation(trackNumber)
     }
 
 
@@ -1233,6 +1255,8 @@ declare global {
             apply(item: T, translated: string): void
         }): {
             enqueue(text: string, item: T): void
+            enqueueFormatted(text: string, item: T): void
+            enqueueAss(content: string, receive: (content: string) => void): void
             accept(text: string, translated: string): boolean
             clear(): void
         }

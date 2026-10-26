@@ -1,0 +1,27 @@
+{
+  "helper_revision": "arabic-ass-v4",
+  "total_events": 362,
+  "planned_runs": 437,
+  "unique_runs": 426,
+  "tag_mismatches": 0,
+  "hard_break_mismatches": 0,
+  "metadata_mismatches": 0,
+  "rendered": 362,
+  "status_counts": {
+    "arabic": 362
+  },
+  "requests": 426,
+  "http_batches": 107,
+  "max_outstanding_requests": 4,
+  "errors": 0,
+  "elapsed_seconds": 121.25,
+  "original_classifier_status_counts": {
+    "arabic": 287,
+    "mixed": 75
+  },
+  "reclassified_with_current_progress": true,
+  "classifier_sha256": "6ae05eb607f8366c1428674639227475c29f3738a83521e3507b34ff9af56c84",
+  "remaining_failed_events": [],
+  "complete": true,
+  "validation_note": "Original running harness used the pre-fix classifier, which marked preserved ASS hard breaks as mixed. All 75 such outputs were reclassified against the updated classifier; no model output was replaced or retried during reclassification."
+}

@@ -25,7 +25,7 @@ import json,sys,urllib.request
 try:
     with urllib.request.urlopen('http://127.0.0.1:' + sys.argv[1] + '/health',timeout=0.5) as r:
         data = json.load(r)
-        assert data.get('ok') is True and data.get('revision') == 'arabic-queue-v3'
+        assert data.get('ok') is True and data.get('revision') == 'arabic-ass-v4'
 except Exception:
     raise SystemExit(1)
 PY

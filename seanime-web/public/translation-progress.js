@@ -12,6 +12,7 @@
     const isArabic = lang => /^ar(?:$|[-_])/i.test(lang || "") || /^arabic$/i.test(lang || "");
     const cleanDialogue = text => String(text || "").replace(/\{[^}]*\}|<[^>]*>/g, "").replace(/\\[Nnh]/g, " ").trim();
     function classify(source, output) {
+        if (/[{}]|<[^>]*>|\\[A-Za-z]+|[\uE000-\uF8FF\uFFFD]/u.test(String(output || "").replace(/\{\\[^}]*\}/g, "").replace(/\\[Nnh]/g, " "))) return "mixed";
         source = cleanDialogue(source); output = cleanDialogue(output);
         const letters = output.match(/\p{L}/gu) || [];
         if (!/\p{L}/u.test(source)) return "neutral";

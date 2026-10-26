@@ -28,6 +28,13 @@ class Tests(unittest.TestCase):
         self.assertFalse(needs_arabic_retry(r'{\fnRoboto}♪ 123 \N', '♪ 123'))
         self.assertFalse(needs_arabic_retry('We must leave now!', 'يجب أن نغادر الآن!'))
 
+    def test_broken_markup_and_private_glyphs_cannot_count_as_arabic(self):
+        for broken in ('ext{مرحبا}', r'مرحبا \fnRoboto', 'مرحبا \ue001', 'مرحبا \ufffd', '<i>مرحبا</i>'):
+            self.assertTrue(needs_arabic_retry('Hello', broken), repr(broken))
+        with patch.object(Translator, 'complete', side_effect=[response({'translation': 'ext{مرحبا}'}), response({'translation': 'مرحبا'})]) as call:
+            self.assertEqual(Translator().retry_line({'model': 'gemma4:e2b'}, 'Hello', time.monotonic() + 5), 'مرحبا')
+            self.assertEqual(call.call_count, 2)
+
     def test_repair_missing_and_english_rows_without_repeating_good_rows(self):
         p = payload([{'id': 0, 'text': 'Good morning!'}, {'id': 1, 'text': 'We must go!'},
                      {'id': 2, 'text': 'Are you ready?'}])

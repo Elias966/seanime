@@ -1,0 +1,20 @@
+{
+  "eventCount": 362,
+  "translationRuns": 437,
+  "zeroRunEvents": 0,
+  "overrideBlocks": 18,
+  "overrideUtf8Bytes": 214,
+  "hardBreaks": 75,
+  "drawingSegments": 0,
+  "metadataLines": 24,
+  "metadataMismatches": 0,
+  "structureMismatches": [],
+  "wholeTrackQueue": {
+    "sentUniqueRuns": 426,
+    "lineCountPreserved": true,
+    "metadataFailures": 0,
+    "prefixFailures": 0,
+    "tagFailures": 0,
+    "breakFailures": 0
+  }
+}

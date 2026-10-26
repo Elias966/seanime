@@ -15,7 +15,7 @@ import urllib.request
 import unicodedata
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-HELPER_REVISION = 'arabic-queue-v3'
+HELPER_REVISION = 'arabic-ass-v4'
 LOG = logging.getLogger('seanime-translation')
 ARABIC = re.compile(r'[\u0620-\u064a\u066e-\u06d3\u06fa-\u06ff\u0750-\u077f\u08a0-\u08c9]')
 LATIN_WORDS = re.compile(r'[A-Za-z]+')
@@ -27,6 +27,12 @@ def clean_dialogue(text):
 
 
 def needs_arabic_retry(source, translated):
+    # Model replies are plain dialogue, never ASS/TeX/HTML instructions. Do not
+    # let cleanup hide broken output from validation (e.g. Arabic + "ext{...").
+    raw = translated or ''
+    if (re.search(r'[{}]|<[^>]*>|\\[A-Za-z]+', raw) or
+            any(unicodedata.category(c) in ('Co', 'Cs') or c == '\ufffd' for c in raw)):
+        return True
     source, translated = clean_dialogue(source), clean_dialogue(translated)
     source_letters = [c for c in source if unicodedata.category(c).startswith('L')]
     letters = [c for c in translated if unicodedata.category(c).startswith('L')]

@@ -4,7 +4,7 @@ const fs = require('node:fs');
 const vm = require('node:vm');
 const context = { module: { exports: {} } };
 vm.runInNewContext(fs.readFileSync(__dirname + '/../../seanime-web/public/translation-progress.js', 'utf8'), context);
-const { Progress } = context.module.exports;
+const { Progress, classify } = context.module.exports;
 const settings = { mediaPlayer: { vcTranslate: true, vcTranslateTargetLanguage: 'ar' } };
 const event = (type, payload) => ({ type: 'videocore', payload: { type, payload } });
 function tracker() { const t = new Progress(); t.settings(settings); return t; }
@@ -77,4 +77,11 @@ test('unsent scheduler backlog is included so progress cannot finish early', () 
     t.incoming(event('translated-text',{original:'Hello',translated:'مرحبا'}),200);
     const s=t.snapshot(300); assert.equal(s.total,21); assert.equal(s.pending,20);
     assert.equal(s.status,'translating'); assert.equal(s.percent,5);
+});
+
+test('broken formatting output is incomplete while valid source ASS overrides are ignored',()=>{
+ assert.equal(classify('Hello','ext{مرحبا}'),'mixed');
+ assert.equal(classify('Hello','مرحبا \uE001'),'mixed');
+ assert.equal(classify('Hello','{\\fs18\\pos(10,20)}مرحبا'),'arabic');
+ assert.equal(classify('Hello','مرحبا\\Nأهلا\\hبك'),'arabic');
 });
