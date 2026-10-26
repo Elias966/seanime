@@ -58,7 +58,7 @@
     class Progress {
         constructor() { this.enabled = null; this.reset(); }
         reset() {
-            this.lines = []; this.files = new Map(); this.offline = false; this.lastChange = 0;
+            this.backlog = 0; this.lines = []; this.files = new Map(); this.offline = false; this.lastChange = 0;
         }
         settings(settings) {
             const player = settings?.mediaPlayer;
@@ -106,7 +106,7 @@
             const files = [...this.files.values()], filePending = files.filter(file => file.state === "pending").length;
             const fileStats = files.map(file => file.stats).filter(Boolean);
             const sum = key => fileStats.reduce((total, stats) => total + stats[key], 0);
-            const total = this.lines.length + sum("total"), pending = count("pending");
+            const total = this.lines.length + this.backlog + sum("total"), pending = count("pending") + this.backlog;
             const arabic = count("arabic") + sum("arabic"), neutral = count("neutral") + sum("neutral");
             const mixed = count("mixed") + sum("mixed"), unchanged = count("unchanged") + sum("unchanged"), timeout = count("timeout");
             const stalled = files.some(file => file.state === "stalled");
@@ -222,6 +222,7 @@
             return result;
         };
         doc.addEventListener("DOMContentLoaded", schedule, { once: true });
+        win.addEventListener("seanime:translation-queue", event => { tracker.backlog = Math.max(0, Number(event.detail?.pending) || 0); schedule(); });
         doc.addEventListener("fullscreenchange", schedule);
         win.setInterval(() => { if (tracker.lines.length || tracker.files.size) schedule(); }, 1000);
         schedule();

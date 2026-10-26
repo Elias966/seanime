@@ -1,0 +1,15 @@
+{
+  "total_events": 362,
+  "rendered": 362,
+  "status_counts": {
+    "arabic": 362
+  },
+  "requests": 354,
+  "http_batches": 89,
+  "max_outstanding_requests": 4,
+  "errors": 0,
+  "elapsed_seconds": 98.18,
+  "test_scope": "Full subtitle-track delivery through actual patched compiled manager methods, queue, local helper and real Ollama; not uninterrupted video playback.",
+  "semantic_accuracy": "Not independently verified",
+  "privacy": "Media path and subtitle text omitted"
+}

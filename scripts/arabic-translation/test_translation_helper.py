@@ -1,6 +1,9 @@
 import json
 import threading
 import unittest
+import io
+import time
+import urllib.error
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from unittest.mock import patch
 from translation_helper import Translator, needs_arabic_retry
@@ -79,6 +82,29 @@ class Tests(unittest.TestCase):
         self.assertEqual([r['text'] for r in rows], ['مرحبا', 'We must go!', 'أهلا'])
         self.assertEqual([c.args[0]['messages'][1]['content'] for c in call.call_args_list],
                          ['Hello', 'We must go!', 'We must go!', 'こんにちは'])
+
+    def test_stutter_is_normalized_only_for_a_failed_line_retry(self):
+        t = Translator()
+        with patch.object(t, 'complete', side_effect=[response({'translation': 'W-W-Why?'}), response({'translation': 'لماذا؟'})]) as call:
+            out = t.retry_line({'model': 'gemma4:e2b'}, 'W-W-Why?', 999999999)
+        self.assertEqual(out, 'لماذا؟')
+        self.assertEqual(call.call_args_list[-1].args[0]['messages'][1]['content'], 'Why?')
+        self.assertFalse(call.call_args_list[-1].kwargs['retry_reasoning'])
+
+    def test_temporary_model_http_500_is_retried_before_falling_back(self):
+        error = urllib.error.HTTPError('http://localhost/test', 500, 'temporary', {}, io.BytesIO(b''))
+        mock_response = io.BytesIO(json.dumps(response({'translation': 'مرحبا'})).encode())
+        with patch('translation_helper.urllib.request.urlopen', side_effect=[error, mock_response]) as call:
+            out = Translator().complete({'model': 'gemma4:e2b'}, time.monotonic() + 5)
+        self.assertEqual(call.call_count, 2)
+        self.assertEqual(json.loads(out['choices'][0]['message']['content'])['translation'], 'مرحبا')
+
+    def test_stutter_normalization_runs_even_when_first_prompt_causes_http_500(self):
+        error = urllib.error.HTTPError('http://localhost/test', 500, 'prompt failure', {}, io.BytesIO(b''))
+        with patch.object(Translator, 'complete', side_effect=[error, response({'translation': 'من هذا؟'})]) as call:
+            out = Translator().retry_line({'model': 'gemma4:e2b'}, "Wh-wh-wh-wh-who's that?!", time.monotonic() + 10)
+        self.assertEqual(out, 'من هذا؟')
+        self.assertEqual(call.call_args_list[-1].args[0]['messages'][1]['content'], "who's that?!")
 
     def test_other_language_is_not_rewritten(self):
         p = payload([{'id': 0, 'text': 'Hello there'}])

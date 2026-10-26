@@ -70,3 +70,11 @@ test('mixed language and unknown file payloads cannot show success', () => {
     t.incoming(event('add-external-subtitle-track', { index: 4, label: '(translated)' }), 500);
     assert.equal(t.snapshot(600).unverified, 1); assert.equal(t.snapshot(600).status, 'incomplete');
 });
+
+test('unsent scheduler backlog is included so progress cannot finish early', () => {
+    const t = tracker(); t.backlog = 20;
+    t.outgoing(event('translate-text', {text:'Hello'}),100);
+    t.incoming(event('translated-text',{original:'Hello',translated:'مرحبا'}),200);
+    const s=t.snapshot(300); assert.equal(s.total,21); assert.equal(s.pending,20);
+    assert.equal(s.status,'translating'); assert.equal(s.percent,5);
+});

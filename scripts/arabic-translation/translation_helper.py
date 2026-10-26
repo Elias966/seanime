@@ -15,7 +15,7 @@ import urllib.request
 import unicodedata
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-HELPER_REVISION = 'arabic-validation-v2'
+HELPER_REVISION = 'arabic-queue-v3'
 LOG = logging.getLogger('seanime-translation')
 ARABIC = re.compile(r'[\u0620-\u064a\u066e-\u06d3\u06fa-\u06ff\u0750-\u077f\u08a0-\u08c9]')
 LATIN_WORDS = re.compile(r'[A-Za-z]+')
@@ -73,8 +73,24 @@ class Translator:
             remaining = deadline - time.monotonic()
             if remaining <= 0:
                 raise TimeoutError('Translation deadline exceeded')
-            with urllib.request.urlopen(request, timeout=remaining) as response:
-                return json.load(response)
+            for attempt in range(3):
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
+                    raise TimeoutError('Translation deadline exceeded')
+                try:
+                    with urllib.request.urlopen(request, timeout=remaining) as response:
+                        return json.load(response)
+                except urllib.error.HTTPError as error:
+                    if error.code not in (408, 429, 500, 502, 503, 504) or attempt == 2:
+                        raise
+                    LOG.warning('Retrying local model HTTP %d (attempt %d)', error.code, attempt + 1)
+                    error.close()
+                except (urllib.error.URLError, TimeoutError):
+                    if attempt == 2 or deadline - time.monotonic() < .3:
+                        raise
+                    LOG.warning('Retrying temporary local model transport failure (attempt %d)', attempt + 1)
+                time.sleep(min(.15 * (2 ** attempt), max(0, deadline - time.monotonic())))
+
         finally:
             self.gate.release()
 
@@ -93,12 +109,18 @@ class Translator:
         }
         # A second, reasoning-enabled attempt is reserved for actual failures.
         for attempt in range(2):
+            normalized = re.sub(r'\b(?:[A-Za-z]{1,3}-){2,}', '', source) if attempt else source
+            payload['messages'][1]['content'] = normalized
             try:
                 response = (self.complete(payload, deadline) if attempt == 0 else
-                            self.complete(payload, deadline, retry_reasoning=True))
+                            self.complete(payload, deadline, retry_reasoning=(normalized == source)))
                 text = json.loads(response['choices'][0]['message']['content'])['translation']
                 if isinstance(text, str) and text.strip() and not needs_arabic_retry(source, text):
                     return text
+            except urllib.error.HTTPError as error:
+                if error.code not in (408, 429, 500, 502, 503, 504):
+                    raise
+                error.close()
             except (ValueError, KeyError, TypeError, IndexError):
                 pass
         raise ValueError('Model still returned an untranslated or mixed-language subtitle')

@@ -129,7 +129,11 @@ Style: Default, Roboto Medium,24,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0
     private translationTargetLang: string | null = null
     private shouldTranslate: string | null = null
     // Event translation queue. Once translated the event is removed
-    private eventTranslationQueue = new Map<string, CachedEvent>()
+    private eventTranslationScheduler?: {
+        enqueue(text: string, item: CachedEvent): void
+        accept(text: string, translated: string): boolean
+        clear(): void
+    }
     // Remember the translated file tracks to avoid re-fetching them
     private translatedFileTracks = new Map<number, { translating: boolean }>()
 
@@ -164,10 +168,7 @@ Style: Default, Roboto Medium,24,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0
         this.sendTranslateRequest = sendTranslateRequest
         this.translateFn = function (cached: CachedEvent) {
             cached.isTranslating = true
-            // Send the request to the server
-            this.sendTranslateRequest?.(cached.event.text)
-            // Add it to the queue
-            this.eventTranslationQueue.set(cached.event.text, cached)
+            this._queueEventTranslation(cached)
         }
 
         /*
@@ -222,7 +223,7 @@ Style: Default, Roboto Medium,24,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0
         this.libassRenderer = null
         this.pgsRenderer?.destroy()
         this.pgsRenderer = null
-        this.eventTranslationQueue.clear()
+        this.eventTranslationScheduler?.clear()
         this.translatedFileTracks.clear()
         for (const trackNumber in this.eventTracks) {
             this.eventTracks[trackNumber].events.clear()
@@ -605,19 +606,25 @@ Style: Default, Roboto Medium,24,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0
         return this.fileTracks[trackNumber] || null
     }
 
+    private _queueEventTranslation(cached: CachedEvent) {
+        this.eventTranslationScheduler ||= window.SeanimeCreateSubtitleTranslationQueue<CachedEvent>({
+            send: text => this.sendTranslateRequest?.(text),
+            getTime: () => this.videoElement.currentTime * 1000,
+            getStart: item => item.event.startTime,
+            getEnd: item => item.event.startTime + item.event.duration,
+            apply: (item, translated) => {
+                item.translatedAssEvent = { ...item.assEvent, Text: translated }
+                item.isTranslating = false
+                if (this.currentTrackNumber === item.event.trackNumber && this.libassRenderer) {
+                    this.libassRenderer.renderer.createEvent(item.translatedAssEvent)
+                }
+            },
+        })
+        this.eventTranslationScheduler.enqueue(cached.event.text, cached)
+    }
+
     processEventTranslationQueue(original: string, translated: string) {
-        const cached = this.eventTranslationQueue.get(original)
-        if (!cached) return
-        this.eventTranslationQueue.delete(original)
-        cached.translatedAssEvent = {
-            ...cached.assEvent,
-            Text: translated,
-        }
-        cached.isTranslating = false
-        // If the track is still the active one, inject the new event immediately
-        if (this.currentTrackNumber === cached.event.trackNumber && this.libassRenderer) {
-            this.libassRenderer.renderer.createEvent(cached.translatedAssEvent)
-        }
+        this.eventTranslationScheduler?.accept(original, translated)
     }
 
     private _getTracks(): NormalizedTrackInfo[] {
@@ -1213,4 +1220,21 @@ export function getDefaultSubtitleTrackNumber(
 
     // No forced/default tracks found, select the first track
     return tracks?.[0]?.number ?? NO_TRACK_NUMBER
+}
+
+
+declare global {
+    interface Window {
+        SeanimeCreateSubtitleTranslationQueue<T>(options: {
+            send(text: string): void
+            getTime(): number
+            getStart(item: T): number
+            getEnd(item: T): number
+            apply(item: T, translated: string): void
+        }): {
+            enqueue(text: string, item: T): void
+            accept(text: string, translated: string): boolean
+            clear(): void
+        }
+    }
 }

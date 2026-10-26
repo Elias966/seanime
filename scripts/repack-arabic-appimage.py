@@ -8,6 +8,7 @@ import shutil
 import struct
 import subprocess
 import tempfile
+from patch_subtitle_scheduler import BUNDLE_PATH, patch_player_bundle
 
 ORIGINAL_SHA256 = 'bc1d3b5b045b1be1378f4501afc436bf282c052d5fb254513addf2e3af7014f5'
 ORIGINAL_WORKER_SHA256 = '8b16fa788be8ca5d36571539dbf6915018fbbc46f095277770126f0bc791aac9'
@@ -29,17 +30,43 @@ def patch_asar(path):
     if sha256(raw[start:start + worker['size']]) != ORIGINAL_WORKER_SHA256:
         raise ValueError('Unexpected original JASSUB worker; refusing to patch')
     public = ROOT / 'seanime-web/public'
+    progress_data = (public / 'translation-progress.js').read_bytes()
+    queue_data = (public / 'subtitle-translation-queue.js').read_bytes()
+    progress_name = 'translation-progress.' + sha256(progress_data)[:8] + '.js'
+    queue_name = 'subtitle-translation-queue.' + sha256(queue_data)[:8] + '.js'
     changed = {
         'web-denshi/jassub/jassub-worker.js': (public / 'jassub/jassub-worker.js').read_bytes(),
         'web-denshi/fonts/DejaVuSans.ttf': (public / 'fonts/DejaVuSans.ttf').read_bytes(),
-        'web-denshi/translation-progress.js': (public / 'translation-progress.js').read_bytes(),
+        'web-denshi/' + queue_name: queue_data,
+        'web-denshi/' + progress_name: progress_data,
         'web-denshi/fonts/DejaVuSans.LICENSE.txt': (public / 'fonts/DejaVuSans.LICENSE.txt').read_bytes(),
     }
+    bundle_entry = tree
+    for part in BUNDLE_PATH.split('/'):
+        bundle_entry = bundle_entry['files'][part]
+    start = base + int(bundle_entry['offset'])
+    bundle_data = patch_player_bundle(raw[start:start + bundle_entry['size']])
+    bundle_hash = sha256(bundle_data)[:8]
+    changed[BUNDLE_PATH.replace('4d10fc5d', bundle_hash)] = bundle_data
+    # New content-addressed URLs prevent reuse of a cached pre-fix player chunk.
+    bootstrap_path = 'web-denshi/static/js/index.c4fd1c85.js'
+    bootstrap_entry = tree
+    for part in bootstrap_path.split('/'):
+        bootstrap_entry = bootstrap_entry['files'][part]
+    start = base + int(bootstrap_entry['offset'])
+    bootstrap = raw[start:start + bootstrap_entry['size']].decode()
+    old_reference = '9195:"4d10fc5d"'
+    if bootstrap.count(old_reference) != 1:
+        raise ValueError('Unexpected frontend chunk map')
+    bootstrap_data = bootstrap.replace(old_reference, '9195:"' + bundle_hash + '"', 1).encode()
+    new_bootstrap_path = bootstrap_path.replace('c4fd1c85', sha256(bootstrap_data)[:8])
+    changed[new_bootstrap_path] = bootstrap_data
     index_entry = tree['files']['web-denshi']['files']['index.html']
     start = base + int(index_entry['offset'])
     index_html = raw[start:start + index_entry['size']].decode()
+    index_html = index_html.replace('/static/js/index.c4fd1c85.js', '/' + new_bootstrap_path.removeprefix('web-denshi/'), 1)
     changed['web-denshi/index.html'] = index_html.replace(
-        '</head>', '<script src="/translation-progress.js"></script></head>', 1).encode()
+        '</head>', '<script src="/' + progress_name + '"></script><script src="/' + queue_name + '"></script></head>', 1).encode()
     for name in changed:
         node = tree
         parts = name.split('/')
