@@ -1,7 +1,7 @@
 import { AL_MediaFormat, AL_MediaSeason, AL_MediaSort, AL_MediaStatus } from "@/api/generated/types"
 import { atomWithImmer } from "jotai-immer"
 
-type Params = {
+export type Params = {
     active: boolean
     title: string | null
     sorting: AL_MediaSort[] | null

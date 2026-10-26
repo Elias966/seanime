@@ -8,6 +8,7 @@ import shutil
 import struct
 import subprocess
 import tempfile
+from patch_entry_navigation import SEARCH_PATH, patch_search, patch_entry, patch_bootstrap
 from patch_subtitle_scheduler import BUNDLE_PATH, patch_player_bundle
 
 ORIGINAL_SHA256 = 'bc1d3b5b045b1be1378f4501afc436bf282c052d5fb254513addf2e3af7014f5'
@@ -32,11 +33,14 @@ def patch_asar(path):
     public = ROOT / 'seanime-web/public'
     progress_data = (public / 'translation-progress.js').read_bytes()
     queue_data = (public / 'subtitle-translation-queue.js').read_bytes()
+    navigation_data = (public / 'entry-navigation.js').read_bytes()
+    navigation_name = 'entry-navigation.' + sha256(navigation_data)[:8] + '.js'
     artwork_data = (public / 'offline-artwork.js').read_bytes()
     artwork_name = 'offline-artwork.' + sha256(artwork_data)[:8] + '.js'
     progress_name = 'translation-progress.' + sha256(progress_data)[:8] + '.js'
     queue_name = 'subtitle-translation-queue.' + sha256(queue_data)[:8] + '.js'
     changed = {
+        'web-denshi/' + navigation_name: navigation_data,
         'web-denshi/jassub/jassub-worker.js': (public / 'jassub/jassub-worker.js').read_bytes(),
         'web-denshi/fonts/DejaVuSans.ttf': (public / 'fonts/DejaVuSans.ttf').read_bytes(),
         'web-denshi/' + queue_name: queue_data,
@@ -48,7 +52,13 @@ def patch_asar(path):
     for part in BUNDLE_PATH.split('/'):
         bundle_entry = bundle_entry['files'][part]
     start = base + int(bundle_entry['offset'])
-    bundle_data = patch_player_bundle(raw[start:start + bundle_entry['size']])
+    bundle_data = patch_entry(patch_player_bundle(raw[start:start + bundle_entry['size']]))
+    search_entry=tree
+    for part in SEARCH_PATH.split('/'): search_entry=search_entry['files'][part]
+    search_start=base+int(search_entry['offset'])
+    search_data=patch_search(raw[search_start:search_start+search_entry['size']])
+    search_hash=sha256(search_data)[:8]
+    changed[SEARCH_PATH.replace('23d2cc71',search_hash)]=search_data
     bundle_hash = sha256(bundle_data)[:8]
     changed[BUNDLE_PATH.replace('4d10fc5d', bundle_hash)] = bundle_data
     # New content-addressed URLs prevent reuse of a cached pre-fix player chunk.
@@ -73,7 +83,7 @@ def patch_asar(path):
         raise ValueError('Unexpected shared Image retry effect')
     bootstrap = bootstrap.replace(image_reset,
         '(0,i.useEffect)(()=>{n();window.addEventListener("online",n);window.addEventListener("seanime:artwork-ready",n);return()=>{window.removeEventListener("online",n);window.removeEventListener("seanime:artwork-ready",n)}},[b.src,n]);let x=u&&b.src', 1)
-    bootstrap_data = bootstrap.encode()
+    bootstrap_data = patch_bootstrap(bootstrap.encode(), search_hash)
     new_bootstrap_path = bootstrap_path.replace('c4fd1c85', sha256(bootstrap_data)[:8])
     changed[new_bootstrap_path] = bootstrap_data
     index_entry = tree['files']['web-denshi']['files']['index.html']
@@ -81,7 +91,7 @@ def patch_asar(path):
     index_html = raw[start:start + index_entry['size']].decode()
     index_html = index_html.replace('/static/js/index.c4fd1c85.js', '/' + new_bootstrap_path.removeprefix('web-denshi/'), 1)
     changed['web-denshi/index.html'] = index_html.replace(
-        '</head>', '<script src="/' + artwork_name + '"></script><script src="/' + progress_name + '"></script><script src="/' + queue_name + '"></script></head>', 1).encode()
+        '</head>', '<script src="/' + navigation_name + '"></script><script src="/' + artwork_name + '"></script><script src="/' + progress_name + '"></script><script src="/' + queue_name + '"></script></head>', 1).encode()
     for name in changed:
         node = tree
         parts = name.split('/')

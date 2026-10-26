@@ -4,7 +4,7 @@ import { CustomLibraryBanner } from "@/app/(main)/_features/anime-library/_conta
 import { AdvancedSearchList } from "@/app/(main)/search/_components/advanced-search-list"
 import { AdvancedSearchOptions } from "@/app/(main)/search/_components/advanced-search-options"
 import { AdvancedSearchPageTitle } from "@/app/(main)/search/_components/advanced-search-page-title"
-import { __advancedSearch_paramsAtom } from "@/app/(main)/search/_lib/advanced-search.atoms"
+import { __advancedSearch_paramsAtom, type Params } from "@/app/(main)/search/_lib/advanced-search.atoms"
 import { PageWrapper } from "@/components/shared/page-wrapper"
 import { SeaLink } from "@/components/shared/sea-link"
 import { AppLayoutGrid } from "@/components/ui/app-layout"
@@ -35,6 +35,8 @@ export default function Page() {
 
 
     useMount(() => {
+        const saved = window.SeanimeNavigation?.restoreSearch<Params>()
+        if (saved) { setParams(saved); return }
         if (sortingUrlParam || genreUrlParam || statusUrlParam || formatUrlParam || seasonUrlParam || yearUrlParam || typeUrlParam || tagsUrlParam) {
             setParams({
                 active: true,

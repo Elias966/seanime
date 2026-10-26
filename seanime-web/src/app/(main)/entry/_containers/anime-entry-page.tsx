@@ -25,6 +25,7 @@ import { EpisodeSection } from "@/app/(main)/entry/_containers/episode-list/epis
 import { __torrentSearch_selectionAtom, TorrentSearchDrawer } from "@/app/(main)/entry/_containers/torrent-search/torrent-search-drawer"
 import { TorrentStreamPage } from "@/app/(main)/entry/_containers/torrent-stream/torrent-stream-page"
 import { OnlinestreamPage } from "@/app/(main)/onlinestream/_containers/onlinestream-page"
+import { EntryBackButton } from "@/components/shared/entry-back-button"
 import { PageWrapper } from "@/components/shared/page-wrapper"
 import { cn } from "@/components/ui/core/styling"
 import { StaticTabs } from "@/components/ui/tabs"
@@ -318,6 +319,7 @@ export function AnimeEntryPage() {
 
     return (
         <div data-anime-entry-page data-media={JSON.stringify(animeEntry.media)} data-anime-entry-list-data={JSON.stringify(animeEntry.listData)}>
+            <EntryBackButton />
             <MetaSection entry={animeEntry} details={animeDetails} detailsLoading={animeDetailsLoading} />
 
             <div

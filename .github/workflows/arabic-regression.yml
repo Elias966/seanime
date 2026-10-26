@@ -4,15 +4,21 @@ on:
     paths:
       - 'scripts/arabic-translation/**'
       - 'scripts/patch_subtitle_scheduler.py'
+      - 'scripts/patch_entry_navigation.py'
+      - 'scripts/repack-arabic-appimage.py'
       - 'seanime-web/public/**'
-      - 'seanime-web/src/app/(main)/_features/video-core/**'
+      - 'seanime-web/src/**'
+      - 'seanime-web/index.html'
       - '.github/workflows/arabic-regression.yml'
   pull_request:
     paths:
       - 'scripts/arabic-translation/**'
       - 'scripts/patch_subtitle_scheduler.py'
+      - 'scripts/patch_entry_navigation.py'
+      - 'scripts/repack-arabic-appimage.py'
       - 'seanime-web/public/**'
-      - 'seanime-web/src/app/(main)/_features/video-core/**'
+      - 'seanime-web/src/**'
+      - 'seanime-web/index.html'
   workflow_dispatch:
 permissions:
   contents: read

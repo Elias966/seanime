@@ -11,6 +11,7 @@ export function useAnilistAdvancedSearch() {
 
     const params = useAtomValue(__advancedSearch_paramsAtom)
     const password = useAtomValue(serverAuthTokenAtom)
+    window.SeanimeNavigation?.setSearchParams(params)
 
     const { isLoading: isLoading1, data: data1, fetchNextPage: fetchNextPage1, hasNextPage: hasNextPage1 } = useInfiniteQuery({
         queryKey: ["advanced-search-anime", params],
@@ -50,7 +51,8 @@ export function useAnilistAdvancedSearch() {
             return (!!curr && hasNext) ? pages.length + 1 : undefined
         },
         enabled: params.active && params.type === "anime",
-        refetchOnMount: true,
+        refetchOnMount: false,
+        gcTime: 24 * 60 * 60 * 1000,
     })
 
     const { isLoading: isLoading2, data: data2, fetchNextPage: fetchNextPage2, hasNextPage: hasNextPage2 } = useInfiniteQuery({
@@ -91,7 +93,8 @@ export function useAnilistAdvancedSearch() {
             return (!!curr && hasNext) ? pages.length + 1 : undefined
         },
         enabled: params.active && params.type === "manga",
-        refetchOnMount: true,
+        refetchOnMount: false,
+        gcTime: 24 * 60 * 60 * 1000,
     })
 
     const isLoading = React.useMemo(() => params.type === "anime" ? isLoading1 : isLoading2, [isLoading1, isLoading2, params.type])

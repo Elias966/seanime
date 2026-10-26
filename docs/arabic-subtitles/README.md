@@ -4,12 +4,12 @@ Unofficial Linux x86_64 Seanime 3.10.4 build, forked from [5rahim/seanime](https
 
 ## Download and run
 
-Download `Seanime-3.10.4-Arabic-Fixed-10.AppImage` and `SHA256SUMS` from [release 10](https://github.com/Elias966/seanime/releases/tag/v3.10.4-arabic-fix.10). Close any running Seanime instance, then:
+Download `Seanime-3.10.4-Arabic-Fixed-11.AppImage` and `SHA256SUMS` from [release 11](https://github.com/Elias966/seanime/releases/tag/v3.10.4-arabic-fix.11). Close any running Seanime instance, then:
 
 ```sh
 sha256sum -c SHA256SUMS
-chmod +x Seanime-3.10.4-Arabic-Fixed-10.AppImage
-./Seanime-3.10.4-Arabic-Fixed-10.AppImage
+chmod +x Seanime-3.10.4-Arabic-Fixed-11.AppImage
+./Seanime-3.10.4-Arabic-Fixed-11.AppImage
 ```
 
 Python 3 is required; no pip packages are needed. The build uses the existing Seanime profile. The launcher starts the bundled local helper on `127.0.0.1:11435`, or reuses a compatible already-running helper. Helper revision is checked so an older helper cannot silently override these fixes. If an old standalone service occupies this port, update it or stop it before opening the AppImage:
@@ -32,6 +32,16 @@ For local Ollama:
 Ollama itself remains at `http://127.0.0.1:11434`. All model requests stay local; no cloud fallback or model weights are bundled. Keep Ollama running.
 
 **Restart Seanime and reload the episode/subtitle track after upgrading**, because old untranslated results can remain in the player/backend caches. The user also reported that toggling translation mode away and back after changing models helped stale model selection.
+
+## Release 11: anime back arrow and search return state
+
+Anime detail pages now include an accessible back-arrow button above the cover/header. It returns to the immediately preceding in-app page, including the original search visit; directly opened detail pages fall back to Search.
+
+Each browser history entry keeps its selected search parameters and scroll position in session storage. Returning to a saved search restores its complete filter object before applying URL defaults, preventing stale URL genres from replacing the user's selection. Infinite search results remain cached for 24 hours of inactivity, with mount refetch disabled, so previously loaded pages survive watching an episode. Returning to a virtualized grid uses the clicked result card's viewport offset; the stable card is used even when navigation happened through its hover preview. Restoration retries as content mounts/resizes and stops on deliberate user input. This navigation service works independently of Denshi view-transition settings.
+
+The packaged frontend was tested with an Action URL and Action + Comedy selected in the controls: 96 loaded cards remained after visiting an anime, both genres remained selected, and the chosen card returned to the same **180.125 px** viewport offset. The absolute document scroll coordinate changed as the virtualized grid remeasured; the visible result position remained identical. Six navigation regressions cover history/filter snapshots, delayed mounting, manual cancellation, direct-entry fallback, hover previews and compiled query options. All 73 local tests passed (55 JavaScript, 18 Python). The native AppImage 11 was launched; UI interaction validation used the packaged frontend in a local browser connected to the same backend.
+
+Search results themselves are held in memory, not serialized into browser storage; reloading or restarting the app fetches them again. The service saves up to 80 recent history snapshots to session storage. Earlier subtitle and offline-artwork fixes are retained.
 
 ## Release 10: readable Arabic phrases and dialogue layout
 
@@ -208,7 +218,7 @@ Check out the release tag, install Python 3 and `squashfs-tools`, then:
 ```sh
 python3 scripts/repack-arabic-appimage.py \
   /path/to/seanime-denshi-3.10.4_Linux_x86_64.AppImage \
-  ./Seanime-3.10.4-Arabic-Fixed-10.AppImage
+  ./Seanime-3.10.4-Arabic-Fixed-11.AppImage
 ```
 
 The script verifies the official image and original worker hashes. Allow several GB of temporary disk space. Filesystem timestamps/tool versions can change the final compressed AppImage checksum; `SHA256SUMS` applies to the uploaded asset.

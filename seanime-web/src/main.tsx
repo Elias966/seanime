@@ -32,7 +32,8 @@ function createAppRouter(defaultPreload: RouterPreloadMode, defaultPreloadDelay?
         defaultPreloadStaleTime: 30 * 1000,
     })
 
-    if (viewTransition) {
+    window.SeanimeNavigation?.connectRouter(router)
+    if (!window.SeanimeNavigation && viewTransition) {
         setupDenshiScrollRestoration(router)
     }
 

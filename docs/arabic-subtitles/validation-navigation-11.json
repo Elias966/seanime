@@ -1,0 +1,14 @@
+{
+  "selected_genres": [
+    "Action",
+    "Comedy"
+  ],
+  "url_default_genre": "Action",
+  "loaded_results_after_return": 96,
+  "card_offset_before": 180.125,
+  "card_offset_after": 180.125,
+  "javascript_tests": 55,
+  "python_tests": 18,
+  "ui_validation": "packaged frontend with local backend",
+  "native_appimage_launched": 11
+}
