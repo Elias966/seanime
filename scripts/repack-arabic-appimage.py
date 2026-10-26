@@ -32,8 +32,14 @@ def patch_asar(path):
     changed = {
         'web-denshi/jassub/jassub-worker.js': (public / 'jassub/jassub-worker.js').read_bytes(),
         'web-denshi/fonts/DejaVuSans.ttf': (public / 'fonts/DejaVuSans.ttf').read_bytes(),
+        'web-denshi/translation-progress.js': (public / 'translation-progress.js').read_bytes(),
         'web-denshi/fonts/DejaVuSans.LICENSE.txt': (public / 'fonts/DejaVuSans.LICENSE.txt').read_bytes(),
     }
+    index_entry = tree['files']['web-denshi']['files']['index.html']
+    start = base + int(index_entry['offset'])
+    index_html = raw[start:start + index_entry['size']].decode()
+    changed['web-denshi/index.html'] = index_html.replace(
+        '</head>', '<script src="/translation-progress.js"></script></head>', 1).encode()
     for name in changed:
         node = tree
         parts = name.split('/')
