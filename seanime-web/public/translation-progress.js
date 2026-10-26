@@ -129,29 +129,69 @@
         if (win.__seanimeTranslationProgressInstalled || !win.WebSocket) return;
         win.__seanimeTranslationProgressInstalled = true;
         const tracker = new Progress(), watched = new WeakSet();
-        let panel, title, counts, detail, bar, track, live, target, scheduled = false;
+        let panel, button, ring, popup, title, counts, detail, bar, track, live, target, scheduled = false;
         const doc = win.document;
         function mount() {
             if (!doc.body) return;
+            const slot = doc.querySelector('[data-vc-element="translation-progress-slot"]');
+            if (!slot) { panel?.remove(); target = null; return; }
             if (!panel) {
                 const style = doc.createElement("style");
                 style.textContent = `
-#seanime-translation-progress{position:fixed;top:18px;left:18px;z-index:2147483000;width:min(300px,calc(100vw - 36px));box-sizing:border-box;padding:12px 14px;border:1px solid #ffffff24;border-radius:12px;background:#10131bee;color:#f8fafc;box-shadow:0 8px 28px #0006;backdrop-filter:blur(12px);font:12px/1.5 system-ui,sans-serif;pointer-events:none;text-align:left;color-scheme:dark}
+#seanime-translation-progress{position:relative;display:flex;align-items:center;height:100%;color:white;color-scheme:dark;flex-shrink:0;font:12px/1.5 system-ui,sans-serif;text-align:left}
 #seanime-translation-progress[hidden]{display:none!important}
-#seanime-translation-progress .translation-title{font-size:13px;font-weight:650;letter-spacing:.1px}
-#seanime-translation-progress .translation-counts{margin-top:4px;font-variant-numeric:tabular-nums}
-#seanime-translation-progress .translation-detail{color:#bac3d1;font-size:11px;margin-top:4px}
-#seanime-translation-progress .translation-track{height:4px;border-radius:4px;background:#ffffff20;overflow:hidden;margin-top:9px}
-#seanime-translation-progress .translation-fill{height:100%;background:#8b9dff;border-radius:4px;transition:width .25s ease}
+#seanime-translation-progress .translation-button{position:relative;display:flex;align-items:center;justify-content:center;height:100%;width:46px;padding:0 8px;border:0;background:none;color:inherit;cursor:pointer;transition:opacity .15s}
+#seanime-translation-progress .translation-button:hover{opacity:.8}
+#seanime-translation-progress .translation-button:focus-visible{outline:2px solid #fff;outline-offset:-4px;border-radius:8px}
+#seanime-translation-progress .translation-icon{width:26px;height:26px;display:block;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+#seanime-translation-progress .translation-ring{position:absolute;right:4px;bottom:3px;width:12px;height:12px;transform:rotate(-90deg);fill:#121212;stroke:#fff;stroke-width:2.5}
+#seanime-translation-progress .translation-ring-track{stroke:#ffffff38}
+#seanime-translation-progress .translation-ring-fill{stroke-dasharray:100;transition:stroke-dashoffset .25s}
+#seanime-translation-progress[data-state=warning] .translation-ring-fill{stroke:#f4bc63}
+#seanime-translation-progress[data-state=done] .translation-ring-fill{stroke:#75d7ac}
+#seanime-translation-progress .translation-popup{display:none;position:absolute;bottom:calc(100% + 12px);right:0;box-sizing:border-box;width:min(280px,calc(100vw - 32px));padding:13px 15px;border:1px solid #ffffff20;border-radius:12px;background:#101014f5;box-shadow:0 8px 28px #0006;backdrop-filter:blur(12px);z-index:110;pointer-events:none}
+#seanime-translation-progress:not([data-dismissed=true]):hover .translation-popup,#seanime-translation-progress:not([data-dismissed=true]):focus-within .translation-popup,#seanime-translation-progress[data-expanded=true] .translation-popup{display:block}
+#seanime-translation-progress .translation-title{font-size:13px;font-weight:650}
+#seanime-translation-progress .translation-counts{margin-top:5px;font-variant-numeric:tabular-nums}
+#seanime-translation-progress .translation-detail{color:#bac3d1;font-size:11px;margin-top:5px}
+#seanime-translation-progress .translation-track{height:3px;border-radius:4px;background:#ffffff20;overflow:hidden;margin-top:9px}
+#seanime-translation-progress .translation-fill{height:100%;background:#fff;border-radius:4px;transition:width .25s ease}
 #seanime-translation-progress[data-state=warning] .translation-fill{background:#f4bc63}
 #seanime-translation-progress[data-state=done] .translation-fill{background:#75d7ac}
 #seanime-translation-progress[data-indeterminate=true] .translation-fill{width:35%!important;animation:seanime-translate-slide 1.5s ease-in-out infinite}
+#seanime-translation-progress[data-indeterminate=true] .translation-ring{animation:seanime-translate-spin 1.5s linear infinite}
+[data-vc-element="control-bar"][data-vc-state-visible="false"] #seanime-translation-progress,[data-vc-element="control-bar"][style*="translateY"]:not([style*="translateY(0px)"]) #seanime-translation-progress{visibility:hidden;pointer-events:none}
+[data-vc-element="mobile-control-bar-top-content"] #seanime-translation-progress .translation-popup{top:calc(100% + 12px);bottom:auto;right:-8px}
+[data-vc-element="mobile-control-bar-top-content"] #seanime-translation-progress .translation-button{width:34px;padding:0 4px}
 @keyframes seanime-translate-slide{0%{transform:translateX(-110%)}100%{transform:translateX(390%)}}
-@media(prefers-reduced-motion:reduce){#seanime-translation-progress .translation-fill{animation:none!important;transition:none}}
+@keyframes seanime-translate-spin{to{transform:rotate(270deg)}}
+@media(prefers-reduced-motion:reduce){#seanime-translation-progress *{animation:none!important;transition:none!important}}
 `;
                 doc.head.appendChild(style);
-                panel = doc.createElement("aside"); panel.id = "seanime-translation-progress"; panel.hidden = true;
-                panel.setAttribute("aria-label", "Subtitle translation progress to Arabic");
+                panel = doc.createElement("div"); panel.id = "seanime-translation-progress"; panel.hidden = true;
+                button = doc.createElement("button"); button.type = "button";
+                button.className = "translation-button vc-control-button";
+                button.setAttribute("data-vc-element", "control-button");
+                button.setAttribute("aria-label", "Subtitle translation to Arabic");
+                button.setAttribute("aria-expanded", "false");
+                button.setAttribute("aria-controls", "seanime-translation-details");
+                // Same outline weight and icon-only footprint as the player controls.
+                button.innerHTML = '<svg class="translation-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h12M10 3v2M6 5c0 5 3 8 7 10M14 5c-1 5-4 9-10 12M13 21l4-10 4 10M14.5 17h5"/></svg><svg class="translation-ring" viewBox="0 0 16 16" aria-hidden="true"><circle class="translation-ring-track" cx="8" cy="8" r="5.5"/><circle class="translation-ring-fill" cx="8" cy="8" r="5.5" pathLength="100"/></svg>';
+                ring = button.querySelector('.translation-ring-fill');
+                popup = doc.createElement("div"); popup.id = "seanime-translation-details"; popup.className = "translation-popup";
+                button.addEventListener("click", () => {
+                    panel.dataset.dismissed = "false";
+                    const expanded = panel.dataset.expanded !== "true";
+                    panel.dataset.expanded = String(expanded); button.setAttribute("aria-expanded", String(expanded));
+                });
+                panel.addEventListener("pointerenter", () => { panel.dataset.dismissed = "false"; });
+                panel.addEventListener("focusin", () => { panel.dataset.dismissed = "false"; });
+                doc.addEventListener("pointerdown", event => {
+                    if (!panel.contains(event.target)) { panel.dataset.expanded = "false"; button.setAttribute("aria-expanded", "false"); button.blur(); }
+                });
+                panel.addEventListener("keydown", event => {
+                    if (event.key === "Escape") { panel.dataset.dismissed = "true"; panel.dataset.expanded = "false"; button.setAttribute("aria-expanded", "false"); button.blur(); event.stopPropagation(); }
+                });
                 title = doc.createElement("div"); title.className = "translation-title";
                 counts = doc.createElement("div"); counts.className = "translation-counts";
                 detail = doc.createElement("div"); detail.className = "translation-detail";
@@ -161,16 +201,19 @@
                 bar = doc.createElement("div"); bar.className = "translation-fill"; track.appendChild(bar);
                 live = doc.createElement("span"); live.setAttribute("role", "status"); live.setAttribute("aria-live", "polite");
                 live.style.cssText = "position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)";
-                panel.append(title, counts, track, detail, live);
+                popup.append(title, counts, track, detail);
+                panel.append(button, popup, live);
             }
-            target = doc.fullscreenElement || doc.body;
+            target = slot;
             if (panel.parentNode !== target) target.appendChild(panel);
         }
         let lastAnnouncement = 0, lastAnnouncementPhase = "";
         function render() {
-            scheduled = false; mount(); if (!panel) return;
-            const s = tracker.snapshot(); panel.hidden = !s.visible;
-            if (!s.visible) return;
+            scheduled = false; mount(); if (!panel || !target) return;
+            const s = tracker.snapshot();
+            // Keep the completed status available whenever the playback bar is shown.
+            panel.hidden = !tracker.enabled || !(s.total > 0 || tracker.files.size > 0);
+            if (panel.hidden) { panel.dataset.expanded = "false"; button.setAttribute("aria-expanded", "false"); return; }
             const warning = s.offline || s.timeout || s.stalled || s.unchanged || s.mixed || s.unverified;
             panel.dataset.state = warning ? "warning" : s.active ? "active" : "done";
             const indeterminate = s.active && (s.filePending > 0 || s.percent === null);
@@ -184,8 +227,19 @@
                 (s.filePending ? "Waiting for the translated file; line total unavailable" : "Arabic script detected; translation accuracy is not verified");
             const value = s.percent ?? (!s.filePending && !s.stalled ? 100 : 0);
             bar.style.width = `${value}%`;
+            ring.style.strokeDashoffset = String(100 - value);
+            button.setAttribute("aria-label", title.textContent + ". " + counts.textContent);
+            button.title = s.active ? `Translating subtitles${s.percent === null ? "" : ` · ${s.percent}%`}` : warning ? "Translation incomplete" : "Arabic subtitles ready";
             if (indeterminate || (s.stalled && s.percent === null)) track.removeAttribute("aria-valuenow");
             else track.setAttribute("aria-valuenow", String(value));
+            const rect = panel.getBoundingClientRect();
+            const playerRect = panel.closest('[data-vc-element="container"]')?.getBoundingClientRect();
+            const minLeft = Math.max(12, (playerRect?.left || 0) + 12);
+            const maxRight = Math.min(win.innerWidth - 12, (playerRect?.right || win.innerWidth) - 12);
+            const popupWidth = Math.min(280, Math.max(0, maxRight - minLeft));
+            popup.style.width = `${popupWidth}px`;
+            popup.style.left = `${Math.max(minLeft, Math.min(rect.right - popupWidth, maxRight - popupWidth)) - rect.left}px`;
+            popup.style.right = "auto";
             const announcement = title.textContent + ". " + counts.textContent;
             const phase = `${s.active}:${s.filePending > 0}:${!!warning}:${s.offline}`;
             if (live.textContent !== announcement && (phase !== lastAnnouncementPhase || Date.now() - lastAnnouncement > 3000 || !s.active)) {
@@ -225,6 +279,12 @@
         doc.addEventListener("DOMContentLoaded", schedule, { once: true });
         win.addEventListener("seanime:translation-queue", event => { tracker.backlog = Math.max(0, Number(event.detail?.pending) || 0); schedule(); });
         doc.addEventListener("fullscreenchange", schedule);
+        // React mounts/unmounts the controls with the player. Never mount on body:
+        // being a child of the real bar makes its fade/slide/fullscreen lifecycle ours.
+        new win.MutationObserver(() => {
+            const slot = doc.querySelector('[data-vc-element="translation-progress-slot"]');
+            if (slot !== target) schedule();
+        }).observe(doc.documentElement, { childList: true, subtree: true });
         win.setInterval(() => { if (tracker.lines.length || tracker.files.size) schedule(); }, 1000);
         schedule();
     }

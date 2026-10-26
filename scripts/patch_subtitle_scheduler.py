@@ -10,6 +10,10 @@ BUNDLE_PATH = 'web-denshi/static/js/async/9195.4d10fc5d.js'
 def patch_player_bundle(raw):
     text = raw.decode()
     replacements = [
+        ('(0,n.jsx)(as,{}),(0,n.jsx)(tk,{})',
+         '(0,n.jsx)(as,{}),(0,n.jsx)("div",{"data-vc-element":"translation-progress-slot",className:"contents"}),(0,n.jsx)(tk,{})'),
+        ('topRightSection:(0,n.jsxs)(n.Fragment,{children:[(0,n.jsx)(tk,{})',
+         'topRightSection:(0,n.jsxs)(n.Fragment,{children:[(0,n.jsx)("div",{"data-vc-element":"translation-progress-slot",className:"contents"}),(0,n.jsx)(tk,{})'),
         ('this.translateFn=function(e){e.isTranslating=!0,this.sendTranslateRequest?.(e.event.text),this.eventTranslationQueue.set(e.event.text,e)}',
          'this.translateFn=function(e){e.isTranslating=!0,this._queueEventTranslation(e)}'),
         ('this.eventTranslationQueue.clear()', 'this.eventTranslationScheduler?.clear()'),

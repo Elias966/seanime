@@ -4,12 +4,12 @@ Unofficial Linux x86_64 Seanime 3.10.4 build, forked from [5rahim/seanime](https
 
 ## Download and run
 
-Download `Seanime-3.10.4-Arabic-Fixed-6.AppImage` and `SHA256SUMS` from [release 6](https://github.com/Elias966/seanime/releases/tag/v3.10.4-arabic-fix.6). Close any running Seanime instance, then:
+Download `Seanime-3.10.4-Arabic-Fixed-7.AppImage` and `SHA256SUMS` from [release 7](https://github.com/Elias966/seanime/releases/tag/v3.10.4-arabic-fix.7). Close any running Seanime instance, then:
 
 ```sh
 sha256sum -c SHA256SUMS
-chmod +x Seanime-3.10.4-Arabic-Fixed-6.AppImage
-./Seanime-3.10.4-Arabic-Fixed-6.AppImage
+chmod +x Seanime-3.10.4-Arabic-Fixed-7.AppImage
+./Seanime-3.10.4-Arabic-Fixed-7.AppImage
 ```
 
 Python 3 is required; no pip packages are needed. The build uses the existing Seanime profile. The launcher starts the bundled local helper on `127.0.0.1:11435`, or reuses a compatible already-running helper. Helper revision is checked so an older helper cannot silently override these fixes. If an old standalone service occupies this port, update it or stop it before opening the AppImage:
@@ -32,6 +32,18 @@ For local Ollama:
 Ollama itself remains at `http://127.0.0.1:11434`. All model requests stay local; no cloud fallback or model weights are bundled. Keep Ollama running.
 
 **Restart Seanime and reload the episode/subtitle track after upgrading**, because old untranslated results can remain in the player/backend caches. The user also reported that toggling translation mode away and back after changing models helped stale model selection.
+
+## Release 7: translation progress in the playback controls
+
+Translation status is now an outline icon beside Settings in the actual playback control bar, matching the neighboring controls. A small ring shows progress; amber marks incomplete results and green marks received Arabic results. Hover, focus or click to see the percentage, pending work and untranslated results. Escape or an outside click dismisses the details.
+
+The icon and details are children of the real bar rather than a fixed page overlay. They inherit its fade/slide behavior and fullscreen placement, including hiding when only the seek bar is shown. Desktop and mobile controls both have dedicated mounting slots; the mobile details open below the top control row. Details are clamped to the player/viewport width. Completed status remains available when the bar is shown until the next episode or translation is disabled.
+
+The browser regression preview used the actual progress script and the player's control-bar attributes. Active 42%, incomplete 85%, ready 100%, Escape dismissal, hide/show and controls being recreated were checked. These are controlled UI checks, not a claim of new uninterrupted episode playback. The extracted AppImage's progress script and compiled player were verified against the source/patch recipe; the compiled player contains both desktop and mobile slots. All 42 existing translation/helper/renderer tests passed.
+
+![Translation icon with progress details next to playback controls](translation-toolbar-progress.png)
+
+[Incomplete translation details](translation-toolbar-incomplete.png). Subtitle translation behavior and the release 6 fixes below remain included.
 
 ## Release 6: preserve signs and close font-repair gaps
 
@@ -117,13 +129,13 @@ Persistently failing source lines can be cached by Seanime; restart/reload to re
 
 ## Progress indicator
 
-A compact top-left overlay observes existing player WebSocket requests and results. It works for translation into Arabic from any source language and is independent of provider: Ollama, Google, etc.
+An icon in the playback controls observes existing player WebSocket requests and results. It replaces the top-left overlay in release 7. It works for translation into Arabic from any source language and is independent of provider: Ollama, Google, etc.
 
 For event tracks it shows Arabic-ready results, percentage, processed lines, pending lines, untranslated/mixed-language results and timeouts. The denominator includes observed requests and the bounded scheduler backlog, and can increase as more subtitle events arrive. Repeated source text can share one translation job while all caption occurrences receive its result. It is not an estimate of every line in the whole episode.
 
 Libass ASS file tracks in release 6 use the bounded text queue and therefore report known text-run progress. For other whole subtitle files the existing backend provides no intermediate line counts. The overlay shows activity until the file returns, then inspects its dialogue. It does not invent an intermediate file percentage. Requests without a response after 75 seconds and files still pending after five minutes produce warnings; late responses can still update status.
 
-The overlay supports DOM fullscreen, resets for a new episode, ignores mouse input, respects reduced-motion settings and has accessible status labels. Successful received results hide after ten seconds; incomplete results remain visible. Disabled translation and non-Arabic targets hide it.
+The overlay supports DOM fullscreen, resets for a new episode, ignores mouse input, respects reduced-motion settings and has accessible status labels. The icon and its details hide with the playback controls; completed and incomplete states remain available from the bar until the next episode. Disabled translation and non-Arabic targets hide it.
 
 Implementation: [`seanime-web/public/translation-progress.js`](../../seanime-web/public/translation-progress.js), loaded before the existing frontend scripts. It observes messages without rewriting them.
 
@@ -152,7 +164,7 @@ Check out the release tag, install Python 3 and `squashfs-tools`, then:
 ```sh
 python3 scripts/repack-arabic-appimage.py \
   /path/to/seanime-denshi-3.10.4_Linux_x86_64.AppImage \
-  ./Seanime-3.10.4-Arabic-Fixed-6.AppImage
+  ./Seanime-3.10.4-Arabic-Fixed-7.AppImage
 ```
 
 The script verifies the official image and original worker hashes. Allow several GB of temporary disk space. Filesystem timestamps/tool versions can change the final compressed AppImage checksum; `SHA256SUMS` applies to the uploaded asset.

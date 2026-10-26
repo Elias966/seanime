@@ -1,5 +1,5 @@
 > **Unofficial Arabic subtitle fixes with translation progress (Linux x86_64, Seanime 3.10.4)**
-> [Download the repaired AppImage](https://github.com/Elias966/seanime/releases/tag/v3.10.4-arabic-fix.6) · [How the fix works, tests, and rebuilding](docs/arabic-subtitles/README.md)
+> [Download the repaired AppImage](https://github.com/Elias966/seanime/releases/tag/v3.10.4-arabic-fix.7) · [How the fix works, tests, and rebuilding](docs/arabic-subtitles/README.md)
 > Fork of [5rahim/seanime](https://github.com/5rahim/seanime). This release is maintained independently of upstream.
 
 <p align="center">

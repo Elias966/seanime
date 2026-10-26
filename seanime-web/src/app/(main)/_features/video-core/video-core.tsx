@@ -541,6 +541,7 @@ const PlayerContent = React.memo<PlayerContentProps>(({
                             <div className="flex flex-1" data-vc-element="control-bar-separator" />
                             {!inline && <PlaybackPlayPill isNativePlayerComponent="control-bar" show={!isMiniPlayer} />}
                             <VideoCoreWatchPartyChat />
+                            <div data-vc-element="translation-progress-slot" className="contents" />
                             <VideoCoreSettingsMenu />
                             <VideoCoreResolutionMenu
                                 state={state}
@@ -558,6 +559,7 @@ const PlayerContent = React.memo<PlayerContentProps>(({
                                 <VideoCorePlaylistControl />
                             </>}
                             topRightSection={<>
+                                <div data-vc-element="translation-progress-slot" className="contents" />
                                 <VideoCoreSettingsMenu />
                                 <VideoCoreResolutionMenu
                                     state={state}
