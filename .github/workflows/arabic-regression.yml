@@ -1,0 +1,33 @@
+name: Arabic subtitle regressions
+on:
+  push:
+    paths:
+      - 'scripts/arabic-translation/**'
+      - 'scripts/patch_subtitle_scheduler.py'
+      - 'seanime-web/public/**'
+      - 'seanime-web/src/app/(main)/_features/video-core/**'
+      - '.github/workflows/arabic-regression.yml'
+  pull_request:
+    paths:
+      - 'scripts/arabic-translation/**'
+      - 'scripts/patch_subtitle_scheduler.py'
+      - 'seanime-web/public/**'
+      - 'seanime-web/src/app/(main)/_features/video-core/**'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  regressions:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Subtitle queue, animated captions, Arabic renderer and artwork tests
+        run: node --test scripts/arabic-translation/test-*.cjs
+      - name: Translation helper and persistent cache tests
+        run: python3 -m unittest discover -s scripts/arabic-translation -p 'test_*.py'
