@@ -17,7 +17,7 @@ import urllib.parse
 from artwork_cache import ArtworkCache
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-HELPER_REVISION = 'arabic-artwork-v5'
+HELPER_REVISION = 'arabic-phrases-v6'
 LOG = logging.getLogger('seanime-translation')
 ARABIC = re.compile(r'[\u0620-\u064a\u066e-\u06d3\u06fa-\u06ff\u0750-\u077f\u08a0-\u08c9]')
 LATIN_WORDS = re.compile(r'[A-Za-z]+')
@@ -106,7 +106,7 @@ class Translator:
         payload = {
             'model': original_payload['model'], 'temperature': 0, 'stream': False,
             'messages': [
-                {'role': 'system', 'content': 'Translate this subtitle into natural Modern Standard Arabic. Translate the complete sentence. Render names in Arabic script too. Translate English, Japanese, Chinese, Cyrillic and any other source language completely into Arabic; do not copy foreign dialogue or add explanations. Return JSON only: {"translation":"Arabic translation"}.'},
+                {'role': 'system', 'content': 'Translate this subtitle into natural Modern Standard Arabic. Translate the complete sentence and preserve its subject and tense. Karaoke may split words into syllables with spaces: reconstruct the original words before translating (for example "gif ted" means "gifted" and "be ing" means "being"). Render names in Arabic script too. Translate English, Japanese, Chinese, Cyrillic and any other source language completely into Arabic; do not copy foreign dialogue or add explanations. Return JSON only: {"translation":"Arabic translation"}.'},
                 {'role': 'user', 'content': source},
             ],
             'response_format': {'type': 'json_schema', 'json_schema': {

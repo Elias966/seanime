@@ -4,12 +4,12 @@ Unofficial Linux x86_64 Seanime 3.10.4 build, forked from [5rahim/seanime](https
 
 ## Download and run
 
-Download `Seanime-3.10.4-Arabic-Fixed-9.AppImage` and `SHA256SUMS` from [release 9](https://github.com/Elias966/seanime/releases/tag/v3.10.4-arabic-fix.9). Close any running Seanime instance, then:
+Download `Seanime-3.10.4-Arabic-Fixed-10.AppImage` and `SHA256SUMS` from [release 10](https://github.com/Elias966/seanime/releases/tag/v3.10.4-arabic-fix.10). Close any running Seanime instance, then:
 
 ```sh
 sha256sum -c SHA256SUMS
-chmod +x Seanime-3.10.4-Arabic-Fixed-9.AppImage
-./Seanime-3.10.4-Arabic-Fixed-9.AppImage
+chmod +x Seanime-3.10.4-Arabic-Fixed-10.AppImage
+./Seanime-3.10.4-Arabic-Fixed-10.AppImage
 ```
 
 Python 3 is required; no pip packages are needed. The build uses the existing Seanime profile. The launcher starts the bundled local helper on `127.0.0.1:11435`, or reuses a compatible already-running helper. Helper revision is checked so an older helper cannot silently override these fixes. If an old standalone service occupies this port, update it or stop it before opening the AppImage:
@@ -32,6 +32,20 @@ For local Ollama:
 Ollama itself remains at `http://127.0.0.1:11434`. All model requests stay local; no cloud fallback or model weights are bundled. Keep Ollama running.
 
 **Restart Seanime and reload the episode/subtitle track after upgrading**, because old untranslated results can remain in the player/backend caches. The user also reported that toggling translation mode away and back after changing models helped stale model selection.
+
+## Release 10: readable Arabic phrases and dialogue layout
+
+Some anime tracks encode an opening as hundreds of individual Latin letters, syllables and repeated glow/shadow effects. Translating each fragment produces unrelated Arabic words positioned in tiny Latin character slots. The selected full English track in the reported episode contains this exact pattern, alongside its normal dialogue.
+
+The queue now buffers animated fragments briefly and reconstructs timed phrases before translation. It recovers word boundaries from glyph spacing (including proportional and monospaced layouts), removes duplicate effect layers and uses complete word layers when glyph layers are unavailable. Short sentence continuations are joined to their subject before translation. Arabic phrases get a full-width text box; simultaneous phrases use separate rows. Where a complete English lyric accompanies animated romanization, its Arabic translation supplies the lyric instead of adding phonetic fragments. Normal dialogue and ordinary styled signs retain their styles and timing. Translation-off behavior still uses the original events.
+
+Plain dialogue split by ASS hard line breaks is now sent as one sentence, retaining its subject and tense; Arabic wraps naturally. Multiple independently styled runs continue to preserve their overrides. Light Arabic dialogue opts into libass whole-line BiDi/shaping (`\fe-1`). All Arabic captions, including positioned lyrics and signs, use zero letter spacing so Arabic letters join; font resets reapply that layout. Explicit inline spacing is normalized too. Positioned signs retain their source layout. See the [libass encoding documentation](https://github.com/libass/libass/wiki/Libass%27-ASS-Extensions#encoding-1). The helper prompt also handles syllabified source words and requests preservation of subject/tense. Helper revision: `arabic-phrases-v6`.
+
+Validation includes a fresh full-track Gemma4 E2B run, all 309 dialogue events checked for Arabic results, real packaged JASSUB/WASM rendering at dialogue/opening/overlapping-lyric/ending timestamps, and 67 passing tests (18 Python, 49 JavaScript), including the compiled manager. The automated Arabic check confirms script coverage, not semantic perfection. Visual samples check joining, direction and placement rather than claiming uninterrupted native playback. The original media, subtitle text and paths are kept private.
+
+A dedicated GitHub Actions workflow now runs the source regression suite automatically on relevant changes. Checks needing an extracted official player/bootstrap are enabled during local release verification; they skip when those artifacts are absent in CI. The release packager also rejects unexpected original hashes and ambiguous patch matches.
+
+Restart with AppImage 10 and reopen the episode; cached translations and previously loaded frontend code must be replaced.
 
 ## Release 9: translate the full dialogue track
 
@@ -194,7 +208,7 @@ Check out the release tag, install Python 3 and `squashfs-tools`, then:
 ```sh
 python3 scripts/repack-arabic-appimage.py \
   /path/to/seanime-denshi-3.10.4_Linux_x86_64.AppImage \
-  ./Seanime-3.10.4-Arabic-Fixed-9.AppImage
+  ./Seanime-3.10.4-Arabic-Fixed-10.AppImage
 ```
 
 The script verifies the official image and original worker hashes. Allow several GB of temporary disk space. Filesystem timestamps/tool versions can change the final compressed AppImage checksum; `SHA256SUMS` applies to the uploaded asset.

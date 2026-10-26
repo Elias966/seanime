@@ -3486,7 +3486,12 @@ void main() {
   function repairArabicText(text) {
     if (typeof text !== "string" || !/[\u0600-\u06ff\u0750-\u077f\u08a0-\u08ff\ufb50-\ufdff\ufe70-\ufeff]/u.test(text.replace(/\{[^}]*\}/g, ""))) return text;
     const font = "\\fnDejaVu Sans";
+    // Light dialogue uses whole-line BiDi/shaping rather than Latin ASS run order.
+    // Positioned signs keep their layout; normalized animated phrases opt in themselves.
+    const layout = /\\(?:pos|move|i?clip|p\d)/.test(text) ? "\\fsp0" : "\\fe-1\\fsp0";
+    const prefix = "{" + font + layout + "}";
     text = text.replace(/\{([^}]*)\}/g, (_, block) => {
+      block = block.replace(/\\fsp[-\d.]+/g, "\\fsp0");
       let result = "", depth = 0;
       for (let i = 0; i < block.length;) {
         const isFont = block.startsWith("\\fn", i);
@@ -3498,7 +3503,7 @@ void main() {
           if (isFont) result += font;
           else {
             result += block.slice(i, end);
-            if (!block.startsWith(font, end)) result += font;
+            if (!block.startsWith(font, end)) result += font + layout;
           }
           i = end;
         } else {
@@ -3509,7 +3514,7 @@ void main() {
       }
       return "{" + result + "}";
     });
-    return text.startsWith("{" + font + "}") ? text : "{" + font + "}" + text;
+    return text.startsWith(prefix) ? text : prefix + text;
   }
   function repairArabicAss(content, state = { section: "", textIndex: 9 }) {
     if (typeof content !== "string") return content;

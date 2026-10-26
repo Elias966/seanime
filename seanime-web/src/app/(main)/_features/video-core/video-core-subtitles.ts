@@ -131,6 +131,8 @@ Style: Default, Roboto Medium,24,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0
     // Event translation queue. Once translated the event is removed
     private eventTranslationScheduler?: {
         enqueue(text: string, item: CachedEvent): void
+        enqueueFormatted(text: string, item: CachedEvent): void
+        enqueueAss(content: string, receive: (content: string) => void): void
         accept(text: string, translated: string): boolean
         clear(): void
     }
@@ -614,10 +616,11 @@ Style: Default, Roboto Medium,24,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0
         return this.eventTranslationScheduler ||= window.SeanimeCreateSubtitleTranslationQueue<CachedEvent>({
             send: text => this.sendTranslateRequest?.(text),
             getTime: () => this.videoElement.currentTime * 1000,
+            getWidth: () => Number((this.eventTracks[this.currentTrackNumber]?.info.codecPrivate || "").match(/PlayResX:\s*(\d+)/i)?.[1]) || 1920,
             getStart: item => item.event.startTime,
             getEnd: item => item.event.startTime + item.event.duration,
-            apply: (item, translated) => {
-                item.translatedAssEvent = { ...item.assEvent, Text: translated }
+            apply: (item, translated, layout) => {
+                item.translatedAssEvent = { ...item.assEvent, ...layout, Text: translated }
                 item.isTranslating = false
                 if (this.currentTrackNumber === item.event.trackNumber && this.libassRenderer) {
                     this.libassRenderer.renderer.createEvent(item.translatedAssEvent)
@@ -1254,9 +1257,10 @@ declare global {
         SeanimeCreateSubtitleTranslationQueue<T>(options: {
             send(text: string): void
             getTime(): number
+            getWidth?(): number
             getStart(item: T): number
             getEnd(item: T): number
-            apply(item: T, translated: string): void
+            apply(item: T, translated: string, layout?: { Start: number, Duration: number }): void
         }): {
             enqueue(text: string, item: T): void
             enqueueFormatted(text: string, item: T): void

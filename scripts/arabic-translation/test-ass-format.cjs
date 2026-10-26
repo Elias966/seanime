@@ -49,3 +49,7 @@ test('compiled customization clears stale overrides for multi-style ASS files',{
  Object.assign(m,{settings:{subtitleCustomization:{enabled:true}},currentTrackNumber:2,eventTracks:{},fileTracks:{2:{content:'Style: Default,Roboto,30\nStyle: Sign,Roboto,12\n'}},libassRenderer:{ready:Promise.resolve(),renderer:{disableStyleOverride:()=>disabled++,styleOverride:()=>{throw Error('must not flatten styles')}}}});
  await m._applySubtitleCustomization();assert.equal(disabled,1);
 });
+test('plain dialogue across hard line breaks is translated as one complete sentence',()=>{
+ const plan=createAssPlan('Someone on Earth \\Nhad a sudden thought.');assert.deepEqual(plan.runs.map(x=>x.source),['Someone on Earth had a sudden thought.']);
+ assert.equal(plan.render(['خطر لأحد سكان الأرض خاطر مفاجئ.']),'خطر لأحد سكان الأرض خاطر مفاجئ.');
+});

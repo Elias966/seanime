@@ -19,6 +19,21 @@
     // Keep ASS outside the model. Each translated run retains its own overrides,
     // hard breaks and drawing state; cached translations never cache presentation.
     function createAssPlan(text) {
+        // A line break is presentation, not a sentence boundary. Translating its
+        // halves independently loses subjects/tense and scrambles Arabic meaning.
+        const leading = String(text || "").match(/^(?:\{[^}]*\})*/)?.[0] || "";
+        const body = String(text || "").slice(leading.length);
+        if (!/\{[^}]*\}/.test(body) && /\\[Nn]|\r?\n/.test(body)) {
+            const source = body.replace(/\\[Nnh]|\r?\n/g, " ").replace(/\s+/g, " ").trim();
+            if (/\p{L}/u.test(source)) return {
+                parts: [leading, body], runs: [{source,index:1,leading:"",trailing:""}],
+                render(values) {
+                    let value = String(values[0] ?? source).trim();
+                    if (/[{}]|\\(?:[a-z]+|[Nnh])/i.test(value)) value = source;
+                    return leading + value.replace(/\r?\n/g, "\\N");
+                },
+            };
+        }
         const parts = [], runs = [];
         let drawing = false;
         const tokens = String(text || "").split(/(\{[^}]*\}|\\[Nnh]|\r?\n)/g);
@@ -46,13 +61,115 @@
             return output.join("");
         } };
     }
+    // Collapse character/syllable animation layers into readable timed phrases.
+    // Translate source words once, rather than placing Arabic words in Latin glyph slots.
+    function animationInfo(text, meta) {
+        const plain = String(text).replace(/\{[^}]*\}/g, "").replace(/\\[Nnh]/g, " ").trim();
+        const position = /\\pos\(([-.\d]+),\s*([-.\d]+)\)/.exec(text);
+        const move = /\\move\(([-.\d]+),\s*([-.\d]+)/.exec(text);
+        if (!plain || !/^[\p{Script=Latin}\p{N}\p{P}\p{Z}\p{S}]+$/u.test(plain) || !(position || move) || !meta || (!move && meta.effect !== "fx")) return null;
+        const point = position || move;
+        return { plain, x: Number(point[1]), y: Number(point[2]), primary: !!position,
+            start: meta.start, end: meta.end, style: meta.style };
+    }
+    function normalizeAnimations(records) {
+        const output = records.map(record => ({ ...record })), styles = new Map();
+        for (let i = 0; i < records.length; i++) {
+            const info = animationInfo(records[i].text, records[i]);
+            if (!info) continue;
+            const key = String(info.style); if (!styles.has(key)) styles.set(key, []);
+            styles.get(key).push({ ...info, index: i });
+        }
+        for (const entries of styles.values()) {
+            if (entries.length < 8 || entries.filter(e => e.plain.length <= 3).length < entries.length / 2) continue;
+            // Secondary layers often contain complete words repeated for glow/shadows.
+            const secondary = entries.filter(e => !e.primary), primary = entries.filter(e => e.primary);
+            const useGlyphs = primary.length > 8 && primary.filter(e => e.plain.length === 1).length > primary.length * .7;
+            const useWords = !useGlyphs && secondary.filter(e => e.plain.length > 1).length >= 5;
+            const seen = new Set(), chosen = (useWords ? secondary : useGlyphs ? primary.filter(e => e.plain.length === 1) : primary).filter(e => {
+                const key = `${e.start}:${e.x}:${e.y}:${e.plain}`;
+                if (seen.has(key)) return false; seen.add(key); return true;
+            }).sort((a, b) => a.start - b.start || a.x - b.x);
+            if (chosen.length < 4) continue;
+            const widths = {i:.28,l:.28,j:.28,t:.39,f:.35,m:.97,w:.82,r:.41,s:.52,I:.30,J:.30,M:.86,W:.99};
+            const width = char => widths[char] || .62;
+            const ratios = [], gaps = [];
+            if (useGlyphs) for (let i=1;i<chosen.length;i++) {
+                const a=chosen[i-1], b=chosen[i], gap=b.x-a.x;
+                if (gap>0 && gap<60 && Math.abs(a.y-b.y)<5 && b.start-a.start<400) {
+                    gaps.push(gap); ratios.push(gap/((width(a.plain)+width(b.plain))/2));
+                }
+            }
+            const stepCounts = new Map();for(const gap of gaps) { const step=Math.round(gap);stepCounts.set(step,(stepCounts.get(step)||0)+1); }
+            const mono = [...stepCounts].sort((a,b)=>b[1]-a[1])[0];
+            const monoStep = mono && mono[1] > gaps.length*.65 ? mono[0] : 0;
+            ratios.sort((a,b)=>a-b);const scale=monoStep || ratios[Math.floor(ratios.length/2)] || 40;
+            const groups = [], rows = new Map();
+            for (const event of chosen) {
+                const row = Math.round(event.y / 10), previous = rows.get(row);
+                if (!previous || event.start - previous.end > 1200 || event.x < previous.lastX - 45 || event.start - previous.start > 12000) {
+                    const group = { events: [event], start: event.start, end: event.end, lastX: event.x };
+                    rows.set(row, group); groups.push(group);
+                } else {
+                    previous.events.push(event); previous.end = Math.max(previous.end, event.end); previous.lastX = event.x;
+                }
+            }
+            if (!groups.some(g => g.events.length >= 3)) continue;
+            // Remove original letter animations; representatives below replace them.
+            for (const event of entries) output[event.index] = { ...output[event.index], text: "" };
+            for (const group of groups) {
+                const list = group.events, first = list[0];
+                const family = String(first.style).split(/[- ]/)[0];
+                const englishLyrics = /rom|kana|kanji/i.test(String(first.style)) && records.some(record =>
+                    String(record.style).startsWith(family) && /eng|tlt|translat/i.test(String(record.style)) &&
+                    record.start <= group.end && record.end >= group.start &&
+                    /\p{L}/u.test(record.text.replace(/\{[^}]*\}/g, "")));
+                if (englishLyrics) continue; // The translated English lyric replaces its animated romanization.
+
+                const text = useGlyphs ? list.map((e,i) => {
+                    const a=list[i-1], expected=a ? monoStep || scale*(width(a.plain)+width(e.plain))/2 : 0;
+                    return (a && e.x-a.x-expected>Math.max(3,scale*.12) ? " " : "") + e.plain;
+                }).join("") : list.map(e => e.plain).join(useWords ? " " : "");
+                if (!text.trim()) continue;
+                const start = Math.max(0, group.start - (useWords ? 750 : 0)), end = group.end;
+                const x = (records[first.index].width || 1920) / 2;
+                const y = first.y;
+                output[first.index] = { ...output[first.index], start, end,
+                    text: `{\\an8\\pos(${x},${y})\\fe-1\\fsp0\\q0}${text}`, normalized: true };
+            }
+        }
+        // Karaoke line changes can split a sentence immediately before its verb.
+        // Keep a short lowercase continuation with its subject for the model.
+        const preceding = new Map();
+        for (const event of output.filter(e => e.normalized).sort((a,b) => a.start-b.start)) {
+            const previous = preceding.get(event.style), body=event.text.replace(/\{[^}]*\}/g, "");
+            const before=previous?.text.replace(/\{[^}]*\}/g, "") || "";
+            if (previous && /^[a-z]/.test(body) && !/[.!?]$/.test(before) && event.start-previous.end<1500 &&
+                event.end-previous.start<12000 && before.length+body.length<160) {
+                previous.text += " " + body; previous.end=Math.max(previous.end,event.end);
+                event.text="";event.normalized=false;
+            } else preceding.set(event.style,event);
+        }
+        // Phrase-sized Arabic needs a full-width box; simultaneous lyric layers
+        // get separate rows rather than occupying the same character coordinates.
+        const lanes = [];
+        for (const event of output.filter(e => e.normalized).sort((a,b) => a.start - b.start)) {
+            const match = /\\pos\(([-.\d]+),([-.\d]+)\)/.exec(event.text);
+            let y = Number(match[2]);
+            while (lanes.some(lane => lane.end > event.start && Math.abs(lane.y-y) < 90)) y += 100;
+            lanes.push({end:event.end,y});
+            event.text = event.text.replace(/(\\pos\([-.\d]+,)[-.\d]+/, `$1${y}`);
+        }
+        return output;
+    }
     function createQueue(options) {
         const jobs = new Map(), results = new Map();
         const limit = options.limit ?? 4, timeout = options.timeoutMs ?? 75000;
         let active = 0, destroyed = false, draining = false;
+        let animationTimer = null; const animations = [];
         const later = options.setTimeout || setTimeout, cancel = options.clearTimeout || clearTimeout;
         function notify() {
-            const detail = { pending: [...jobs.values()].filter(job => !job.active).length, active, limit };
+            const detail = { pending: animations.length + [...jobs.values()].filter(job => !job.active).length, active, limit };
             options.onProgress?.(detail);
             if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("seanime:translation-queue", { detail }));
         }
@@ -115,7 +232,26 @@
                 job = { text, items: new Set([item]), active: false, retries: 0, timer: null };
                 jobs.set(text, job); drain();
             },
-            enqueueFormatted(text, item, receive, timing) {
+            enqueueFormatted(text, item, receive, timing, prepared = false) {
+                if (destroyed) return;
+                const meta = timing || (item?.assEvent ? { start: item.assEvent.Start, end: item.assEvent.Start + item.assEvent.Duration, style: item.event?.extraData?.style || item.assEvent.Style, effect: item.event?.extraData?.effect, width: options.getWidth?.() } : null);
+                if (!prepared && animationInfo(text, meta)) {
+                    animations.push({ text, item, receive, timing, ...meta });
+                    cancel(animationTimer); animationTimer = later(() => {
+                        animationTimer = null;
+                        const original = animations.splice(0), normalized = normalizeAnimations(original);
+                        for (let i = 0; i < original.length; i++) {
+                            const entry = original[i], next = normalized[i];
+                            const layout = next.normalized ? { Start: next.start, Duration: next.end - next.start } : undefined;
+                            api.enqueueFormatted(next.text, entry.item, (value) => {
+                                if (entry.receive) entry.receive(value, layout);
+                                else options.apply(entry.item, value, layout);
+                            }, next, true);
+                        }
+                        notify();
+                    }, 1000);
+                    notify(); return;
+                }
                 const plan = createAssPlan(text), values = new Array(plan.runs.length);
                 let remaining = plan.runs.length;
                 const apply = result => (receive || (value => options.apply(item, value)))(result);
@@ -140,12 +276,21 @@
                     const ending = line.match(/\r?\n$/)?.[0] || "", prefix = line.slice(0, offset);
                     const fields = prefix.slice(prefix.indexOf(":") + 1).split(",");
                     const millis = value => { const n = String(value).trim().split(":").map(Number); return n.length === 3 ? ((n[0] * 60 + n[1]) * 60 + n[2]) * 1000 : 0; };
-                    events.push({ index: i, prefix, ending, text: line.slice(offset, ending ? -ending.length : undefined), start: millis(fields[1]), end: millis(fields[2]) });
+                    events.push({ index: i, prefix, ending, text: line.slice(offset, ending ? -ending.length : undefined), style: fields[3], effect: fields[8], width: Number(content.match(/PlayResX:\s*(\d+)/i)?.[1]) || 1920, start: millis(fields[1]), end: millis(fields[2]) });
                 }
                 let remaining = events.length;
                 if (!remaining) { if (!destroyed) receive(content); return; }
-                for (const event of events) api.enqueueFormatted(event.text, null, translated => {
-                    lines[event.index] = event.prefix + translated + event.ending;
+                for (const event of events) api.enqueueFormatted(event.text, null, (translated, layout) => {
+                    let prefix = event.prefix;
+                    if (layout) {
+                        const fields = prefix.split(","), stamp = ms => {
+                            let cs = Math.round(ms / 10); const h = Math.floor(cs / 360000); cs %= 360000;
+                            const m = Math.floor(cs / 6000); cs %= 6000;
+                            return `${h}:${String(m).padStart(2, "0")}:${String(Math.floor(cs / 100)).padStart(2, "0")}.${String(cs % 100).padStart(2, "0")}`;
+                        };
+                        fields[1] = stamp(layout.Start); fields[2] = stamp(layout.Start + layout.Duration); prefix = fields.join(",");
+                    }
+                    lines[event.index] = prefix + translated + event.ending;
                     if (!--remaining && !destroyed) receive(lines.join(""));
                 }, event);
             },
@@ -154,13 +299,13 @@
                 deliver(job, translated); drain(); return true;
             },
             clear() {
-                destroyed = true;
+                destroyed = true; cancel(animationTimer); animations.length = 0;
                 for (const job of jobs.values()) cancel(job.timer);
                 jobs.clear(); results.clear(); active = 0; notify();
             },
-            stats() { return { active, pending: jobs.size - active, cached: results.size }; },
+            stats() { return { active, pending: animations.length + jobs.size - active, cached: results.size }; },
         };
         return api;
     }
-    return { createQueue, createAssPlan, preferDialogueTracks };
+    return { createQueue, createAssPlan, preferDialogueTracks, normalizeAnimations };
 });

@@ -1,0 +1,22 @@
+{
+  "events": 2665,
+  "dialogue": 309,
+  "arabic_dialogue": 309,
+  "requests": 376,
+  "max_inflight": 4,
+  "failures": 0,
+  "elapsed_s": 86.665,
+  "model": "gemma4:e2b",
+  "helper_revision": "arabic-phrases-v6",
+  "javascript_tests": 49,
+  "python_tests": 18,
+  "continuous_native_playback_tested": false,
+  "wasm_visual_checks": {
+    "opening_dialogue": 4.5,
+    "opening_lyrics": 24.5,
+    "normal_dialogue": 123.9,
+    "simultaneous_lyrics": 69,
+    "ending_lyrics": 1290
+  },
+  "positioned_arabic_spacing_before_after_verified": true
+}
