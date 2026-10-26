@@ -17,7 +17,14 @@ export const SeaImage = forwardRef<HTMLImageElement, ImageProps & { isExternal?:
         const [hasError, setHasError] = useState(false)
 
         useEffect(() => {
-            setHasError(false)
+            const reset = () => setHasError(false)
+            reset()
+            window.addEventListener("online", reset)
+            window.addEventListener("seanime:artwork-ready", reset)
+            return () => {
+                window.removeEventListener("online", reset)
+                window.removeEventListener("seanime:artwork-ready", reset)
+            }
         }, [props.src])
 
         if (HIDE_IMAGES) {
@@ -109,7 +116,10 @@ const Image = forwardRef<HTMLImageElement, _ImageProps>((
     const [isLoaded, setIsLoaded] = useState(false)
 
     const isStaticImport = typeof src === "object" && src !== null && "src" in src
-    const imageSrc = overrideSrc || (isStaticImport ? src.src : src)
+    const originalImageSrc = overrideSrc || (isStaticImport ? src.src : src)
+    const imageSrc = typeof window !== "undefined"
+        ? (window.SeanimeResolveImageUrl?.(originalImageSrc) ?? originalImageSrc)
+        : originalImageSrc
 
     const staticBlur = isStaticImport ? src.blurDataURL : undefined
 
@@ -168,3 +178,8 @@ const Image = forwardRef<HTMLImageElement, _ImageProps>((
 })
 
 Image.displayName = "Image"
+
+// The desktop repair loads the resolver before the application bootstrap.
+declare global {
+    interface Window { SeanimeResolveImageUrl?: (source: string) => string }
+}

@@ -32,12 +32,15 @@ def patch_asar(path):
     public = ROOT / 'seanime-web/public'
     progress_data = (public / 'translation-progress.js').read_bytes()
     queue_data = (public / 'subtitle-translation-queue.js').read_bytes()
+    artwork_data = (public / 'offline-artwork.js').read_bytes()
+    artwork_name = 'offline-artwork.' + sha256(artwork_data)[:8] + '.js'
     progress_name = 'translation-progress.' + sha256(progress_data)[:8] + '.js'
     queue_name = 'subtitle-translation-queue.' + sha256(queue_data)[:8] + '.js'
     changed = {
         'web-denshi/jassub/jassub-worker.js': (public / 'jassub/jassub-worker.js').read_bytes(),
         'web-denshi/fonts/DejaVuSans.ttf': (public / 'fonts/DejaVuSans.ttf').read_bytes(),
         'web-denshi/' + queue_name: queue_data,
+        'web-denshi/' + artwork_name: artwork_data,
         'web-denshi/' + progress_name: progress_data,
         'web-denshi/fonts/DejaVuSans.LICENSE.txt': (public / 'fonts/DejaVuSans.LICENSE.txt').read_bytes(),
     }
@@ -58,7 +61,19 @@ def patch_asar(path):
     old_reference = '9195:"4d10fc5d"'
     if bootstrap.count(old_reference) != 1:
         raise ValueError('Unexpected frontend chunk map')
-    bootstrap_data = bootstrap.replace(old_reference, '9195:"' + bundle_hash + '"', 1).encode()
+    bootstrap = bootstrap.replace(old_reference, '9195:"' + bundle_hash + '"', 1)
+    # Resolve the common Image component's final src, including all cover variants.
+    image_source = 'L=p||(R?y.src:y),M=R?y.blurDataURL:void 0;'
+    if bootstrap.count(image_source) != 1:
+        raise ValueError('Unexpected shared Image component')
+    bootstrap = bootstrap.replace(image_source,
+        'L=window.SeanimeResolveImageUrl?.(p||(R?y.src:y))??(p||(R?y.src:y)),M=R?y.blurDataURL:void 0;', 1)
+    image_reset = '(0,i.useEffect)(n,[b.src]);let x=u&&b.src'
+    if bootstrap.count(image_reset) != 1:
+        raise ValueError('Unexpected shared Image retry effect')
+    bootstrap = bootstrap.replace(image_reset,
+        '(0,i.useEffect)(()=>{n();window.addEventListener("online",n);window.addEventListener("seanime:artwork-ready",n);return()=>{window.removeEventListener("online",n);window.removeEventListener("seanime:artwork-ready",n)}},[b.src,n]);let x=u&&b.src', 1)
+    bootstrap_data = bootstrap.encode()
     new_bootstrap_path = bootstrap_path.replace('c4fd1c85', sha256(bootstrap_data)[:8])
     changed[new_bootstrap_path] = bootstrap_data
     index_entry = tree['files']['web-denshi']['files']['index.html']
@@ -66,7 +81,7 @@ def patch_asar(path):
     index_html = raw[start:start + index_entry['size']].decode()
     index_html = index_html.replace('/static/js/index.c4fd1c85.js', '/' + new_bootstrap_path.removeprefix('web-denshi/'), 1)
     changed['web-denshi/index.html'] = index_html.replace(
-        '</head>', '<script src="/' + progress_name + '"></script><script src="/' + queue_name + '"></script></head>', 1).encode()
+        '</head>', '<script src="/' + artwork_name + '"></script><script src="/' + progress_name + '"></script><script src="/' + queue_name + '"></script></head>', 1).encode()
     for name in changed:
         node = tree
         parts = name.split('/')
@@ -138,6 +153,8 @@ def main():
         app_run.chmod(0o755)
         shutil.copyfile(ROOT / 'scripts/arabic-translation/translation_helper.py',
                         app_dir / 'resources/seanime-translation-helper.py')
+        shutil.copyfile(ROOT / 'scripts/arabic-translation/artwork_cache.py',
+                        app_dir / 'resources/artwork_cache.py')
         filesystem = temp / 'patched.squashfs'
         subprocess.run(['mksquashfs', str(app_dir), str(filesystem), '-noappend', '-comp', 'xz', '-processors', str(args.processors), '-quiet'], check=True)
         with output.open('xb') as dest:

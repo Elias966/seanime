@@ -13,9 +13,11 @@ import time
 import urllib.error
 import urllib.request
 import unicodedata
+import urllib.parse
+from artwork_cache import ArtworkCache
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-HELPER_REVISION = 'arabic-ass-v4'
+HELPER_REVISION = 'arabic-artwork-v5'
 LOG = logging.getLogger('seanime-translation')
 ARABIC = re.compile(r'[\u0620-\u064a\u066e-\u06d3\u06fa-\u06ff\u0750-\u077f\u08a0-\u08c9]')
 LATIN_WORDS = re.compile(r'[A-Za-z]+')
@@ -201,17 +203,40 @@ class Translator:
 class Handler(BaseHTTPRequestHandler):
     protocol_version = 'HTTP/1.1'
 
-    def send_json(self, status, payload):
+    def send_json(self, status, payload, *, cors=False):
         data = json.dumps(payload, ensure_ascii=False).encode()
         self.send_response(status)
         self.send_header('Content-Type', 'application/json; charset=utf-8')
+        if cors:
+            self.send_header('Access-Control-Allow-Origin', '*')
         self.send_header('Content-Length', str(len(data)))
         self.end_headers()
         self.wfile.write(data)
 
     def do_GET(self):
+        if urllib.parse.urlsplit(self.path).path == '/images':
+            try:
+                query = urllib.parse.parse_qs(urllib.parse.urlsplit(self.path).query)
+                url = query.get('url', [''])[0]
+                data, kind, cached = self.server.artwork.get(url)
+                self.send_response(200)
+                self.send_header('Content-Type', kind)
+                self.send_header('Content-Length', str(len(data)))
+                self.send_header('Cache-Control', 'private, max-age=31536000, immutable')
+                self.send_header('X-Content-Type-Options', 'nosniff')
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.send_header('X-Seanime-Artwork-Cache', 'hit' if cached else 'stored')
+                self.end_headers()
+                self.wfile.write(data)
+            except (BrokenPipeError, ConnectionResetError):
+                pass
+            except ValueError:
+                self.send_json(400, {'error': {'message': 'Unsupported artwork'}})
+            except Exception:
+                self.send_json(502, {'error': {'message': 'Artwork not cached and source unavailable'}})
+            return
         if self.path in ('/health', '/healthz'):
-            return self.send_json(200, {'ok': True, 'revision': HELPER_REVISION})
+            return self.send_json(200, {'ok': True, 'revision': HELPER_REVISION}, cors=True)
         if self.path.rstrip('/') == '/v1/models':
             try:
                 with urllib.request.urlopen(self.server.translator.upstream + '/v1/models', timeout=5) as r:
@@ -252,7 +277,8 @@ def main():
     server = ThreadingHTTPServer(('127.0.0.1', args.port), Handler)
     server.daemon_threads = True
     server.translator = Translator()
-    LOG.info('Listening on 127.0.0.1:%d; forwarding only to local Ollama', args.port)
+    server.artwork = ArtworkCache()
+    LOG.info('Listening on 127.0.0.1:%d; local Ollama adapter and persistent artwork cache', args.port)
     server.serve_forever()
 
 

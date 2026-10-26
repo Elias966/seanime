@@ -4,12 +4,12 @@ Unofficial Linux x86_64 Seanime 3.10.4 build, forked from [5rahim/seanime](https
 
 ## Download and run
 
-Download `Seanime-3.10.4-Arabic-Fixed-7.AppImage` and `SHA256SUMS` from [release 7](https://github.com/Elias966/seanime/releases/tag/v3.10.4-arabic-fix.7). Close any running Seanime instance, then:
+Download `Seanime-3.10.4-Arabic-Fixed-8.AppImage` and `SHA256SUMS` from [release 8](https://github.com/Elias966/seanime/releases/tag/v3.10.4-arabic-fix.8). Close any running Seanime instance, then:
 
 ```sh
 sha256sum -c SHA256SUMS
-chmod +x Seanime-3.10.4-Arabic-Fixed-7.AppImage
-./Seanime-3.10.4-Arabic-Fixed-7.AppImage
+chmod +x Seanime-3.10.4-Arabic-Fixed-8.AppImage
+./Seanime-3.10.4-Arabic-Fixed-8.AppImage
 ```
 
 Python 3 is required; no pip packages are needed. The build uses the existing Seanime profile. The launcher starts the bundled local helper on `127.0.0.1:11435`, or reuses a compatible already-running helper. Helper revision is checked so an older helper cannot silently override these fixes. If an old standalone service occupies this port, update it or stop it before opening the AppImage:
@@ -32,6 +32,26 @@ For local Ollama:
 Ollama itself remains at `http://127.0.0.1:11434`. All model requests stay local; no cloud fallback or model weights are bundled. Keep Ollama running.
 
 **Restart Seanime and reload the episode/subtitle track after upgrading**, because old untranslated results can remain in the player/backend caches. The user also reported that toggling translation mode away and back after changing models helped stale model selection.
+
+## Release 8: persistent artwork for local libraries
+
+A local video library does not imply offline artwork. The upstream offline-sync handler returns without syncing when the account is simulated/local, even when automatic offline options are enabled. Auto-save also only tracks currently watched AniList entries rather than every local series. The affected profile used a local account and had no tracked offline items/assets.
+
+This release adds persistent artwork independently of AniList offline sync:
+
+- The shared Image component routes supported public cover/thumbnail URLs through the bundled loopback helper. On a disk hit, no DNS lookup or external request is made, including after restarting the helper or AppImage.
+- While online, a bounded background task reads the local library and warms the series covers and episode artwork from each entry's metadata, including episodes not yet opened. It runs at startup, on a browser online event and every five minutes.
+- The cache uses `$XDG_DATA_HOME/seanime/artwork-cache` (normally `~/.local/share/seanime/artwork-cache`). It survives AppImage upgrades and is pruned by age when it exceeds 512 MiB. Images are limited to 8 MiB each. Clearing that directory removes the offline images.
+- Supported HTTPS hosts: AniList (`s4.anilist.co`, `s.anilist.co`), TheTVDB artwork, TMDB images, MyAnimeList CDN and YouTube thumbnails. Other URLs keep the existing loading behavior. Credentials are never forwarded to those hosts; non-image responses and redirects to unsupported hosts are rejected.
+- Existing `{{LOCAL_ASSETS}}` paths are normalized by the shared image resolver. Failed placeholder states retry when connectivity returns or background warming completes.
+
+The current local profile was warmed: **195 images across 6 series**, **9,834,448 bytes**, no failures. A fresh helper/cache reader then served **195/195 from disk with external fetching disabled and zero outbound attempts**. This tests artwork delivery after cache-reader restart without changing the computer's network. A controlled browser preview displayed a real saved cover and episode thumbnail and reloaded both from disk. [Aggregate results](validation-artwork-8.json); private URLs, paths and library titles are excluded.
+
+Validation also executes the actual extracted shared Image component, confirming cache routing, placeholder behavior and online/cache-ready retries. Six Python cache tests cover persistence, duplicate concurrent requests, URL/redirect restrictions, invalid/oversized responses and quota eviction. The complete suite passes 52 tests (18 Python, 34 JavaScript). This is not an uninterrupted offline test of every app page or a replacement for missing offline metadata.
+
+Artwork must be downloaded at least once while online. A brand-new image that has never been cached cannot be recovered without its source. Background warming requires the local API to be available and accessible; password-protected profiles that block the background API request still cache supported images as they are viewed through the shared component. The Go backend and account sync behavior are unchanged.
+
+The helper now includes two Python files: `translation_helper.py` and `artwork_cache.py`. If maintaining an old standalone service manually, update both files or stop that service and let the AppImage start its bundled helper. No pip dependencies or model weights are needed. Image caching works even when Ollama is not running; model translation still requires it.
 
 ## Release 7: translation progress in the playback controls
 
@@ -157,14 +177,14 @@ The release repackages the official [3.10.4 Linux x86_64 AppImage](https://githu
 bc1d3b5b045b1be1378f4501afc436bf282c052d5fb254513addf2e3af7014f5
 ```
 
-The script preserves the original runtime, extracts SquashFS, rewrites Electron ASAR offsets/integrity metadata, and repacks with xz. Eight ASAR entries are added or changed from upstream: the worker, font, font license, content-addressed progress/queue scripts, patched player chunk, updated runtime bootstrap, and `index.html`. The index loads the new bootstrap, whose chunk map selects the patched player. It preserves the original `AppRun` as `AppRun.upstream`, installs a helper startup wrapper, and adds `resources/seanime-translation-helper.py`. The Go backend, Electron and WebAssembly binaries are unchanged.
+The script preserves the original runtime, extracts SquashFS, rewrites Electron ASAR offsets/integrity metadata, and repacks with xz. Nine ASAR entries are added or changed from upstream: the worker, font, font license, content-addressed progress/queue/artwork scripts, patched player chunk, updated runtime bootstrap, and `index.html`. The index loads the new bootstrap, whose chunk map selects the patched player. It preserves the original `AppRun` as `AppRun.upstream`, installs a helper startup wrapper, and adds `resources/seanime-translation-helper.py` and `resources/artwork_cache.py`. The bootstrap also patches the shared Image component to use the artwork resolver and retry events. The Go backend, Electron and WebAssembly binaries are unchanged.
 
 Check out the release tag, install Python 3 and `squashfs-tools`, then:
 
 ```sh
 python3 scripts/repack-arabic-appimage.py \
   /path/to/seanime-denshi-3.10.4_Linux_x86_64.AppImage \
-  ./Seanime-3.10.4-Arabic-Fixed-7.AppImage
+  ./Seanime-3.10.4-Arabic-Fixed-8.AppImage
 ```
 
 The script verifies the official image and original worker hashes. Allow several GB of temporary disk space. Filesystem timestamps/tool versions can change the final compressed AppImage checksum; `SHA256SUMS` applies to the uploaded asset.
@@ -173,7 +193,8 @@ The script verifies the official image and original worker hashes. Allow several
 
 ```sh
 python3 -m unittest discover -s scripts/arabic-translation -v
-node --test scripts/arabic-translation/test-progress.cjs scripts/arabic-translation/test-subtitle-queue.cjs scripts/arabic-translation/test-ass-format.cjs scripts/arabic-translation/test-worker-font.cjs
+node --test scripts/arabic-translation/test-progress.cjs scripts/arabic-translation/test-subtitle-queue.cjs scripts/arabic-translation/test-ass-format.cjs scripts/arabic-translation/test-worker-font.cjs scripts/arabic-translation/test-offline-artwork.cjs
+# SEANIME_BOOTSTRAP can select the extracted patched bootstrap to test the shared Image component.
 # To test the compiled adapter too, set SEANIME_PLAYER_BUNDLE to the extracted patched 9195.*.js path.
 ```
 

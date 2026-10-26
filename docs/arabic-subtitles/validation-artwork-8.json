@@ -1,0 +1,19 @@
+{
+  "warmup": {
+    "local_series": 6,
+    "metadata_errors": 0,
+    "artwork_urls": 195,
+    "cached": 195,
+    "failed": 0,
+    "bytes": 9834448,
+    "elapsed_seconds": 48.93
+  },
+  "offline": {
+    "images": 195,
+    "offline_cache_hits": 195,
+    "failed": 0,
+    "outbound_attempts": 0,
+    "fresh_reader": true,
+    "test_scope": "Real persisted artwork reloaded through fresh helper HTTP handler with outbound artwork fetching disabled; system network unchanged."
+  }
+}
