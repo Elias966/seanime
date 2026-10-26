@@ -765,7 +765,7 @@ Style: Default, Roboto Medium,24,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0
         }
 
         // Split preferred languages by comma and trim whitespace
-        const defaultTrackNumber = getDefaultSubtitleTrackNumber(this.settings, tracks)
+        const defaultTrackNumber = getDefaultSubtitleTrackNumber(this.settings, tracks, !!this.shouldTranslate)
         subtitleLog.info("Default subtitle track number",
             defaultTrackNumber,
             this.settings.preferredSubtitleLanguage,
@@ -1197,6 +1197,7 @@ Style: Default, Roboto Medium,24,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0
 export function getDefaultSubtitleTrackNumber(
     settings: VideoCoreSettings,
     _tracks: { label?: string, language?: string, number: number, forced?: boolean, default?: boolean }[] | null = null,
+    preferDialogue = false,
 ): number {
     // Split preferred languages by comma and trim whitespace
     const preferredLanguages = settings.preferredSubtitleLanguage
@@ -1214,6 +1215,8 @@ export function getDefaultSubtitleTrackNumber(
     if (blacklistLabels.length && tracks.length > 1) {
         tracks = tracks?.filter?.(t => !t.label || !blacklistLabels.some(bl => t.label?.toLowerCase().includes(bl))) ?? []
     }
+
+    if (preferDialogue) tracks = window.SeanimePreferDialogueSubtitleTracks(tracks)
 
     // Try each preferred language in order
     for (const preferredLang of preferredLanguages) {
@@ -1247,6 +1250,7 @@ export function getDefaultSubtitleTrackNumber(
 
 declare global {
     interface Window {
+        SeanimePreferDialogueSubtitleTracks<T extends { label?: string, language?: string, languageIETF?: string, forced?: boolean }>(tracks: T[]): T[]
         SeanimeCreateSubtitleTranslationQueue<T>(options: {
             send(text: string): void
             getTime(): number

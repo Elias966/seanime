@@ -10,6 +10,10 @@ BUNDLE_PATH = 'web-denshi/static/js/async/9195.4d10fc5d.js'
 def patch_player_bundle(raw):
     text = raw.decode()
     replacements = [
+        ('let t=tF(this.settings,e);tI.info("Default subtitle track number"',
+         'let t=tF(this.settings,e,!!this.shouldTranslate);tI.info("Default subtitle track number"'),
+        ('for(let e of(n.length&&i.length>1&&(i=i?.filter?.(e=>!e.label||!n.some(t=>e.label?.toLowerCase().includes(t)))??[]),a))',
+         'for(let e of(n.length&&i.length>1&&(i=i?.filter?.(e=>!e.label||!n.some(t=>e.label?.toLowerCase().includes(t)))??[]),arguments[2]&&(i=window.SeanimePreferDialogueSubtitleTracks(i)),a))'),
         ('(0,n.jsx)(as,{}),(0,n.jsx)(tk,{})',
          '(0,n.jsx)(as,{}),(0,n.jsx)("div",{"data-vc-element":"translation-progress-slot",className:"contents"}),(0,n.jsx)(tk,{})'),
         ('topRightSection:(0,n.jsxs)(n.Fragment,{children:[(0,n.jsx)(tk,{})',

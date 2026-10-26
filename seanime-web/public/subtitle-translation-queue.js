@@ -2,9 +2,20 @@
 (function (root, factory) {
     const api = factory(), createQueue = api.createQueue;
     if (typeof module === "object" && module.exports) module.exports = api;
-    else root.SeanimeCreateSubtitleTranslationQueue = createQueue;
+    else {
+        root.SeanimeCreateSubtitleTranslationQueue = createQueue;
+        root.SeanimePreferDialogueSubtitleTracks = api.preferDialogueTracks;
+    }
 })(typeof window === "object" ? window : globalThis, function () {
     "use strict";
+    // Forced/signs tracks are often the first English track in dual-audio releases.
+    // Only suppress them when a full track in that same language is available.
+    function preferDialogueTracks(tracks) {
+        const language = track => String(track.languageIETF || track.language || "").toLowerCase().split("-")[0];
+        const partial = track => track.forced || (!/\b(?:full|dialog(?:ue)?|sdh)\b/i.test(track.label || "") && /(?:\bs\s*&\s*s\b|\bsigns?\b|\bsongs?\b|\bforced\b|\bop\s*[/&+]\s*ed\b)/i.test(track.label || ""));
+        return tracks.filter(track => !partial(track) || !tracks.some(other =>
+            language(other) === language(track) && !partial(other)));
+    }
     // Keep ASS outside the model. Each translated run retains its own overrides,
     // hard breaks and drawing state; cached translations never cache presentation.
     function createAssPlan(text) {
@@ -151,5 +162,5 @@
         };
         return api;
     }
-    return { createQueue, createAssPlan };
+    return { createQueue, createAssPlan, preferDialogueTracks };
 });
