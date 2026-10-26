@@ -10,6 +10,50 @@
     "use strict";
     const hasArabic = text => /[\u0620-\u064a\u066e-\u06d3\u06fa-\u06ff\u0750-\u077f\u08a0-\u08c9]/u.test(text || "");
     const isArabic = lang => /^ar(?:$|[-_])/i.test(lang || "") || /^arabic$/i.test(lang || "");
+    const cleanDialogue = text => String(text || "").replace(/\{[^}]*\}|<[^>]*>/g, "").replace(/\\[Nnh]/g, " ").trim();
+    function classify(source, output) {
+        source = cleanDialogue(source); output = cleanDialogue(output);
+        const letters = output.match(/\p{L}/gu) || [];
+        if (!/\p{L}/u.test(source)) return "neutral";
+        const arabic = letters.filter(letter => hasArabic(letter)).length;
+        if (!arabic) return "unchanged";
+        const foreign = letters.length - arabic;
+        const otherScript = letters.some(letter => letter.codePointAt(0) > 127 && !hasArabic(letter));
+        const foreignWords = output.match(/[A-Za-z]+/g) || [];
+        return otherScript || (foreign >= 4 && arabic / letters.length < .75) || foreignWords.length >= 2 ? "mixed" : "arabic";
+    }
+    function inspectFile(content) {
+        if (typeof content !== "string" || !content.trim()) return null;
+        const lines = content.split(/\r?\n/), dialogue = [];
+        if (/^\s*\[Events\]/im.test(content) || /^Dialogue\s*:/im.test(content)) {
+            let textIndex = 9;
+            for (const line of lines) {
+                if (/^Format\s*:/i.test(line)) {
+                    const index = line.slice(line.indexOf(":") + 1).split(",").map(x => x.trim().toLowerCase()).indexOf("text");
+                    if (index >= 0) textIndex = index;
+                }
+                if (/^Dialogue\s*:/i.test(line)) {
+                    let start = line.indexOf(":") + 1;
+                    for (let i = 0; i < textIndex && start > 0; i++) start = line.indexOf(",", start) + 1;
+                    if (start > 0) dialogue.push(line.slice(start));
+                }
+            }
+        } else {
+            let note = false;
+            for (const line of lines) {
+                const text = line.trim();
+                if (!text) { note = false; continue; }
+                if (/^(NOTE|STYLE|REGION)(?:\s|$)/.test(text)) { note = true; continue; }
+                if (note || /^(WEBVTT|\d+$)/.test(text) || text.includes("-->")) continue;
+                dialogue.push(text);
+            }
+        }
+        if (!dialogue.length) return null;
+        const stats = { total: dialogue.length, arabic: 0, mixed: 0, unchanged: 0, neutral: 0 };
+        for (const text of dialogue) stats[classify(text, text)]++;
+        return stats;
+    }
+
 
     class Progress {
         constructor() { this.enabled = null; this.reset(); }
@@ -45,30 +89,38 @@
                 const matches = this.lines.filter(row => row.text === payload.original);
                 const row = matches.find(row => row.state === "pending") || matches.find(row => row.state === "timeout");
                 if (row) {
-                    row.state = hasArabic(payload.translated) ? "arabic" : "unchanged";
+                    row.state = classify(payload.original, payload.translated);
                     this.lastChange = now;
                 }
             } else if (["add-external-subtitle-track", "add-media-caption-track"].includes(event?.type)) {
                 const file = this.files.get(String(payload.index));
                 if (file && /\(translated\)/i.test(payload.label || "")) {
-                    file.state = hasArabic(payload.content) ? "received" : "unchanged"; this.lastChange = now;
+                    file.state = "received"; file.stats = inspectFile(payload.content); this.lastChange = now;
                 }
             }
         }
         snapshot(now = Date.now()) {
             for (const row of this.lines) if (row.state === "pending" && now - row.start > 75000) row.state = "timeout";
             for (const file of this.files.values()) if (file.state === "pending" && now - file.start > 300000) file.state = "stalled";
-            const total = this.lines.length, count = state => this.lines.filter(row => row.state === state).length;
-            const pending = count("pending"), arabic = count("arabic"), unchanged = count("unchanged"), timeout = count("timeout");
+            const count = state => this.lines.filter(row => row.state === state).length;
             const files = [...this.files.values()], filePending = files.filter(file => file.state === "pending").length;
+            const fileStats = files.map(file => file.stats).filter(Boolean);
+            const sum = key => fileStats.reduce((total, stats) => total + stats[key], 0);
+            const total = this.lines.length + sum("total"), pending = count("pending");
+            const arabic = count("arabic") + sum("arabic"), neutral = count("neutral") + sum("neutral");
+            const mixed = count("mixed") + sum("mixed"), unchanged = count("unchanged") + sum("unchanged"), timeout = count("timeout");
             const stalled = files.some(file => file.state === "stalled");
-            const fileUnchanged = files.filter(file => file.state === "unchanged").length;
+            const fileUnchanged = fileStats.filter(stats => stats.unchanged > 0).length;
+            const unverified = files.filter(file => file.state === "received" && !file.stats).length;
             const processed = total - pending, active = pending > 0 || filePending > 0;
-            return { total, processed, pending, arabic, unchanged, timeout, filePending, fileUnchanged, stalled, active,
-                percent: total ? Math.round(processed / total * 100) : null,
+            const issues = unchanged + mixed + timeout + unverified + (stalled ? 1 : 0);
+            return { total, processed, pending, arabic, neutral, mixed, unchanged, timeout, filePending, fileUnchanged, unverified, stalled, active,
+                percent: total ? Math.round((arabic + neutral) / total * 100) : null,
+                status: this.offline ? "disconnected" : active ? "translating" : issues ? "incomplete" : "received",
                 visible: this.enabled && (total > 0 || files.length > 0) &&
-                    (active || stalled || timeout > 0 || fileUnchanged > 0 || now - this.lastChange < 10000),
+                    (active || issues > 0 || now - this.lastChange < 10000),
                 offline: this.offline };
+
         }
     }
 
@@ -103,7 +155,7 @@
                 counts = doc.createElement("div"); counts.className = "translation-counts";
                 detail = doc.createElement("div"); detail.className = "translation-detail";
                 track = doc.createElement("div"); track.className = "translation-track"; track.setAttribute("role", "progressbar");
-                track.setAttribute("aria-label", "Queued subtitle lines processed");
+                track.setAttribute("aria-label", "Arabic-ready subtitle results");
                 track.setAttribute("aria-valuemin", "0"); track.setAttribute("aria-valuemax", "100");
                 bar = doc.createElement("div"); bar.className = "translation-fill"; track.appendChild(bar);
                 live = doc.createElement("span"); live.setAttribute("role", "status"); live.setAttribute("aria-live", "polite");
@@ -118,17 +170,17 @@
             scheduled = false; mount(); if (!panel) return;
             const s = tracker.snapshot(); panel.hidden = !s.visible;
             if (!s.visible) return;
-            const warning = s.offline || s.timeout || s.stalled || s.fileUnchanged;
+            const warning = s.offline || s.timeout || s.stalled || s.unchanged || s.mixed || s.unverified;
             panel.dataset.state = warning ? "warning" : s.active ? "active" : "done";
             const indeterminate = s.active && (s.filePending > 0 || s.percent === null);
             panel.dataset.indeterminate = String(indeterminate);
-            title.textContent = s.offline ? "Translation disconnected → العربية" : warning ? "Translation needs attention → العربية" :
-                s.active ? "Translating → العربية" : "Translation finished → العربية";
-            counts.textContent = s.total ? `${s.processed} / ${s.total} queued lines processed · ${s.percent}%` :
+            title.textContent = s.offline ? "Translation disconnected → العربية" : warning ? (s.active ? "Translating · incomplete results → العربية" : "Translation incomplete → العربية") :
+                s.active ? "Translating → العربية" : "Arabic results received → العربية";
+            counts.textContent = s.total ? `${s.arabic + s.neutral} / ${s.total} Arabic-ready lines · ${s.percent}%` :
                 s.filePending ? "Translating subtitle file…" : s.stalled ? "Subtitle file is taking longer than expected" : "Subtitle file received";
-            detail.textContent = [s.total ? `${s.arabic} Arabic · ${s.pending} pending` : "", s.unchanged ? `${s.unchanged} unchanged` : "",
-                s.timeout ? `${s.timeout} timed out` : "", s.fileUnchanged ? `${s.fileUnchanged} file returned without Arabic` : "", s.filePending && s.total ? "Subtitle file also processing…" : ""].filter(Boolean).join(" · ") ||
-                (s.filePending ? "Waiting for the translated file; line total unavailable" : "Ready for playback");
+            detail.textContent = [s.total ? `${s.processed} processed · ${s.pending} pending` : "", s.unchanged ? `${s.unchanged} untranslated` : "",
+                s.mixed ? `${s.mixed} mixed-language` : "", s.timeout ? `${s.timeout} timed out` : "", s.unverified ? `${s.unverified} file could not be checked` : "", s.filePending && s.total ? "Subtitle file also processing…" : ""].filter(Boolean).join(" · ") ||
+                (s.filePending ? "Waiting for the translated file; line total unavailable" : "Arabic script detected; translation accuracy is not verified");
             const value = s.percent ?? (!s.filePending && !s.stalled ? 100 : 0);
             bar.style.width = `${value}%`;
             if (indeterminate || (s.stalled && s.percent === null)) track.removeAttribute("aria-valuenow");
@@ -174,5 +226,5 @@
         win.setInterval(() => { if (tracker.lines.length || tracker.files.size) schedule(); }, 1000);
         schedule();
     }
-    return { Progress, install, hasArabic, isArabic };
+    return { Progress, install, hasArabic, isArabic, classify, inspectFile };
 });

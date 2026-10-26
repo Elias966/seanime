@@ -24,7 +24,8 @@ helper_ready() {
 import json,sys,urllib.request
 try:
     with urllib.request.urlopen('http://127.0.0.1:' + sys.argv[1] + '/health',timeout=0.5) as r:
-        assert json.load(r).get('ok') is True
+        data = json.load(r)
+        assert data.get('ok') is True and data.get('revision') == 'arabic-validation-v2'
 except Exception:
     raise SystemExit(1)
 PY
@@ -39,7 +40,7 @@ if ! helper_ready; then
         sleep 0.1
     done
     if [ "$ready" -ne 1 ]; then
-        echo "Could not start the local subtitle helper on 127.0.0.1:$port." >&2
+        echo "Could not start the updated subtitle helper on 127.0.0.1:$port. Close older Seanime instances or update/stop the old standalone helper." >&2
         exit 1
     fi
 fi

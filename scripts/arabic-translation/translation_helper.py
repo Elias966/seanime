@@ -12,18 +12,33 @@ import threading
 import time
 import urllib.error
 import urllib.request
+import unicodedata
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
+HELPER_REVISION = 'arabic-validation-v2'
 LOG = logging.getLogger('seanime-translation')
 ARABIC = re.compile(r'[\u0620-\u064a\u066e-\u06d3\u06fa-\u06ff\u0750-\u077f\u08a0-\u08c9]')
 LATIN_WORDS = re.compile(r'[A-Za-z]+')
 
 
+def clean_dialogue(text):
+    text = re.sub(r'\{[^}]*\}|<[^>]*>', '', text or '')
+    return re.sub(r'\\[Nnh]', ' ', text).strip()
+
+
 def needs_arabic_retry(source, translated):
-    # Single names, interjections and punctuation can legitimately stay unchanged.
-    # A sentence of two or more Latin words with no Arabic is a useful conservative signal.
-    return (len(LATIN_WORDS.findall(source)) >= 2 and
-            not ARABIC.search(translated) and len(LATIN_WORDS.findall(translated)) >= 2)
+    source, translated = clean_dialogue(source), clean_dialogue(translated)
+    source_letters = [c for c in source if unicodedata.category(c).startswith('L')]
+    letters = [c for c in translated if unicodedata.category(c).startswith('L')]
+    arabic = sum(bool(ARABIC.fullmatch(c)) for c in letters)
+    if not source_letters:
+        return False  # Numbers, punctuation, music markers and ASS formatting.
+    if not letters or not arabic:
+        return True  # Includes single English words, Japanese, Cyrillic, etc.
+    foreign = len(letters) - arabic
+    foreign_words = re.findall(r'[A-Za-z]+', translated)
+    other_script = any(ord(c) > 127 and not ARABIC.fullmatch(c) for c in letters)
+    return other_script or (foreign >= 4 and arabic / len(letters) < .75) or len(foreign_words) >= 2
 
 
 def source_payload(payload):
@@ -41,12 +56,12 @@ class Translator:
         self.upstream = upstream.rstrip('/')
         self.gate = threading.Semaphore(1)
 
-    def complete(self, payload, deadline):
+    def complete(self, payload, deadline, *, retry_reasoning=False):
         remaining = deadline - time.monotonic()
         if remaining <= 0:
             raise TimeoutError('Translation deadline exceeded')
         outgoing = copy.deepcopy(payload)
-        outgoing['reasoning_effort'] = 'none'
+        outgoing['reasoning_effort'] = 'low' if retry_reasoning else 'none'
         outgoing['stream'] = False
         data = json.dumps(outgoing, ensure_ascii=False).encode()
         request = urllib.request.Request(self.upstream + '/v1/chat/completions', data=data,
@@ -67,7 +82,7 @@ class Translator:
         payload = {
             'model': original_payload['model'], 'temperature': 0, 'stream': False,
             'messages': [
-                {'role': 'system', 'content': 'Translate this subtitle into natural Modern Standard Arabic. Translate the complete sentence. Preserve names, but do not leave English sentences untranslated. Return JSON only: {"translation":"Arabic translation"}.'},
+                {'role': 'system', 'content': 'Translate this subtitle into natural Modern Standard Arabic. Translate the complete sentence. Render names in Arabic script too. Translate English, Japanese, Chinese, Cyrillic and any other source language completely into Arabic; do not copy foreign dialogue or add explanations. Return JSON only: {"translation":"Arabic translation"}.'},
                 {'role': 'user', 'content': source},
             ],
             'response_format': {'type': 'json_schema', 'json_schema': {
@@ -76,32 +91,59 @@ class Translator:
                     'required': ['translation'], 'additionalProperties': False,
                 }}},
         }
-        response = self.complete(payload, deadline)
-        text = json.loads(response['choices'][0]['message']['content'])['translation']
-        if not isinstance(text, str) or not text.strip() or needs_arabic_retry(source, text):
-            raise ValueError('Model still returned an untranslated Arabic subtitle')
-        return text
+        # A second, reasoning-enabled attempt is reserved for actual failures.
+        for attempt in range(2):
+            try:
+                response = (self.complete(payload, deadline) if attempt == 0 else
+                            self.complete(payload, deadline, retry_reasoning=True))
+                text = json.loads(response['choices'][0]['message']['content'])['translation']
+                if isinstance(text, str) and text.strip() and not needs_arabic_retry(source, text):
+                    return text
+            except (ValueError, KeyError, TypeError, IndexError):
+                pass
+        raise ValueError('Model still returned an untranslated or mixed-language subtitle')
 
     def translate(self, payload):
         started = time.monotonic()
         deadline = started + 50  # Seanime's event batch has a 60-second deadline.
-        response = self.complete(payload, deadline)
         src = source_payload(payload)
-        if not isinstance(src, dict):
-            return response
-        target = str(src.get('target_language', '')).lower()
-        if target != 'ar' and not target.startswith('arabic'):
-            return response
+        target = str(src.get('target_language', '')).lower() if isinstance(src, dict) else ''
+        arabic_request = target == 'ar' or target.startswith('ar-') or target.startswith('arabic')
+        if not arabic_request:
+            return self.complete(payload, deadline)
+        # Never discard successful rows because another row's repair failed.
         try:
-            body = json.loads(response['choices'][0]['message']['content'])
-        except (ValueError, TypeError, KeyError, IndexError):
-            # Seanime retains its own malformed-response retry logic.
-            return response
-        repairs = 0
-        if isinstance(body, dict) and isinstance(src.get('items'), list):
-            rows = body.get('translations')
+            if str(payload.get('model', '')).lower().startswith('gemma4'):
+                # Gemma can return fluent but unrelated Arabic in batched JSON.
+                # One source line per prompt avoids cross-item alignment failures.
+                response = {'choices': [{'message': {'role': 'assistant', 'content': ''}, 'finish_reason': 'stop'}]}
+                body = {}
+            else:
+                response = self.complete(payload, deadline)
+                body = json.loads(response['choices'][0]['message']['content'])
+        except Exception:
+            response = {'choices': [{'message': {'role': 'assistant', 'content': ''}, 'finish_reason': 'stop'}]}
+            body = {}
+        if not isinstance(body, dict):
+            body = {}
+        repairs, failed = 0, 0
+
+        def repair(source):
+            nonlocal repairs, failed
+            try:
+                translated = self.retry_line(payload, source, deadline)
+                repairs += 1
+                return translated
+            except Exception as error:
+                # Preserve only this source line; the UI must mark it incomplete.
+                failed += 1
+                LOG.warning('Line repair failed: %s', type(error).__name__)
+                return source
+
+        if isinstance(src.get('items'), list):
+            rows = body.get('translations', [])
             if not isinstance(rows, list):
-                return response
+                rows = []
             by_id = {x['id']: x for x in rows if isinstance(x, dict) and
                      type(x.get('id')) is int and isinstance(x.get('text'), str)}
             rebuilt = []
@@ -109,18 +151,22 @@ class Translator:
                 item_id, source = item['id'], item['text']
                 row = by_id.get(item_id)
                 if row is None or not row['text'].strip() or needs_arabic_retry(source, row['text']):
-                    row = {'id': item_id, 'text': self.retry_line(payload, source, deadline)}
-                    repairs += 1
+                    row = {'id': item_id, 'text': repair(source)}
                 rebuilt.append(row)
-            body['translations'] = rebuilt
-        elif isinstance(body, dict) and isinstance(src.get('text'), str):
+            body = {'translations': rebuilt}
+        elif isinstance(src.get('text'), str):
             text = body.get('translation')
             if not isinstance(text, str) or not text.strip() or needs_arabic_retry(src['text'], text):
-                body['translation'] = self.retry_line(payload, src['text'], deadline)
-                repairs += 1
+                text = repair(src['text'])
+            body = {'translation': text}
+        else:
+            return response
+        if src.get('request_id'):
+            body['request_id'] = src['request_id']
         response['choices'][0]['message']['content'] = json.dumps(body, ensure_ascii=False)
         # No subtitle text is written to logs.
-        LOG.info('completed in %.2fs; repaired lines=%d', time.monotonic() - started, repairs)
+        LOG.info('processed in %.2fs; repaired lines=%d; untranslated lines=%d',
+                 time.monotonic() - started, repairs, failed)
         return response
 
 
@@ -137,7 +183,7 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         if self.path in ('/health', '/healthz'):
-            return self.send_json(200, {'ok': True})
+            return self.send_json(200, {'ok': True, 'revision': HELPER_REVISION})
         if self.path.rstrip('/') == '/v1/models':
             try:
                 with urllib.request.urlopen(self.server.translator.upstream + '/v1/models', timeout=5) as r:

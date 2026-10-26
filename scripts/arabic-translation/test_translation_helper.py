@@ -11,14 +11,18 @@ def response(body):
 
 
 def payload(items):
-    return {'model': 'gemma4:e2b', 'messages': [{'role': 'user', 'content': json.dumps({
+    return {'model': 'test-model', 'messages': [{'role': 'user', 'content': json.dumps({
         'target_language': 'Arabic (ar)', 'request_id': 'request-1', 'items': items})}]}
 
 
 class Tests(unittest.TestCase):
-    def test_english_sentence_detection_preserves_short_names(self):
+    def test_arabic_requirement_covers_single_words_and_all_scripts(self):
         self.assertTrue(needs_arabic_retry('We must leave now!', 'We must leave now!'))
-        self.assertFalse(needs_arabic_retry('Naruto!', 'Naruto!'))
+        self.assertTrue(needs_arabic_retry('Naruto!', 'Naruto!'))
+        self.assertTrue(needs_arabic_retry('こんにちは', 'こんにちは'))
+        self.assertTrue(needs_arabic_retry('Привет', 'Привет'))
+        self.assertTrue(needs_arabic_retry('Hello there', 'hello there أهلا'))
+        self.assertFalse(needs_arabic_retry(r'{\fnRoboto}♪ 123 \N', '♪ 123'))
         self.assertFalse(needs_arabic_retry('We must leave now!', 'يجب أن نغادر الآن!'))
 
     def test_repair_missing_and_english_rows_without_repeating_good_rows(self):
@@ -38,12 +42,43 @@ class Tests(unittest.TestCase):
         self.assertEqual(call.call_args_list[1].args[0]['messages'][1]['content'], 'We must go!')
         self.assertEqual(call.call_args_list[2].args[0]['messages'][1]['content'], 'Are you ready?')
 
-    def test_failed_retry_is_not_accepted_as_translation(self):
+    def test_failed_retry_preserves_good_rows_instead_of_failing_whole_batch(self):
         t = Translator()
         with patch.object(t, 'complete', side_effect=[response({'translations': [
-            {'id': 0, 'text': 'We must go!'}]}), response({'translation': 'We must go!'})]):
-            with self.assertRaises(ValueError):
-                t.translate(payload([{'id': 0, 'text': 'We must go!'}]))
+            {'id': 0, 'text': 'صباح الخير!'}, {'id': 1, 'text': 'We must go!'}]}),
+            response({'translation': 'We must go!'}), response({'translation': 'We must go!'})]) as call:
+            out = t.translate(payload([{'id': 0, 'text': 'Good morning!'}, {'id': 1, 'text': 'We must go!'}]))
+        rows = json.loads(out['choices'][0]['message']['content'])['translations']
+        self.assertEqual(rows[0]['text'], 'صباح الخير!')
+        self.assertEqual(rows[1]['text'], 'We must go!')
+        self.assertTrue(call.call_args_list[-1].kwargs['retry_reasoning'])
+
+    def test_reasoning_retry_recovers_non_arabic_first_repair(self):
+        t = Translator()
+        with patch.object(t, 'complete', side_effect=[response({'translations': [{'id': 0, 'text': 'こんにちは'}]}),
+            response({'translation': 'こんにちは'}), response({'translation': 'مرحبا'})]):
+            out = t.translate(payload([{'id': 0, 'text': 'こんにちは'}]))
+        self.assertEqual(json.loads(out['choices'][0]['message']['content'])['translations'][0]['text'], 'مرحبا')
+
+    def test_malformed_initial_batch_can_be_repaired_by_line(self):
+        t = Translator()
+        with patch.object(t, 'complete', side_effect=[response('not an object'), response({'translation': 'مرحبا'})]):
+            out = t.translate(payload([{'id': 0, 'text': 'Hello'}]))
+        body = json.loads(out['choices'][0]['message']['content'])
+        self.assertEqual(body['request_id'], 'request-1')
+        self.assertEqual(body['translations'][0]['text'], 'مرحبا')
+
+    def test_gemma_translates_one_source_per_prompt_and_preserves_partial_success(self):
+        p = payload([{'id': 0, 'text': 'Hello'}, {'id': 1, 'text': 'We must go!'}, {'id': 2, 'text': 'こんにちは'}])
+        p['model'] = 'gemma4:e2b'
+        with patch.object(Translator, 'complete', side_effect=[response({'translation': 'مرحبا'}),
+            response({'translation': 'We must go!'}), response({'translation': 'We must go!'}),
+            response({'translation': 'أهلا'})]) as call:
+            out = Translator().translate(p)
+        rows = json.loads(out['choices'][0]['message']['content'])['translations']
+        self.assertEqual([r['text'] for r in rows], ['مرحبا', 'We must go!', 'أهلا'])
+        self.assertEqual([c.args[0]['messages'][1]['content'] for c in call.call_args_list],
+                         ['Hello', 'We must go!', 'We must go!', 'こんにちは'])
 
     def test_other_language_is_not_rewritten(self):
         p = payload([{'id': 0, 'text': 'Hello there'}])
