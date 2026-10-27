@@ -7,11 +7,13 @@ export function EntryBackButton() {
                 <path d="m12 19-7-7 7-7M5 12h14" />
             </svg>
         </button>
+        <button type="button" data-change-anime-cover onClick={() => window.SeanimeCovers?.open()}>Change cover</button>
     </div>
 }
 
 declare global {
     interface Window {
+        SeanimeCovers?: { resolve(url: string): string | undefined; open(id?: string): void }
         SeanimeNavigation?: {
             connectRouter(router: AnyRouter): void
             setSearchParams(params: unknown): void

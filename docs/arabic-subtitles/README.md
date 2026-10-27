@@ -4,12 +4,12 @@ Unofficial Linux x86_64 Seanime 3.10.4 build, forked from [5rahim/seanime](https
 
 ## Download and run
 
-Download `Seanime-3.10.4-Arabic-Fixed-12.AppImage` and `SHA256SUMS` from [release 12](https://github.com/Elias966/seanime/releases/tag/v3.10.4-arabic-fix.12). Close any running Seanime instance, then:
+Download `Seanime-3.10.4-Arabic-Fixed-13.AppImage` and `SHA256SUMS` from [release 13](https://github.com/Elias966/seanime/releases/tag/v3.10.4-arabic-fix.13). Close any running Seanime instance, then:
 
 ```sh
 sha256sum -c SHA256SUMS
-chmod +x Seanime-3.10.4-Arabic-Fixed-12.AppImage
-./Seanime-3.10.4-Arabic-Fixed-12.AppImage
+chmod +x Seanime-3.10.4-Arabic-Fixed-13.AppImage
+./Seanime-3.10.4-Arabic-Fixed-13.AppImage
 ```
 
 Python 3 is required; no pip packages are needed. The build uses the existing Seanime profile. The launcher starts the bundled local helper on `127.0.0.1:11435`, or reuses a compatible already-running helper. Helper revision is checked so an older helper cannot silently override these fixes. If an old standalone service occupies this port, update it or stop it before opening the AppImage:
@@ -32,6 +32,16 @@ For local Ollama:
 Ollama itself remains at `http://127.0.0.1:11434`. All model requests stay local; no cloud fallback or model weights are bundled. Keep Ollama running.
 
 **Restart Seanime and reload the episode/subtitle track after upgrading**, because old untranslated results can remain in the player/backend caches. The user also reported that toggling translation mode away and back after changing models helped stale model selection.
+
+## Release 13: choose alternative anime artwork
+
+Click **Change cover** beside the back arrow on an anime page, or use the small cover button that appears when hovering/focusing a library/search card. Pick a poster from the gallery, a plain title-only cover, or restore the original. No local file upload is needed. The chosen image replaces that anime's cover variants and banner, including library cards and hover previews.
+
+Alternative posters come from the exact anime's MyAnimeList picture gallery, matched using its MAL ID. Only gallery links are used; recommendations/news images are excluded. Jikan's pictures API is a fallback. Available alternatives vary by title. The original and title-only choices remain available when a gallery cannot be loaded.
+
+Choices and pinned image bytes are saved under `${XDG_DATA_HOME:-~/.local/share}/seanime/cover-overrides`, independently of the ordinary artwork cache quota. Choices also have a local frontend snapshot so saved images resolve immediately after restarting offline. Initial gallery discovery requires a connection; cached options remain available offline. Helper revision: `arabic-covers-v7`. Existing standalone helpers need the matching `translation_helper.py`, `artwork_cache.py` and new `cover_store.py` files, or can be stopped so the AppImage starts its bundled helper.
+
+Validation: all **82 tests passed** (58 JavaScript, 24 Python), including the compiled player, navigation and shared Image component. New tests cover gallery filtering/deduplication, persisted selections after clearing the general cache and restarting offline, escaped title-only artwork, original restoration, disk-write failures, local API/CORS and immediate offline frontend resolution. A live MAL gallery returned 11 images for the test title and a selected image was pinned successfully. The packaged frontend was also checked against the running local backend: selecting an alternative updated the detail cover/banner and both library cards; reopening showed the saved selection, and restoring the original restored the original URLs. The native AppImage was launched separately. All earlier fixes are retained.
 
 ## Release 12: stay on the page after starting a download
 
@@ -224,7 +234,7 @@ Check out the release tag, install Python 3 and `squashfs-tools`, then:
 ```sh
 python3 scripts/repack-arabic-appimage.py \
   /path/to/seanime-denshi-3.10.4_Linux_x86_64.AppImage \
-  ./Seanime-3.10.4-Arabic-Fixed-12.AppImage
+  ./Seanime-3.10.4-Arabic-Fixed-13.AppImage
 ```
 
 The script verifies the official image and original worker hashes. Allow several GB of temporary disk space. Filesystem timestamps/tool versions can change the final compressed AppImage checksum; `SHA256SUMS` applies to the uploaded asset.

@@ -21,6 +21,8 @@ test('shipped shared Image component routes artwork through disk cache and retri
  const api=new Function('n','window',raw.slice(start+'76766(t,a,n){'.length,end)+';return {SeaImage:s,Image:l}')(requireModule,window);
  const url='https://s4.anilist.co/cover.jpg';const image=api.SeaImage({src:url,alt:'Local cover',width:120,className:'cover'},null);
  assert.equal(image.type,'img');assert.equal(image.props.src,resolve(url));assert.equal(image.props.alt,'Local cover');assert.equal(image.props.width,120);assert.equal(image.props.className,'cover');
- effects[0]();assert.deepEqual(listeners,['online','seanime:artwork-ready']);
+ for(const effect of effects)effect();assert.deepEqual(listeners,['online','seanime:artwork-ready','seanime:covers-changed']);
  assert.equal(api.Image({src:url,overrideSrc:'/no-cover.png',alt:''},null).props.src,'/no-cover.png');
+ window.SeanimeResolveImageUrl=(src,original)=>original===url?'http://127.0.0.1:11435/covers/image?id=123':src;
+ assert.equal(api.Image({src:url,overrideSrc:'/no-cover.png',alt:''},null).props.src,'http://127.0.0.1:11435/covers/image?id=123');
 });

@@ -79,7 +79,7 @@
         setSearchParams(value){liveParams=clone(value)},
         restoreSearch(){return search()?clone(entries.get(key())?.params):null},
         back(){cancel();if(entries.get(key())?.parent)win.history.back();else if(router)router.navigate({to:'/search'});else win.location.assign('/search')},
-        backButton(jsx){return jsx.jsx('div',{'data-entry-back-navigation':true,children:jsx.jsx('button',{type:'button','data-entry-back-button':true,'aria-label':'Go back',title:'Go back',onClick:api.back,children:jsx.jsx('svg',{width:20,height:20,viewBox:'0 0 24 24',fill:'none',stroke:'currentColor',strokeWidth:2,strokeLinecap:'round',strokeLinejoin:'round',children:jsx.jsx('path',{d:'m12 19-7-7 7-7M5 12h14'})})})})},
+        backButton(jsx){return jsx.jsxs('div',{'data-entry-back-navigation':true,children:[jsx.jsx('button',{type:'button','data-entry-back-button':true,'aria-label':'Go back',title:'Go back',onClick:api.back,children:jsx.jsx('svg',{width:20,height:20,viewBox:'0 0 24 24',fill:'none',stroke:'currentColor',strokeWidth:2,strokeLinecap:'round',strokeLinejoin:'round',children:jsx.jsx('path',{d:'m12 19-7-7 7-7M5 12h14'})})}),win.SeanimeCovers?.button(jsx)]})},
     };
     return api;
 });

@@ -15,9 +15,10 @@ import urllib.request
 import unicodedata
 import urllib.parse
 from artwork_cache import ArtworkCache
+from cover_store import CoverStore
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-HELPER_REVISION = 'arabic-phrases-v6'
+HELPER_REVISION = 'arabic-covers-v7'
 LOG = logging.getLogger('seanime-translation')
 ARABIC = re.compile(r'[\u0620-\u064a\u066e-\u06d3\u06fa-\u06ff\u0750-\u077f\u08a0-\u08c9]')
 LATIN_WORDS = re.compile(r'[A-Za-z]+')
@@ -213,7 +214,48 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(data)
 
+    def cover_origin(self):
+        origin = self.headers.get('Origin', '')
+        parts = urllib.parse.urlsplit(origin)
+        return (not origin or origin.rstrip('/') == 'app://-' or
+                (parts.scheme in ('http', 'https') and parts.hostname in ('127.0.0.1', 'localhost', '[::1]', '::1')))
+
+    def cover_cors(self):
+        origin = self.headers.get('Origin')
+        if origin: self.send_header('Access-Control-Allow-Origin', origin)
+        self.send_header('Vary', 'Origin')
+
+    def cover_json(self, status, payload):
+        data = json.dumps(payload, ensure_ascii=False).encode()
+        self.send_response(status); self.cover_cors()
+        self.send_header('Content-Type', 'application/json; charset=utf-8')
+        self.send_header('Content-Length', str(len(data)))
+        self.send_header('Cache-Control', 'no-store'); self.end_headers(); self.wfile.write(data)
+
+    def do_OPTIONS(self):
+        if not self.path.startswith('/covers') or not self.cover_origin():
+            return self.send_json(403, {'error':'Origin not allowed'})
+        self.send_response(204); self.cover_cors()
+        self.send_header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
+        self.send_header('Access-Control-Allow-Headers', 'Content-Type')
+        self.send_header('Content-Length', '0'); self.end_headers()
+
     def do_GET(self):
+        route = urllib.parse.urlsplit(self.path)
+        if route.path.startswith('/covers'):
+            if not self.cover_origin(): return self.send_json(403, {'error':'Origin not allowed'})
+            query = urllib.parse.parse_qs(route.query)
+            try:
+                if route.path == '/covers': return self.cover_json(200, self.server.covers.manifest())
+                if route.path == '/covers/options': return self.cover_json(200, {'images':self.server.covers.options(query.get('malId',[''])[0])})
+                if route.path == '/covers/image':
+                    data, mime = self.server.covers.image(query.get('id',[''])[0])
+                    self.send_response(200); self.cover_cors(); self.send_header('Content-Type',mime)
+                    self.send_header('Content-Length',str(len(data))); self.send_header('Cache-Control','private, max-age=31536000, immutable')
+                    self.send_header('X-Content-Type-Options','nosniff'); self.end_headers(); self.wfile.write(data); return
+            except (ValueError, FileNotFoundError): return self.cover_json(404, {'error':'Cover unavailable'})
+            except Exception: return self.cover_json(502, {'error':'Gallery unavailable. Try again when online.'})
+            return self.cover_json(404, {'error':'Unknown endpoint'})
         if urllib.parse.urlsplit(self.path).path == '/images':
             try:
                 query = urllib.parse.parse_qs(urllib.parse.urlsplit(self.path).query)
@@ -246,6 +288,15 @@ class Handler(BaseHTTPRequestHandler):
         self.send_json(404, {'error': {'message': 'Unknown endpoint'}})
 
     def do_POST(self):
+        if self.path == '/covers':
+            if not self.cover_origin(): return self.send_json(403, {'error':'Origin not allowed'})
+            try:
+                length = int(self.headers.get('Content-Length', '0'))
+                if not 0 < length <= 16384 or self.headers.get('Content-Type','').split(';')[0] != 'application/json':
+                    return self.cover_json(400, {'error':'Invalid cover request'})
+                return self.cover_json(200, self.server.covers.choose(json.loads(self.rfile.read(length))))
+            except ValueError: return self.cover_json(400, {'error':'Invalid cover choice'})
+            except Exception: return self.cover_json(502, {'error':'Could not save the cover. Try again.'})
         if self.path.rstrip('/') != '/v1/chat/completions':
             return self.send_json(404, {'error': {'message': 'Unknown endpoint'}})
         try:
@@ -278,6 +329,7 @@ def main():
     server.daemon_threads = True
     server.translator = Translator()
     server.artwork = ArtworkCache()
+    server.covers = CoverStore(server.artwork)
     LOG.info('Listening on 127.0.0.1:%d; local Ollama adapter and persistent artwork cache', args.port)
     server.serve_forever()
 

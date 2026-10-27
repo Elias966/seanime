@@ -36,11 +36,14 @@ def patch_asar(path):
     queue_data = (public / 'subtitle-translation-queue.js').read_bytes()
     navigation_data = (public / 'entry-navigation.js').read_bytes()
     navigation_name = 'entry-navigation.' + sha256(navigation_data)[:8] + '.js'
+    cover_data = (public / 'cover-picker.js').read_bytes()
+    cover_name = 'cover-picker.' + sha256(cover_data)[:8] + '.js'
     artwork_data = (public / 'offline-artwork.js').read_bytes()
     artwork_name = 'offline-artwork.' + sha256(artwork_data)[:8] + '.js'
     progress_name = 'translation-progress.' + sha256(progress_data)[:8] + '.js'
     queue_name = 'subtitle-translation-queue.' + sha256(queue_data)[:8] + '.js'
     changed = {
+        'web-denshi/' + cover_name: cover_data,
         'web-denshi/' + navigation_name: navigation_data,
         'web-denshi/jassub/jassub-worker.js': (public / 'jassub/jassub-worker.js').read_bytes(),
         'web-denshi/fonts/DejaVuSans.ttf': (public / 'fonts/DejaVuSans.ttf').read_bytes(),
@@ -84,7 +87,12 @@ def patch_asar(path):
     if bootstrap.count(image_source) != 1:
         raise ValueError('Unexpected shared Image component')
     bootstrap = bootstrap.replace(image_source,
-        'L=window.SeanimeResolveImageUrl?.(p||(R?y.src:y))??(p||(R?y.src:y)),M=R?y.blurDataURL:void 0;', 1)
+        'L=window.SeanimeResolveImageUrl?.(p||(R?y.src:y),R?y.src:y)??(p||(R?y.src:y)),M=R?y.blurDataURL:void 0;', 1)
+    cover_hook = 'let[P,O]=(0,i.useState)(!1),R="object"==typeof y'
+    if bootstrap.count(cover_hook) != 1:
+        raise ValueError('Unexpected shared Image state hook')
+    bootstrap = bootstrap.replace(cover_hook,
+        'let[P,O]=(0,i.useState)(!1),[,refreshCover]=(0,i.useState)(0);(0,i.useEffect)(()=>{const f=()=>refreshCover(n=>n+1);window.addEventListener("seanime:covers-changed",f);return()=>window.removeEventListener("seanime:covers-changed",f)},[]);let R="object"==typeof y', 1)
     image_reset = '(0,i.useEffect)(n,[b.src]);let x=u&&b.src'
     if bootstrap.count(image_reset) != 1:
         raise ValueError('Unexpected shared Image retry effect')
@@ -98,7 +106,7 @@ def patch_asar(path):
     index_html = raw[start:start + index_entry['size']].decode()
     index_html = index_html.replace('/static/js/index.c4fd1c85.js', '/' + new_bootstrap_path.removeprefix('web-denshi/'), 1)
     changed['web-denshi/index.html'] = index_html.replace(
-        '</head>', '<script src="/' + navigation_name + '"></script><script src="/' + artwork_name + '"></script><script src="/' + progress_name + '"></script><script src="/' + queue_name + '"></script></head>', 1).encode()
+        '</head>', '<script src="/' + cover_name + '"></script><script src="/' + navigation_name + '"></script><script src="/' + artwork_name + '"></script><script src="/' + progress_name + '"></script><script src="/' + queue_name + '"></script></head>', 1).encode()
     for name in changed:
         node = tree
         parts = name.split('/')
@@ -172,6 +180,8 @@ def main():
                         app_dir / 'resources/seanime-translation-helper.py')
         shutil.copyfile(ROOT / 'scripts/arabic-translation/artwork_cache.py',
                         app_dir / 'resources/artwork_cache.py')
+        shutil.copyfile(ROOT / 'scripts/arabic-translation/cover_store.py',
+                        app_dir / 'resources/cover_store.py')
         filesystem = temp / 'patched.squashfs'
         subprocess.run(['mksquashfs', str(app_dir), str(filesystem), '-noappend', '-comp', 'xz', '-processors', str(args.processors), '-quiet'], check=True)
         with output.open('xb') as dest:

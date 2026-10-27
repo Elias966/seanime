@@ -114,11 +114,17 @@ const Image = forwardRef<HTMLImageElement, _ImageProps>((
     ref,
 ) => {
     const [isLoaded, setIsLoaded] = useState(false)
+    const [, refreshCover] = useState(0)
+    useEffect(() => {
+        const changed = () => refreshCover(value => value + 1)
+        window.addEventListener("seanime:covers-changed", changed)
+        return () => window.removeEventListener("seanime:covers-changed", changed)
+    }, [])
 
     const isStaticImport = typeof src === "object" && src !== null && "src" in src
     const originalImageSrc = overrideSrc || (isStaticImport ? src.src : src)
     const imageSrc = typeof window !== "undefined"
-        ? (window.SeanimeResolveImageUrl?.(originalImageSrc) ?? originalImageSrc)
+        ? (window.SeanimeResolveImageUrl?.(originalImageSrc, isStaticImport ? src.src : src) ?? originalImageSrc)
         : originalImageSrc
 
     const staticBlur = isStaticImport ? src.blurDataURL : undefined
@@ -181,5 +187,5 @@ Image.displayName = "Image"
 
 // The desktop repair loads the resolver before the application bootstrap.
 declare global {
-    interface Window { SeanimeResolveImageUrl?: (source: string) => string }
+    interface Window { SeanimeResolveImageUrl?: (source: string, original?: string) => string }
 }

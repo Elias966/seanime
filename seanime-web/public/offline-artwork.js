@@ -11,7 +11,9 @@
         try { const url = new URL(value); return url.protocol === 'https:' && hosts.has(url.hostname) && !url.username && !url.password && (!url.port || url.port === '443') && !url.hash; }
         catch { return false; }
     }
-    function resolve(value) {
+    function resolve(value, original = value) {
+        const custom = typeof window !== 'undefined' && window.SeanimeCovers?.resolve(original);
+        if (custom) return custom;
         if (typeof value !== 'string') return value;
         if (value.startsWith('{{LOCAL_ASSETS}}/')) return 'http://127.0.0.1:43211/offline-assets/' + value.slice('{{LOCAL_ASSETS}}/'.length);
         return isArtwork(value) ? helper + '/images?url=' + encodeURIComponent(value) : value;
