@@ -535,6 +535,40 @@ export function useMovieLibrary(refetchInterval: number | false = false) {
     })
 }
 
+const normalizeTitle = (s: string) => s.toLowerCase().normalize("NFKD").replace(/[^a-z0-9]+/g, " ").trim()
+
+/** Finds the movie a release name is for, e.g. "Interstellar.2014.1080p.BluRay" → Interstellar (2014). */
+async function identifyRelease(release: string) {
+    const m = /^(.*?)[\s.(\[_-]+((?:19|20)\d{2})\b/.exec(release)
+    const title = (m?.[1] ?? release.replace(/\.[a-z0-9]{2,4}$/i, "")).replace(/[._]+/g, " ").trim()
+    const year = m?.[2]
+    if (!title) return undefined
+    const metas = await fetchCatalog({ search: title })
+    const want = normalizeTitle(title)
+    const sameName = metas.filter(meta => normalizeTitle(meta.name) === want)
+    return year ? sameName.find(meta => String(movieYear(meta)) === year) : sameName[0]
+}
+
+/**
+ * Adds finished downloads the Library does not know yet (older ones, or files placed in the downloads folder by hand).
+ * Returns how many were added and the releases that could not be matched to a movie.
+ */
+export async function scanLibraryDownloads() {
+    const found = await getJson<{ hash: string, release: string, size: number }[]>(`${TORRENT_ENGINE}/library-scan`)
+    let added = 0
+    const unidentified: string[] = []
+    for (const item of found) {
+        const meta = await identifyRelease(item.release).catch(() => undefined)
+        if (!meta) {
+            unidentified.push(item.release)
+            continue
+        }
+        await postJson(`${TORRENT_ENGINE}/torrents`, { action: "library-add", hash: item.hash, media: metaToLibraryMedia(meta) })
+        added++
+    }
+    return { added, unidentified }
+}
+
 export function playLibraryItem(item: Movie_LibraryItem) {
     return playMovieUrl(TORRENT_ENGINE + item.url, item.year ? `${item.title} (${item.year})` : item.title)
 }

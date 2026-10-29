@@ -44,3 +44,26 @@ test('finished downloads join the library and stay playable from disk after the 
   assert.equal((await (await fetch(base+'/library')).json()).length,0);assert.ok(fs.existsSync(path.join(directory,'downloads','movie.mp4')));
  }finally{await engine.close();if(!seed.destroyed)await new Promise(resolve=>seed.destroy(resolve));fs.rmSync(directory,{recursive:true,force:true})}
 });
+test('older complete downloads are found from saved metadata, partial ones are skipped',{timeout:25000},async()=>{
+ const directory=fs.mkdtempSync(path.join(os.tmpdir(),'seanime-torrent-test-')),downloads=path.join(directory,'downloads'),seed=new WebTorrent({dht:false,tracker:false,utp:false});
+ const make=async(name,byte)=>{const dir=path.join(directory,'src',name);fs.mkdirSync(dir,{recursive:true});const content=Buffer.alloc(300*1024,byte);fs.writeFileSync(path.join(dir,name+'.mp4'),content);fs.writeFileSync(path.join(dir,'info.txt'),'release notes');
+  const t=await new Promise((resolve,reject)=>{seed.once('error',reject);seed.seed(dir,{announce:[]},resolve)});fs.mkdirSync(path.join(downloads,'metadata'),{recursive:true});fs.writeFileSync(path.join(downloads,'metadata',t.infoHash+'.torrent'),t.torrentFile);
+  fs.cpSync(dir,path.join(downloads,name),{recursive:true});return {hash:t.infoHash,file:path.join(downloads,name,name+'.mp4'),content}};
+ const engine=createEngine({directory:downloads,minLooseSize:100*1024,client:new WebTorrent({dht:false,tracker:false,utp:false})});
+ try{
+  const done=await make('Interstellar (2014) [1080p]',7),partial=await make('Inception (2010) [1080p]',9);
+  // Copied in by hand with no metadata: the whole one is offered, the sparse (unfinished) one is not
+  fs.mkdirSync(path.join(downloads,'Arrival (2016)'));fs.writeFileSync(path.join(downloads,'Arrival (2016)','Arrival.2016.mp4'),Buffer.alloc(300*1024,3));
+  fs.mkdirSync(path.join(downloads,'Dune (2021)'));fs.closeSync(fs.openSync(path.join(downloads,'Dune (2021)','Dune.2021.mp4'),'w'));fs.truncateSync(path.join(downloads,'Dune (2021)','Dune.2021.mp4'),300*1024);
+  const broken=Buffer.from(partial.content);broken.fill(0,100*1024,140*1024);fs.writeFileSync(partial.file,broken);
+  engine.server.listen(0,'127.0.0.1');await once(engine.server,'listening');const base='http://127.0.0.1:'+engine.server.address().port;
+  const post=body=>fetch(base+'/torrents',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+  const found=await (await fetch(base+'/library-scan')).json();assert.deepEqual(found.map(x=>x.release),['Interstellar (2014) [1080p]','Arrival (2016)']);assert.equal(found[0].hash,done.hash);
+  assert.equal((await post({action:'library-add',hash:found[1].hash,media:{imdb:'tt2543164',title:'Arrival',year:'2016'}})).status,200);
+  assert.equal((await post({action:'library-add',hash:partial.hash,media:{imdb:'tt1375666',title:'Inception'}})).status,400);
+  assert.equal((await post({action:'library-add',hash:done.hash,media:{imdb:'tt0816692',title:'Interstellar',year:'2014'}})).status,200);
+  const list=await (await fetch(base+'/library')).json();assert.deepEqual(list.map(x=>x.imdb),['tt0816692','tt2543164']);
+  const r=await fetch(base+list[0].url);assert.deepEqual(Buffer.from(await r.arrayBuffer()),done.content);
+  assert.equal((await (await fetch(base+'/library-scan')).json()).length,0);
+ }finally{await engine.close();await new Promise(resolve=>seed.destroy(resolve));fs.rmSync(directory,{recursive:true,force:true})}
+});

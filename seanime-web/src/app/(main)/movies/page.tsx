@@ -10,6 +10,7 @@ import {
     Movie_LibraryItem,
     Movie_Meta,
     playLibraryItem,
+    scanLibraryDownloads,
     useInfiniteMovieCatalog,
     useMovieLibrary,
     useMovieList,
@@ -26,6 +27,7 @@ import { useRouter, useSearchParams } from "@/lib/navigation"
 import { AnimatePresence, motion } from "motion/react"
 import React from "react"
 import { FiSearch } from "react-icons/fi"
+import { LuRefreshCw } from "react-icons/lu"
 import { toast } from "sonner"
 
 type MoviesTab = "discover" | "browse" | "list" | "library" | "downloads"
@@ -129,7 +131,6 @@ export default function Page() {
                     </PageWrapper>}
 
                     {tab === "library" && <PageWrapper key="library" className="relative pb-10 pt-4 space-y-6" {...TAB_TRANSITION}>
-                        <h2>Library</h2>
                         <MoviesLibrary />
                     </PageWrapper>}
 
@@ -228,20 +229,57 @@ function MoviesMyList() {
 
 /** Finished downloads, playable from disk. */
 function MoviesLibrary() {
-    const { data, isLoading, isError } = useMovieLibrary()
+    const { data, isLoading, isError, refetch } = useMovieLibrary()
+    const [scanning, setScanning] = React.useState(false)
 
-    if (isLoading) return <div className="flex justify-center py-10"><LoadingSpinner /></div>
-    if (isError) return <LuffyError title="Torrent engine unavailable">
-        <p>Restart Seanime to load your downloaded movies.</p>
-    </LuffyError>
+    // Finished downloads the Library has no entry for (from before it existed, or copied in by hand) are added on refresh
+    const refresh = React.useCallback(async (quiet: boolean) => {
+        setScanning(true)
+        try {
+            const { added, unidentified } = await scanLibraryDownloads()
+            if (added) await refetch()
+            if (added) toast.success(`Added ${added} movie${added > 1 ? "s" : ""} to the Library`)
+            else if (!quiet) toast.info("No new finished movies found")
+            if (unidentified.length && !quiet) toast.warning(`Could not identify: ${unidentified.join(", ")}`)
+        }
+        catch (e: any) {
+            if (!quiet) toast.error(e?.message ?? String(e))
+        }
+        finally {
+            setScanning(false)
+        }
+    }, [refetch])
 
-    if (!data?.length) return <LuffyError title={null}>
-        <p>No downloaded movies yet. Open a movie, go to Torrent streaming and press Download.</p>
-    </LuffyError>
+    React.useEffect(() => {
+        refresh(true)
+    }, [])
 
-    return <MediaCardGrid data-movies-library>
-        {data.map(item => <MovieLibraryCard key={item.hash} item={item} />)}
-    </MediaCardGrid>
+    return <>
+        <div className="flex items-center gap-4">
+            <h2 className="flex-1">Library</h2>
+            <Button
+                intent="gray-subtle"
+                className="rounded-full"
+                leftIcon={<LuRefreshCw />}
+                loading={scanning}
+                onClick={() => refresh(false)}
+                data-movies-library-refresh
+            >
+                Refresh
+            </Button>
+        </div>
+        {isLoading ? <div className="flex justify-center py-10"><LoadingSpinner /></div> : isError
+            ? <LuffyError title="Torrent engine unavailable">
+                <p>Restart Seanime to load your downloaded movies.</p>
+            </LuffyError>
+            : !data?.length
+                ? <LuffyError title={null}>
+                    <p>No downloaded movies yet. Open a movie, go to Torrent streaming and press Download.</p>
+                </LuffyError>
+                : <MediaCardGrid data-movies-library>
+                    {data.map(item => <MovieLibraryCard key={item.hash} item={item} />)}
+                </MediaCardGrid>}
+    </>
 }
 
 function MovieLibraryCard({ item }: { item: Movie_LibraryItem }) {

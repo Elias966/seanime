@@ -250,12 +250,14 @@ function MovieTorrentSection({ meta }: { meta: Movie_Meta }) {
 
     async function start(t: Movie_YtsTorrent, mode: "stream" | "download") {
         const title = releaseTitle(meta, t)
-        // Promise callbacks instead of try/catch: the build drops catch bindings inside components
-        const started = await startEngineTorrent(ytsMagnet(t.hash, title), title, mode, metaToLibraryMedia(meta))
-            .catch((e: any) => void toast.error(e?.message ?? "The torrent engine is unavailable"))
-        if (!started) return
-        if (mode === "stream") setStreaming({ hash: started.hash || t.hash.toLowerCase(), title })
-        else toast.success("Download started, the movie will appear in your Library when it finishes")
+        try {
+            const { hash } = await startEngineTorrent(ytsMagnet(t.hash, title), title, mode, metaToLibraryMedia(meta))
+            if (mode === "stream") setStreaming({ hash: hash || t.hash.toLowerCase(), title })
+            else toast.success("Download started, the movie will appear in your Library when it finishes")
+        }
+        catch (e: any) {
+            toast.error(e?.message ?? "The torrent engine is unavailable")
+        }
     }
 
     const hashes = new Set(torrents.map(t => t.hash.toLowerCase()))
@@ -329,33 +331,27 @@ function TorrentStreamModal({ streaming, onClose }: { streaming?: { hash: string
         let cancelled = false
         let timer: ReturnType<typeof setTimeout>
 
-        // Returns true once polling should stop
-        const step = async () => {
-            const list = await fetchEngineTorrents()
-            if (cancelled) return true
-            const t = list.find(x => x.hash.toLowerCase() === streaming.hash.toLowerCase())
-            setTorrent(t)
-            if (t?.error) {
-                setError(t.error)
-                return true
+        const poll = async () => {
+            try {
+                const list = await fetchEngineTorrents()
+                if (cancelled) return
+                const t = list.find(x => x.hash.toLowerCase() === streaming.hash.toLowerCase())
+                setTorrent(t)
+                if (t?.error) return setError(t.error)
+                if (t?.ready) {
+                    const file = largestPlayableFile(t)
+                    if (!file) return setError("No supported video files in this torrent")
+                    await playEngineFile(file, streaming.title)
+                    onClose()
+                    return
+                }
             }
-            if (!t?.ready) return false
-            const file = largestPlayableFile(t)
-            if (!file) {
-                setError("No supported video files in this torrent")
-                return true
+            catch (e: any) {
+                if (cancelled) return
+                return setError(e?.message ?? String(e))
             }
-            await playEngineFile(file, streaming.title)
-            onClose()
-            return true
+            timer = setTimeout(poll, 1500)
         }
-        // Promise callbacks instead of try/catch: the build drops catch bindings inside components
-        const poll = () => step()
-            .catch((e: any) => {
-                if (!cancelled) setError(e?.message ?? String(e))
-                return true
-            })
-            .then(stop => { if (!stop && !cancelled) timer = setTimeout(poll, 1500) })
         poll()
         return () => {
             cancelled = true
@@ -458,10 +454,7 @@ function MovieOnlineSection({ meta }: { meta: Movie_Meta }) {
     )
 }
 
-/**
- * Plays one website's video, returning why it failed or undefined once it plays.
- * Kept outside the component: the React compiler drops the catch binding inside its effect closures.
- */
+/** Plays one website's video, returning why it failed or undefined once it plays. */
 async function streamFromSource(source: Movie_StreamSource, ref: Movie_StreamRef, signal: AbortSignal, onStarting: () => void) {
     try {
         const stream = await captureMovieStream(source, ref, signal)

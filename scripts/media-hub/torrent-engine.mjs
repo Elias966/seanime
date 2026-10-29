@@ -3,6 +3,7 @@ import WebTorrent from 'webtorrent';
 import parseTorrent,{toTorrentFile} from 'parse-torrent';
 import http from 'node:http';
 import fs from 'node:fs';
+import crypto from 'node:crypto';
 import path from 'node:path';
 import os from 'node:os';
 import {fileURLToPath} from 'node:url';
@@ -37,6 +38,47 @@ export function createEngine(options={}){
   const f=t.files.filter(f=>/\.(mp4|m4v|webm|mkv|mov)$/i.test(f.name)).sort((a,b)=>b.length-a.length)[0];if(!f)return;
   library.unshift({hash:t.infoHash,...job.media,release:job.title,file:f.path,size:f.length,added:Date.now()});try{saveLibrary()}catch{}
  }
+ // Downloads finished before the library existed (or whose details were lost) are found again from their saved
+ // metadata. A file only counts once every piece of it matches the torrent's hashes, so partial streams are skipped.
+ const verified=new Map();let scanning;
+ async function complete(meta,file){
+  let size;try{const st=fs.statSync(path.join(directory,file.path));size=st.size;if(st.blocks!==undefined&&st.blocks*512<size*0.9)return false}catch{return false}if(size!==file.length)return false;
+  const first=Math.floor(file.offset/meta.pieceLength),last=Math.floor((file.offset+file.length-1)/meta.pieceLength),all=[];for(let i=first;i<=last;i++)all.push(i);
+  // Spread samples first so incomplete files fail without reading all of them
+  const step=Math.max(1,Math.floor(all.length/24)),order=[...all.filter((_,i)=>i%step===0),...all.filter((_,i)=>i%step!==0)];
+  const handles=new Map();try{
+   for(const i of order){
+    const start=i*meta.pieceLength,end=Math.min(start+meta.pieceLength,meta.length),buf=Buffer.alloc(end-start);
+    for(const f of meta.files){const a=Math.max(start,f.offset),b=Math.min(end,f.offset+f.length);if(a>=b)continue;
+     if(!handles.has(f.path))handles.set(f.path,await fs.promises.open(path.join(directory,f.path),'r'));const {bytesRead}=await handles.get(f.path).read(buf,a-start,b-a,a-f.offset);if(bytesRead!==b-a)return false}
+    if(crypto.createHash('sha1').update(buf).digest('hex')!==meta.pieces[i])return false;
+   }return true;
+  }catch{return false}finally{for(const h of handles.values())await h.close().catch(()=>{})}
+ }
+ // Videos with no saved metadata cannot be hash checked, they are only offered when no part of the file is missing on disk
+ const minLooseSize=options.minLooseSize??50*2**20;
+ function looseVideos(covered){
+  const found=[],walk=(dir,depth)=>{for(const e of fs.readdirSync(path.join(directory,dir),{withFileTypes:true})){const rel=path.join(dir,e.name);
+   if(e.isDirectory()){if(depth<2&&!(dir===''&&e.name==='metadata'))walk(rel,depth+1);continue}
+   if(!e.isFile()||!/\.(mp4|m4v|webm|mkv|mov)$/i.test(e.name)||/\bsample\b/i.test(e.name)||covered.has(rel))continue;
+   const st=fs.statSync(path.join(directory,rel));if(st.size<minLooseSize||st.blocks===undefined||st.blocks*512<st.size)continue;
+   found.push({hash:crypto.createHash('sha1').update('file:'+rel).digest('hex'),release:path.basename(dir)||e.name.replace(/\.[^.]+$/,''),file:rel,size:st.size,mtime:st.mtimeMs})}};
+  try{walk('',0)}catch{}return found}
+ function scan(){return scanning??=(async()=>{
+  const found=[],covered=new Set([...library.map(x=>path.normalize(x.file)),...[...jobs.values()].flatMap(j=>j.torrent.files?.map(f=>path.normalize(f.path))??[])]);
+  for(const name of fs.readdirSync(metadataDir).filter(n=>/^[a-f0-9]{40}\.torrent$/.test(n))){
+   const hash=name.slice(0,40);
+   try{const meta=await parseTorrent(fs.readFileSync(path.join(metadataDir,name)));if(meta.infoHash!==hash)continue;for(const f of meta.files)covered.add(path.normalize(f.path));
+    if(library.some(x=>x.hash===hash)||jobs.has(hash))continue;
+    const file=meta.files.filter(f=>/\.(mp4|m4v|webm|mkv|mov)$/i.test(f.name)).sort((a,b)=>b.length-a.length)[0];if(!file||!libraryPath({file:file.path}))continue;
+    const mtime=fs.statSync(path.join(directory,file.path)).mtimeMs,known=verified.get(hash);
+    if(!(known&&known.mtime===mtime)){if(!await complete(meta,file))continue;verified.set(hash,{release:meta.name,file:file.path,size:file.length,mtime})}
+    found.push({hash,release:meta.name,size:file.length});
+   }catch{}
+  }
+  for(const v of looseVideos(covered))if(!library.some(x=>x.hash===v.hash)){verified.set(v.hash,v);found.push({hash:v.hash,release:v.release,size:v.size})}
+  return found;
+ })().finally(()=>{scanning=undefined})}
  async function add(value){
   let metadata;const media=cleanMedia(value.media);
   if(value.torrentUrl){
@@ -59,6 +101,7 @@ export function createEngine(options={}){
   if(req.method==='OPTIONS'){res.writeHead(204,{'Access-Control-Allow-Methods':'GET, POST, OPTIONS','Access-Control-Allow-Headers':'Content-Type'});res.end();return}
   if(req.method==='GET'&&u.pathname==='/health')return json(200,{ok:true,revision:'media-engine-v2'});
   if(req.method==='GET'&&u.pathname==='/torrents')return json(200,snapshot());
+  if(req.method==='GET'&&u.pathname==='/library-scan')return json(200,await scan());
   if(req.method==='GET'&&u.pathname==='/library')return json(200,library.filter(x=>{const p=libraryPath(x);return p&&fs.existsSync(p)}).map(x=>({...x,url:'/library-file/'+x.hash})));
   const saved_=/^\/library-file\/([a-f0-9]{40})$/.exec(u.pathname);
   if(saved_&&(req.method==='GET'||req.method==='HEAD')){
@@ -72,6 +115,7 @@ export function createEngine(options={}){
    if(!req.headers['content-type']?.startsWith('application/json'))return json(400,{error:'JSON required'});
    try{let raw='';for await(const chunk of req){raw+=chunk;if(raw.length>16384)throw Error('Request too large')};const v=JSON.parse(raw);
     if(v.action==='resume'){if(!/^[a-f0-9]{40}$/.test(v.hash)||!fs.existsSync(path.join(metadataDir,v.hash+'.torrent')))throw Error('Saved transfer unavailable');const hash=await add({magnet:'magnet:?xt=urn:btih:'+v.hash,title:v.title||'Saved media',mode:v.mode==='download'?'download':'stream',media:v.media});return json(200,{hash})}
+    if(v.action==='library-add'){const x=verified.get(v.hash),media=cleanMedia(v.media);if(!x||!media)throw Error('Unknown download');if(!library.some(y=>y.hash===v.hash)){library.unshift({hash:v.hash,...media,release:x.release,file:x.file,size:x.size,added:Date.now()});saveLibrary()}return json(200,{ok:true})}
     if(v.action==='library-remove'){library=library.filter(x=>x.hash!==v.hash);saveLibrary();return json(200,{ok:true})}
     if(v.action==='restore'){await restore();return json(200,{ok:true})}
     if(v.action==='stop'){
