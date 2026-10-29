@@ -7,6 +7,9 @@ import { FiClock } from "react-icons/fi"
 
 const log = logger("RateLimitLoader")
 
+// Short waits are retried before anyone notices, only show the ones that visibly stall the app
+const MIN_VISIBLE_WAIT_SECONDS = 20
+
 export function RateLimitLoader() {
     const [totalSeconds, setTotalSeconds] = React.useState(0)
     const [secondsRemaining, setSecondsRemaining] = React.useState(0)
@@ -16,6 +19,7 @@ export function RateLimitLoader() {
         onMessage: (waitSeconds) => {
             if (typeof waitSeconds === "number" && waitSeconds > 0) {
                 log.info(`Received AniList rate limit event: retrying in ${waitSeconds} seconds`)
+                if (waitSeconds < MIN_VISIBLE_WAIT_SECONDS) return
                 setTotalSeconds(waitSeconds)
                 setSecondsRemaining(waitSeconds)
             }

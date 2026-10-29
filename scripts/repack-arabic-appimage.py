@@ -194,6 +194,7 @@ def main():
     parser.add_argument('output', type=Path)
     parser.add_argument('--processors', type=int, default=4)
     parser.add_argument('--web-dir', type=Path, help='Use a source-built frontend (seanime-web/out-denshi) instead of patching the bundled one')
+    parser.add_argument('--server-binary', type=Path, help='Replace the bundled seanime-server-linux-amd64 with a source build')
     args = parser.parse_args()
     if args.output.exists():
         parser.error('Output already exists; choose a new path')
@@ -214,6 +215,10 @@ def main():
         app_dir = temp / 'AppDir'
         subprocess.run(['unsquashfs', '-no-progress', '-o', str(SQUASHFS_OFFSET), '-d', str(app_dir), str(original)], check=True)
         patch_asar(app_dir / 'resources/app.asar', args.web_dir.resolve() if args.web_dir else None)
+        if args.server_binary:
+            server = app_dir / 'resources/binaries/seanime-server-linux-amd64'
+            shutil.copyfile(args.server_binary.resolve(), server)
+            server.chmod(0o755)
         # Preserve upstream startup and bundle the Python standard-library adapter.
         app_run = app_dir / 'AppRun'
         app_run.rename(app_dir / 'AppRun.upstream')

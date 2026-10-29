@@ -69,7 +69,7 @@ function MovieDownloadRow({ torrent: t, onChange }: { torrent: Movie_EngineTorre
                     intent="white"
                     leftIcon={<BiPlay className="text-xl" />}
                     disabled={!t.ready || !file}
-                    onClick={() => file && run(() => playEngineFile(file, t.title))}
+                    onClick={() => file && run(() => playEngineFile(file, t.title, t.media?.imdb))}
                 >
                     Play
                 </Button>

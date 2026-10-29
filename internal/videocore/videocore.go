@@ -1154,8 +1154,9 @@ func (vc *VideoCore) listenToClientEvents() {
 					if err := playerEvent.UnmarshalAs(payload); err == nil {
 						// Translate in a goroutine
 						go func() {
-							state, ok := vc.GetPlaybackState()
-							if !ok {
+							// Only the client is needed; movies have no episode, so GetPlaybackState reports !ok
+							state, _ := vc.GetPlaybackState()
+							if state == nil || state.ClientId == "" {
 								return
 							}
 							translated := vc.TranslateText(context.Background(), payload.Text)
@@ -1175,8 +1176,8 @@ func (vc *VideoCore) listenToClientEvents() {
 						// Translate in a goroutine
 						go func() {
 							vc.logger.Trace().Msgf("videocore: Received subtitle track translation request")
-							state, ok := vc.GetPlaybackState()
-							if !ok {
+							state, _ := vc.GetPlaybackState()
+							if state == nil || state.ClientId == "" {
 								return
 							}
 							var translated string

@@ -6,9 +6,11 @@ import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tansta
  * - Torrents: YTS through the local media helper (11435)
  * - Streaming/downloading: local torrent engine (11437)
  * - Playback: Seanime's native player (through window.SeanimeMediaHub.play)
+ * - Subtitles: OpenSubtitles through Stremio's public add-on (keyless, CORS enabled)
  */
 
 const CINEMETA = "https://v3-cinemeta.strem.io"
+const OPENSUBTITLES = "https://opensubtitles-v3.strem.io"
 export const MEDIA_HELPER = "http://127.0.0.1:11435"
 export const TORRENT_ENGINE = "http://127.0.0.1:11437"
 
@@ -98,6 +100,7 @@ export type Movie_EngineTorrent = {
     downloadSpeed: number
     peers: number
     files: Movie_EngineFile[]
+    media?: Movie_LibraryMedia
 }
 
 declare global {
@@ -260,7 +263,7 @@ export function useMovieHydraMatches(title: string | undefined) {
 }
 
 /** What the streaming websites need to find a movie. */
-export type Movie_StreamRef = { tmdb?: number, title: string, year?: number, hydraId?: string }
+export type Movie_StreamRef = { imdb?: string, tmdb?: number, title: string, year?: number, hydraId?: string }
 
 export type Movie_StreamSource = {
     id: string
@@ -436,10 +439,14 @@ export function captureMovieStream(source: Movie_StreamSource, ref: Movie_Stream
 }
 
 /** Hands the stream to the Seanime player and resolves once the video is actually playing. */
-export async function playCapturedStream(stream: Movie_CapturedStream, title: string, signal?: AbortSignal) {
+export async function playCapturedStream(stream: Movie_CapturedStream, title: string, signal?: AbortSignal, imdb?: string) {
     if (!window.SeanimeMediaHub?.play) throw new Error("The Seanime player is still loading, try again in a moment.")
     const previous = new Set([...document.querySelectorAll("video")].map(v => v.currentSrc).filter(Boolean))
-    await window.SeanimeMediaHub.play(stream.url, title, stream.subtitles,
+    // The website's own subtitles come first, OpenSubtitles fills in the languages it does not have
+    const own = new Set(stream.subtitles.map(s => s.language.slice(0, 2).toLowerCase()))
+    const extra = (await fetchMovieSubtitles(imdb)).filter(s => !own.has(s.language.slice(0, 2)))
+    if (signal?.aborted) return
+    await window.SeanimeMediaHub.play(stream.url, title, [...stream.subtitles, ...extra],
         { mimeType: stream.type === "hls" ? "application/vnd.apple.mpegurl" : "video/mp4" })
     // Some streams are captured but refuse to load in the player, report them so the next website can be tried
     const started = Date.now()
@@ -569,8 +576,9 @@ export async function scanLibraryDownloads() {
     return { added, unidentified }
 }
 
-export function playLibraryItem(item: Movie_LibraryItem) {
-    return playMovieUrl(TORRENT_ENGINE + item.url, item.year ? `${item.title} (${item.year})` : item.title)
+export async function playLibraryItem(item: Movie_LibraryItem) {
+    const subtitles = await fetchMovieSubtitles(item.imdb, item.file.split("/").pop())
+    return playMovieUrl(TORRENT_ENGINE + item.url, item.year ? `${item.title} (${item.year})` : item.title, subtitles)
 }
 
 export function largestPlayableFile(t: Movie_EngineTorrent) {
@@ -587,9 +595,9 @@ function mimeTypeFor(url: string) {
     return "video/mp4"
 }
 
-export async function playMovieUrl(url: string, title: string) {
+export async function playMovieUrl(url: string, title: string, subtitles: Movie_Subtitle[] = []) {
     if (window.SeanimeMediaHub?.play) {
-        return window.SeanimeMediaHub.play(url, title)
+        return window.SeanimeMediaHub.play(url, title, subtitles)
     }
     if (typeof window.SeanimeNativePlayerMessage !== "function") {
         throw new Error("The Seanime player is still loading, try again in a moment.")
@@ -604,12 +612,90 @@ export async function playMovieUrl(url: string, title: string) {
             streamUrl: url,
             mimeType: mimeTypeFor(url),
             contentLength: 0,
-            subtitleTracks: [],
+            subtitleTracks: subtitles.map((sub, index) => ({ index, ...sub, default: sub.language === "ar", useLibassRenderer: true })),
             isNakamaWatchParty: false,
         },
     })
 }
 
-export function playEngineFile(file: Movie_EngineFile, title: string) {
-    return playMovieUrl(TORRENT_ENGINE + file.url, title)
+export async function playEngineFile(file: Movie_EngineFile, title: string, imdb?: string) {
+    return playMovieUrl(TORRENT_ENGINE + file.url, title, await fetchMovieSubtitles(imdb, file.name))
+}
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Subtitles
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+export type Movie_Subtitle = Movie_CapturedStream["subtitles"][number]
+
+type OpenSubtitle = { url: string, lang: string, movieReleaseName?: string, subtitleFileName?: string, fpsMilli?: number }
+
+// OpenSubtitles uses ISO 639-2 codes, the player's language preferences use the two letter ones
+const SUBTITLE_LANGUAGES: Record<string, string> = {
+    ara: "ar", eng: "en", fre: "fr", ger: "de", spa: "es", spn: "es", ita: "it", por: "pt", pob: "pt", dut: "nl", rus: "ru",
+    tur: "tr", per: "fa", gre: "el", ell: "el", cze: "cs", rum: "ro", ron: "ro", pol: "pl", swe: "sv", dan: "da", fin: "fi",
+    nor: "no", hun: "hu", heb: "he", chi: "zh", zht: "zh", jpn: "ja", kor: "ko", ind: "id", may: "ms", vie: "vi",
+    tha: "th", hin: "hi", urd: "ur", hrv: "hr", scc: "sr", bul: "bg", ukr: "uk", slo: "sk", slv: "sl", est: "et", lav: "lv",
+    lit: "lt", alb: "sq", mac: "mk", bos: "bs", ben: "bn", kur: "ku", ice: "is", cat: "ca", baq: "eu", glg: "gl",
+}
+
+const subtitleLists = new Map<string, Promise<OpenSubtitle[]>>()
+
+function languageName(code: string, lang: string) {
+    try {
+        return new Intl.DisplayNames(["en"], { type: "language" }).of(lang === "pob" ? "pt-BR" : code) ?? code
+    }
+    catch {
+        return code
+    }
+}
+
+/**
+ * Subtitles for a movie, the best match per language for the release being played (Arabic and English get a spare).
+ * Never throws, playback goes on without subtitles when OpenSubtitles is unreachable.
+ */
+export async function fetchMovieSubtitles(imdb?: string, release = ""): Promise<Movie_Subtitle[]> {
+    if (!imdb?.startsWith("tt")) return []
+    let request = subtitleLists.get(imdb)
+    if (!request) {
+        request = (async () => {
+            const res = await fetch(`${OPENSUBTITLES}/subtitles/movie/${imdb}.json`, { signal: AbortSignal.timeout(8000) })
+            if (!res.ok) throw new Error(`OpenSubtitles ${res.status}`)
+            const data = await res.json() as { subtitles?: OpenSubtitle[] }
+            return Array.isArray(data?.subtitles) ? data.subtitles : []
+        })()
+        request.catch(() => subtitleLists.delete(imdb))
+        subtitleLists.set(imdb, request)
+    }
+    const list = await request.catch(() => [] as OpenSubtitle[])
+
+    const quality = /\b(480|720|1080|2160)p\b/i.exec(release)?.[0].toLowerCase()
+    // Subtitles are timed to one rip, prefer the YIFY/BluRay ones the YTS torrents are, never a cinema recording
+    const score = (s: OpenSubtitle) => {
+        const name = `${s.movieReleaseName ?? ""} ${s.subtitleFileName ?? ""}`.toLowerCase()
+        let n = 0
+        if (/\b(cam|hdcam|ts|hdts|telesync|tc|telecine|hc)\b/.test(name)) n -= 20
+        if (/yify|yts/.test(name)) n += 10
+        if (/blu-?ray|brrip|bdrip/.test(name)) n += 5
+        if (quality && name.includes(quality)) n += 3
+        if (s.fpsMilli === 23976) n += 2
+        return n
+    }
+
+    const byLanguage = new Map<string, OpenSubtitle[]>()
+    for (const s of list) {
+        if (typeof s?.url !== "string" || !s.url.startsWith("https://")) continue
+        const code = SUBTITLE_LANGUAGES[s.lang] ?? s.lang
+        byLanguage.set(code, [...(byLanguage.get(code) ?? []), s])
+    }
+    const order = (code: string) => code === "ar" ? 0 : code === "en" ? 1 : 2
+    return [...byLanguage.entries()]
+        .map(([code, subs]) => ({ code, name: languageName(code, subs[0].lang), subs: subs.sort((a, b) => score(b) - score(a)) }))
+        .sort((a, b) => order(a.code) - order(b.code) || a.name.localeCompare(b.name))
+        .flatMap(({ code, name, subs }) => subs.slice(0, order(code) < 2 ? 2 : 1).map((s, i) => ({
+            src: s.url,
+            type: "srt",
+            label: i ? `${name} ${i + 1}` : name,
+            language: code,
+        })))
 }

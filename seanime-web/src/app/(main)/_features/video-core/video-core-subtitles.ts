@@ -924,7 +924,8 @@ Style: Default, Roboto Medium,24,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0
                 this.libassRenderer.renderer.addFonts([url])
             }
 
-            await this.libassRenderer!.renderer.setDefaultFont(fontName)
+            // The default font stays the fallback, so a font without Latin glyphs (e.g. Noto Sans Arabic) doesn't turn English lines into boxes
+            await this.libassRenderer!.renderer.setDefaultFont(DEFAULT_FONT_NAME)
             customStyle.FontName = fontName
             await this.libassRenderer.renderer.styleOverride(customStyle)
         } else {
@@ -1147,6 +1148,7 @@ Style: Default, Roboto Medium,24,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0
             await this._applySubtitleCustomization()
             await this.libassRenderer?.resize?.()
             this.pgsRenderer?.resize()
+            this._translateFileTrack(trackNumber)
             return
         }
 

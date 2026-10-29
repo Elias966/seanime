@@ -247,7 +247,7 @@ function MovieTorrentSection({ meta }: { meta: Movie_Meta }) {
     const { data: yts, isLoading, isError } = useMovieTorrents(meta.id)
     const { data: library } = useMovieLibrary()
     const { data: active } = useEngineTorrents(3000)
-    const [streaming, setStreaming] = React.useState<{ hash: string, title: string }>()
+    const [streaming, setStreaming] = React.useState<{ hash: string, title: string, imdb: string }>()
     const [busy, setBusy] = React.useState<string>()
 
     const torrents = React.useMemo(() => [...(yts?.torrents ?? [])].sort((a, b) => qualityRank(b.quality) - qualityRank(a.quality) || b.seeds - a.seeds),
@@ -258,7 +258,7 @@ function MovieTorrentSection({ meta }: { meta: Movie_Meta }) {
         setBusy(t.hash)
         try {
             const { hash } = await startEngineTorrent(ytsMagnet(t.hash, title), title, mode, metaToLibraryMedia(meta))
-            if (mode === "stream") setStreaming({ hash: hash || t.hash.toLowerCase(), title })
+            if (mode === "stream") setStreaming({ hash: hash || t.hash.toLowerCase(), title, imdb: meta.id })
             else toast.success("Download started, the movie will appear in your Library when it finishes")
         }
         catch (e: any) {
@@ -303,7 +303,8 @@ function MovieTorrentSection({ meta }: { meta: Movie_Meta }) {
                                                 <span className={cn("flex items-center gap-1", t.seeds > 20 ? "text-green-300" : t.seeds > 0
                                                     ? "text-yellow-200"
                                                     : "text-red-300")}>
-                                                    <LuUsers /> {t.seeds} seeders
+                                                    {/* YTS stops counting at 100 */}
+                                                    <LuUsers /> {t.seeds >= 100 ? "100+" : t.seeds} seeders
                                                 </span>
                                             </p>
                                         </div>
@@ -361,7 +362,7 @@ function qualityRank(q: string) {
 }
 
 /** Waits for the torrent to be ready (metadata + first pieces), then hands it to the native player. */
-function TorrentStreamModal({ streaming, onClose }: { streaming?: { hash: string, title: string }, onClose: (played?: boolean) => void }) {
+function TorrentStreamModal({ streaming, onClose }: { streaming?: { hash: string, title: string, imdb: string }, onClose: (played?: boolean) => void }) {
     const [torrent, setTorrent] = React.useState<Movie_EngineTorrent>()
     const [error, setError] = React.useState<string>()
 
@@ -384,7 +385,7 @@ function TorrentStreamModal({ streaming, onClose }: { streaming?: { hash: string
                 if (t?.ready) {
                     const file = largestPlayableFile(t)
                     if (!file) return setError("No supported video files in this torrent")
-                    await playEngineFile(file, streaming.title)
+                    await playEngineFile(file, streaming.title, streaming.imdb)
                     if (!cancelled) onClose(true)
                     return
                 }
@@ -436,7 +437,7 @@ function MovieOnlineSection({ meta }: { meta: Movie_Meta }) {
             return (t === name ? 4 : t.includes(name) ? 2 : 0) + (year && t.includes(String(year)) ? 1 : 0)
         }
         const hydra = [...(matches ?? [])].sort((a, b) => score(b.title) - score(a.title))[0]
-        return { tmdb: meta.moviedb_id, title: meta.name, year: year ? Number(year) : undefined, hydraId: hydra && score(hydra.title) >= 2 ? hydra.id : undefined }
+        return { imdb: meta.id, tmdb: meta.moviedb_id, title: meta.name, year: year ? Number(year) : undefined, hydraId: hydra && score(hydra.title) >= 2 ? hydra.id : undefined }
     }, [matches, meta, year])
 
     const available = MOVIE_STREAM_SOURCES.filter(s => !!s.url(ref))
@@ -520,7 +521,7 @@ async function streamFromSource(source: Movie_StreamSource, ref: Movie_StreamRef
         const stream = await captureMovieStream(source, ref, signal)
         if (signal.aborted) return
         onStarting()
-        await playCapturedStream(stream, ref.title, signal)
+        await playCapturedStream(stream, ref.title, signal, ref.imdb)
         return undefined
     }
     catch (e: any) {

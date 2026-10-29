@@ -35,6 +35,11 @@
         win.__seanimeArtworkInstalled = true;
         const base = 'http://127.0.0.1:43211', seen = new Set();
         let running = false, lastSuccess = 0;
+        // Each entry read costs an AniList request (30 a minute without an account), so an anime is
+        // re-checked once a week and reads are spaced out, leaving most of the budget to browsing.
+        const WARMED_KEY = 'seanime-artwork-warmed', RECHECK_MS = 7 * 86400000, ENTRY_GAP_MS = 4000;
+        function readWarmed() { try { return JSON.parse(win.localStorage.getItem(WARMED_KEY) || '{}') || {}; } catch { return {}; } }
+        function saveWarmed(value) { try { win.localStorage.setItem(WARMED_KEY, JSON.stringify(value)); } catch {} }
         async function read(path) {
             const response = await win.fetch(base + path, { credentials: 'include', signal: AbortSignal.timeout(20000) });
             if (!response.ok) throw Error('Metadata unavailable');
@@ -48,17 +53,25 @@
                 const health = await win.fetch(helper + '/health', { signal: AbortSignal.timeout(3000) });
                 if (!health.ok) return;
                 const files = await read('/api/v1/library/local-files');
-                const ids = [...new Set((Array.isArray(files) ? files : []).filter(file => !file.ignored && file.mediaId > 0).map(file => file.mediaId))];
+                const warmed = readWarmed();
+                const ids = [...new Set((Array.isArray(files) ? files : []).filter(file => !file.ignored && file.mediaId > 0).map(file => file.mediaId))]
+                    .filter(id => !(Date.now() - (warmed[id] || 0) < RECHECK_MS));
+                let first = true;
                 await pool(ids, async id => {
+                    if (!first) await new Promise(r => win.setTimeout(r, ENTRY_GAP_MS));
+                    first = false;
                     // The entry contains covers AND episode metadata, so unseen local
                     // episodes can be warmed without downloading their video again.
                     const entry = await read('/api/v1/library/anime-entry/' + id);
                     const urls = [...collect(entry)].filter(url => !seen.has(url));
+                    let failed = false;
                     await pool(urls, async url => {
                         const response = await win.fetch(resolve(url), { signal: AbortSignal.timeout(40000) });
                         if (response.ok) { await response.arrayBuffer(); seen.add(url); newlyStored++; }
+                        else failed = true;
                     }, 2);
-                }, 2);
+                    if (!failed) { warmed[id] = Date.now(); saveWarmed(warmed); }
+                }, 1);
                 lastSuccess = Date.now();
                 if (newlyStored) win.dispatchEvent(new Event('seanime:artwork-ready'));
             } catch { /* Offline: already stored artwork remains usable. Retry later. */ }

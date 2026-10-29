@@ -22,7 +22,8 @@ export function useMiscEventListeners() {
 
     useWebsocketMessageListener<string>({
         type: WSEvents.WARNING_TOAST, onMessage: data => {
-            if (!!data) {
+            // AniList rate limits are retried on their own, the rate limit loader shows long waits
+            if (!!data && !data.startsWith("anilist: Rate limited")) {
                 toast.warning(data)
             }
         },
