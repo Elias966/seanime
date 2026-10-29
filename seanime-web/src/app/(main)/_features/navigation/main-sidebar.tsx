@@ -199,12 +199,8 @@ function SidebarNavigation({ isCollapsed, containerRef }: { isCollapsed: boolean
             id: "movies",
             iconType: LuFilm,
             name: "Movies",
-            href: "#movies",
-            isCurrent: typeof window !== "undefined" && window.location.hash === "#movies",
-            onClick: (event: React.MouseEvent<HTMLElement>) => {
-                event.preventDefault()
-                window.SeanimeMediaHub?.open("movies")
-            },
+            href: "/movies",
+            isCurrent: pathname.startsWith("/movies"),
         },
         // ...(import.meta.env.MODE === "development" ? [{
         //     id: "test",

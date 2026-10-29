@@ -181,7 +181,7 @@ class MediaHub:
 
     def save(self,value):
         item=value.get('item');action=value.get('action','save')
-        if not isinstance(item,dict) or item.get('provider')not in ('yts','hydra','anizone'):raise ValueError('Invalid library item')
+        if not isinstance(item,dict) or item.get('provider')not in ('yts','hydra','anizone','cinemeta'):raise ValueError('Invalid library item')
         key=item['provider']+':'+id_part(item.get('id',''))
         with self.lock:
             if action=='remove':self.library.pop(key,None)

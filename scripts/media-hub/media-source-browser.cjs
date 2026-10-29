@@ -23,13 +23,27 @@ async function upstream(url,headers={},redirects=0){
   });req.setTimeout(25000,()=>req.destroy(Error('Source timed out')));req.on('error',reject);
  });
 }
+// Fetch through the source page's own Chromium session: video hosts behind Cloudflare
+// reject Node's TLS client even with identical headers. The session outlives the page.
+async function sessionUpstream(session,url,headers={}){
+ await publicAddress(url);
+ const {referer,Referer,cookie,Cookie,...rest}=headers,referrer=referer||Referer;
+ const go=h=>session.fetch(url,{headers:h,referrer,redirect:'follow',bypassCustomProtocolHandlers:true});
+ // Some captured header sets are refused by Chromium when replayed, fall back to the ones a media request needs
+ let res;try{res=await go(rest)}catch(first){const basic=Object.fromEntries(Object.entries(rest).filter(([k])=>/^(accept|accept-language|user-agent|origin|range)$/i.test(k)));try{res=await go(basic)}catch(second){throw Error(`${first.message} / ${second.message} [${Object.keys(rest).join(',')}]`)}}
+ if(res.url&&res.url!==url)await publicAddress(res.url);
+ const {Readable}=require('node:stream');const r=res.body?Readable.fromWeb(res.body):Readable.from([]);
+ r.statusCode=res.status;r.headers=Object.fromEntries(res.headers);r.sourceURL=res.url||url;return r;
+}
+const MAX_RESOURCES=20000;
 function createRelay({port=11438,request=upstream}={}){
  const resources=new Map(),contexts=new Map();
  function context(sourceId){const c={id:crypto.randomUUID(),sourceId,headers:new Map(),keys:new Map(),created:Date.now()};contexts.set(c.id,c);return c}
  function register(c,url,kind,headers,headerOrigin=new URL(url).origin){
   const u=new URL(url);if(u.protocol!=='https:')throw Error('Only HTTPS source media is supported');
-  if(c.keys.has(url))return c.keys.get(url);
-  if(resources.size>4096){for(const[k,v]of resources)if(Date.now()-v.used>3600000)resources.delete(k);if(resources.size>4096)throw Error('Too many source resources')}
+  const known=c.keys.get(url);if(known&&resources.has(known.split('/')[4]))return known;
+  // A single HLS movie registers thousands of segments, so drop the least recently used ones instead of refusing new media.
+  if(resources.size>=MAX_RESOURCES){const old=[...resources].sort((a,b)=>a[1].used-b[1].used).slice(0,resources.size-MAX_RESOURCES+1024);for(const[k]of old)resources.delete(k)}
   const key=crypto.randomUUID(),extension=kind==='hls'?'.m3u8':kind==='subtitle'?(/\.(srt|vtt|ass|ssa)$/i.exec(u.pathname)?.[0]||'.vtt'):kind==='torrent'?'.torrent':kind==='video'?(/\.(mp4|webm|mkv|m4v|mov)$/i.exec(u.pathname)?.[0]||'.mp4'):'';
   const local='http://127.0.0.1:'+(server.address()?.port||port)+'/source/'+key+'/stream'+extension;
   resources.set(key,{url,c,kind,headers:headers||{},headerOrigin,used:Date.now()});c.keys.set(url,local);return local;
@@ -43,22 +57,25 @@ function createRelay({port=11438,request=upstream}={}){
   record.used=Date.now();const sourceOrigin=new URL(record.url).origin;const sameHeaders=record.headerOrigin===sourceOrigin;const sourceHeaders=record.c.headers.get(sourceOrigin)||Object.fromEntries(Object.entries(record.headers).filter(([k])=>sameHeaders||!/^(cookie|authorization)$/i.test(k)));const headers={};for(const[k,v]of Object.entries(sourceHeaders||{}))if(/^(user-agent|origin|referer|cookie|authorization|accept)$/i.test(k))headers[k]=v;
   if(req.headers.range){if(!/^bytes=\d+-\d*$/.test(req.headers.range)){res.writeHead(416);res.end();return}headers.Range=req.headers.range}
   try{
-   const r=await request(record.url,headers);const type=String(r.headers['content-type']||'application/octet-stream');
+   // CDNs rate limit the playlist the site's own player just loaded, give them a moment before giving up
+   let r=await request(record.url,headers,record.c);for(let i=0;i<2&&r.statusCode===429;i++){r.resume();await new Promise(x=>setTimeout(x,1500*(i+1)));r=await request(record.url,headers,record.c)}const type=String(r.headers['content-type']||'application/octet-stream');
    if(r.statusCode>=400){r.resume();res.writeHead(r.statusCode);res.end();return}
    if(record.kind==='hls'||/mpegurl/i.test(type)){
     let bytes=0,parts=[];for await(const b of r){bytes+=b.length;if(bytes>2*1024*1024)throw Error('Playlist too large');parts.push(b)}
     let text=Buffer.concat(parts).toString('utf8');if(!text.trimStart().startsWith('#EXTM3U'))throw Error('Not a media playlist');
-    const child=value=>{const url=new URL(value,r.sourceURL||record.url).href;return register(record.c,url,mediaKind(url)||'segment',record.headers,record.headerOrigin)};
-    text=text.split(/\r?\n/).map(line=>line.startsWith('#')?line.replace(/URI="([^"]+)"/g,(_,uri)=>'URI="'+child(uri)+'"'):line.trim()?child(line.trim()):line).join('\n');const b=Buffer.from(text);res.writeHead(200,{'Content-Type':'application/vnd.apple.mpegurl','Content-Length':b.length,'Cache-Control':'no-store'});res.end(req.method==='HEAD'?undefined:b);return;
+    const child=(value,playlist)=>{const url=new URL(value,r.sourceURL||record.url).href;return register(record.c,url,playlist?'hls':mediaKind(url)||'segment',record.headers,record.headerOrigin)};
+    // Variant and rendition playlists are often disguised (.jpg, no extension), so their kind comes from the tag pointing at them.
+    let variant=false;text=text.split(/\r?\n/).map(line=>{if(line.startsWith('#')){variant=/^#EXT-X-STREAM-INF/i.test(line);const rendition=/^#EXT-X-(MEDIA|I-FRAME-STREAM-INF):/i.test(line);return line.replace(/URI="([^"]+)"/g,(_,uri)=>'URI="'+child(uri,rendition)+'"')}if(!line.trim())return line;const out=child(line.trim(),variant);variant=false;return out}).join('\n');const b=Buffer.from(text);res.writeHead(200,{'Content-Type':'application/vnd.apple.mpegurl','Content-Length':b.length,'Cache-Control':'no-store'});res.end(req.method==='HEAD'?undefined:b);return;
    }
    const out={'Content-Type':type,'Cache-Control':'no-store','Accept-Ranges':'bytes'};for(const key of ['content-length','content-range'])if(r.headers[key])out[key]=r.headers[key];res.writeHead(r.statusCode||200,out);if(req.method==='HEAD'){r.resume();res.end();return}res.on('close',()=>r.destroy());r.on('error',()=>res.destroy());r.pipe(res);
-  }catch{if(!res.headersSent)res.writeHead(502);res.end()}
+  }catch(e){if(!res.headersSent)res.writeHead(502,{'Content-Type':'text/plain'});res.end(String(e?.message||'Upstream failed').slice(0,200))}
  });
  server.on('error',()=>{});return {server,context,register,resources};
 }
 function attach(win,options={}){
  const registry=options.registry||JSON.parse(fs.readFileSync(path.join(process.resourcesPath,'media-hub','sources.json'),'utf8'));
- const relay=createRelay();relay.server.listen(11438,'127.0.0.1');let count=0;
+ const {session}=require('electron');
+ const relay=createRelay({request:options.request||((url,headers,c)=>sessionUpstream(session.fromPartition('persist:seanime-media-source-'+c.sourceId),url,headers))});relay.server.listen(11438,'127.0.0.1');let count=0;
  win.webContents.on('did-attach-webview',(_,guest)=>{
   const marker=/SeanimeSource\/([a-z0-9-]+)/.exec(guest.getUserAgent());if(!marker)return;const source=registry.sources.find(s=>s.id===marker[1]&&s.mode!=='unavailable');if(!source){guest.close();return}
   const c=relay.context(source.id);const origins=new Set([source.url,source.browseUrl,...source.alternateUrls].filter(Boolean).map(u=>new URL(u).origin));const emit=data=>{if(!win.isDestroyed())win.webContents.send('media-source:event',{sourceId:source.id,guestId:guest.id,...data})};const seen=new Set();count++;
@@ -75,8 +92,8 @@ function attach(win,options={}){
   // Requests remain visible so their original media headers can be relayed only
   // to registered public HTTPS URLs; no arbitrary URL-fetch IPC is exposed.
   const download=(e,item,contents)=>{if(contents!==guest)return;const url=item.getURL();if(url.startsWith('magnet:?')){e.preventDefault();emit({type:'magnet',magnet:url});return}if(/\.torrent(?:\?|$)/i.test(url)||/bittorrent/i.test(item.getMimeType())){e.preventDefault();try{emit({type:'torrent-link',url:relay.register(c,url,'torrent',c.headers.get(new URL(url).origin)),label:item.getFilename()})}catch{}return}if(!/\.(mp4|mkv|webm|m4v|srt|ass|ssa|vtt|zip|7z)$/i.test(item.getFilename()))e.preventDefault()};guest.session.on('will-download',download);
-  guest.once('destroyed',()=>{count--;guest.session.removeListener('will-download',download);});
+  const guestSession=guest.session;guest.once('destroyed',()=>{count--;guestSession.removeListener('will-download',download);});
  });
  win.once('closed',()=>relay.server.close());return relay;
 }
-module.exports={publicIP,mediaKind,allowedOrigin,publicAddress,upstream,createRelay,attach};
+module.exports={publicIP,mediaKind,allowedOrigin,publicAddress,upstream,sessionUpstream,createRelay,attach};

@@ -21,12 +21,14 @@ import { Route as PublicAuthIndexRouteImport } from './routes/public/auth/index'
 import { Route as MainSettingsIndexRouteImport } from './routes/_main/settings/index'
 import { Route as MainSearchIndexRouteImport } from './routes/_main/search/index'
 import { Route as MainOfflineIndexRouteImport } from './routes/_main/offline/index'
+import { Route as MainMoviesIndexRouteImport } from './routes/_main/movies/index'
 import { Route as MainMediastreamIndexRouteImport } from './routes/_main/mediastream/index'
 import { Route as MainMedialinksIndexRouteImport } from './routes/_main/medialinks/index'
 import { Route as MainExtensionsIndexRouteImport } from './routes/_main/extensions/index'
 import { Route as MainEntryIndexRouteImport } from './routes/_main/entry/index'
 import { Route as MainDiscoverIndexRouteImport } from './routes/_main/discover/index'
 import { Route as MainCustomSourcesIndexRouteImport } from './routes/_main/custom-sources/index'
+import { Route as MainMoviesEntryIndexRouteImport } from './routes/_main/movies/entry/index'
 import { Route as MainMangaEntryIndexRouteImport } from './routes/_main/manga/entry/index'
 import { Route as MainAuthCallbackIndexRouteImport } from './routes/_main/auth/callback/index'
 import { Route as MainOfflineEntryMangaIndexRouteImport } from './routes/_main/offline/entry/manga/index'
@@ -217,6 +219,13 @@ const MainOfflineIndexRoute = MainOfflineIndexRouteImport.update({
   path: '/offline/',
   getParentRoute: () => MainRoute,
 } as any)
+const MainMoviesIndexRoute = MainMoviesIndexRouteImport.update({
+  id: '/movies/',
+  path: '/movies/',
+  getParentRoute: () => MainRoute,
+} as any).lazy(() =>
+  import('./routes/_main/movies/index.lazy').then((d) => d.Route),
+)
 const MainMediastreamIndexRoute = MainMediastreamIndexRouteImport.update({
   id: '/mediastream/',
   path: '/mediastream/',
@@ -277,6 +286,13 @@ const MainExtensionsPlaygroundIndexLazyRoute =
       (d) => d.Route,
     ),
   )
+const MainMoviesEntryIndexRoute = MainMoviesEntryIndexRouteImport.update({
+  id: '/movies/entry/',
+  path: '/movies/entry/',
+  getParentRoute: () => MainRoute,
+} as any).lazy(() =>
+  import('./routes/_main/movies/entry/index.lazy').then((d) => d.Route),
+)
 const MainMangaEntryIndexRoute = MainMangaEntryIndexRouteImport.update({
   id: '/manga/entry/',
   path: '/manga/entry/',
@@ -324,6 +340,7 @@ export interface FileRoutesByFullPath {
   '/extensions/': typeof MainExtensionsIndexRoute
   '/medialinks/': typeof MainMedialinksIndexRoute
   '/mediastream/': typeof MainMediastreamIndexRoute
+  '/movies/': typeof MainMoviesIndexRoute
   '/offline/': typeof MainOfflineIndexRoute
   '/search/': typeof MainSearchIndexRoute
   '/settings/': typeof MainSettingsIndexRoute
@@ -342,6 +359,7 @@ export interface FileRoutesByFullPath {
   '/webview/': typeof MainWebviewIndexLazyRoute
   '/auth/callback/': typeof MainAuthCallbackIndexRoute
   '/manga/entry/': typeof MainMangaEntryIndexRoute
+  '/movies/entry/': typeof MainMoviesEntryIndexRoute
   '/extensions/playground/': typeof MainExtensionsPlaygroundIndexLazyRoute
   '/offline/manga/': typeof MainOfflineMangaIndexLazyRoute
   '/offline/entry/anime/': typeof MainOfflineEntryAnimeIndexRoute
@@ -361,6 +379,7 @@ export interface FileRoutesByTo {
   '/extensions': typeof MainExtensionsIndexRoute
   '/medialinks': typeof MainMedialinksIndexRoute
   '/mediastream': typeof MainMediastreamIndexRoute
+  '/movies': typeof MainMoviesIndexRoute
   '/offline': typeof MainOfflineIndexRoute
   '/search': typeof MainSearchIndexRoute
   '/settings': typeof MainSettingsIndexRoute
@@ -379,6 +398,7 @@ export interface FileRoutesByTo {
   '/webview': typeof MainWebviewIndexLazyRoute
   '/auth/callback': typeof MainAuthCallbackIndexRoute
   '/manga/entry': typeof MainMangaEntryIndexRoute
+  '/movies/entry': typeof MainMoviesEntryIndexRoute
   '/extensions/playground': typeof MainExtensionsPlaygroundIndexLazyRoute
   '/offline/manga': typeof MainOfflineMangaIndexLazyRoute
   '/offline/entry/anime': typeof MainOfflineEntryAnimeIndexRoute
@@ -400,6 +420,7 @@ export interface FileRoutesById {
   '/_main/extensions/': typeof MainExtensionsIndexRoute
   '/_main/medialinks/': typeof MainMedialinksIndexRoute
   '/_main/mediastream/': typeof MainMediastreamIndexRoute
+  '/_main/movies/': typeof MainMoviesIndexRoute
   '/_main/offline/': typeof MainOfflineIndexRoute
   '/_main/search/': typeof MainSearchIndexRoute
   '/_main/settings/': typeof MainSettingsIndexRoute
@@ -418,6 +439,7 @@ export interface FileRoutesById {
   '/_main/webview/': typeof MainWebviewIndexLazyRoute
   '/_main/auth/callback/': typeof MainAuthCallbackIndexRoute
   '/_main/manga/entry/': typeof MainMangaEntryIndexRoute
+  '/_main/movies/entry/': typeof MainMoviesEntryIndexRoute
   '/_main/extensions/playground/': typeof MainExtensionsPlaygroundIndexLazyRoute
   '/_main/offline/manga/': typeof MainOfflineMangaIndexLazyRoute
   '/_main/offline/entry/anime/': typeof MainOfflineEntryAnimeIndexRoute
@@ -439,6 +461,7 @@ export interface FileRouteTypes {
     | '/extensions/'
     | '/medialinks/'
     | '/mediastream/'
+    | '/movies/'
     | '/offline/'
     | '/search/'
     | '/settings/'
@@ -457,6 +480,7 @@ export interface FileRouteTypes {
     | '/webview/'
     | '/auth/callback/'
     | '/manga/entry/'
+    | '/movies/entry/'
     | '/extensions/playground/'
     | '/offline/manga/'
     | '/offline/entry/anime/'
@@ -476,6 +500,7 @@ export interface FileRouteTypes {
     | '/extensions'
     | '/medialinks'
     | '/mediastream'
+    | '/movies'
     | '/offline'
     | '/search'
     | '/settings'
@@ -494,6 +519,7 @@ export interface FileRouteTypes {
     | '/webview'
     | '/auth/callback'
     | '/manga/entry'
+    | '/movies/entry'
     | '/extensions/playground'
     | '/offline/manga'
     | '/offline/entry/anime'
@@ -514,6 +540,7 @@ export interface FileRouteTypes {
     | '/_main/extensions/'
     | '/_main/medialinks/'
     | '/_main/mediastream/'
+    | '/_main/movies/'
     | '/_main/offline/'
     | '/_main/search/'
     | '/_main/settings/'
@@ -532,6 +559,7 @@ export interface FileRouteTypes {
     | '/_main/webview/'
     | '/_main/auth/callback/'
     | '/_main/manga/entry/'
+    | '/_main/movies/entry/'
     | '/_main/extensions/playground/'
     | '/_main/offline/manga/'
     | '/_main/offline/entry/anime/'
@@ -718,6 +746,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof MainOfflineIndexRouteImport
       parentRoute: typeof MainRoute
     }
+    '/_main/movies/': {
+      id: '/_main/movies/'
+      path: '/movies'
+      fullPath: '/movies/'
+      preLoaderRoute: typeof MainMoviesIndexRouteImport
+      parentRoute: typeof MainRoute
+    }
     '/_main/mediastream/': {
       id: '/_main/mediastream/'
       path: '/mediastream'
@@ -774,6 +809,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof MainExtensionsPlaygroundIndexLazyRouteImport
       parentRoute: typeof MainRoute
     }
+    '/_main/movies/entry/': {
+      id: '/_main/movies/entry/'
+      path: '/movies/entry'
+      fullPath: '/movies/entry/'
+      preLoaderRoute: typeof MainMoviesEntryIndexRouteImport
+      parentRoute: typeof MainRoute
+    }
     '/_main/manga/entry/': {
       id: '/_main/manga/entry/'
       path: '/manga/entry'
@@ -815,6 +857,7 @@ interface MainRouteChildren {
   MainExtensionsIndexRoute: typeof MainExtensionsIndexRoute
   MainMedialinksIndexRoute: typeof MainMedialinksIndexRoute
   MainMediastreamIndexRoute: typeof MainMediastreamIndexRoute
+  MainMoviesIndexRoute: typeof MainMoviesIndexRoute
   MainOfflineIndexRoute: typeof MainOfflineIndexRoute
   MainSearchIndexRoute: typeof MainSearchIndexRoute
   MainSettingsIndexRoute: typeof MainSettingsIndexRoute
@@ -831,6 +874,7 @@ interface MainRouteChildren {
   MainWebviewIndexLazyRoute: typeof MainWebviewIndexLazyRoute
   MainAuthCallbackIndexRoute: typeof MainAuthCallbackIndexRoute
   MainMangaEntryIndexRoute: typeof MainMangaEntryIndexRoute
+  MainMoviesEntryIndexRoute: typeof MainMoviesEntryIndexRoute
   MainExtensionsPlaygroundIndexLazyRoute: typeof MainExtensionsPlaygroundIndexLazyRoute
   MainOfflineMangaIndexLazyRoute: typeof MainOfflineMangaIndexLazyRoute
   MainOfflineEntryAnimeIndexRoute: typeof MainOfflineEntryAnimeIndexRoute
@@ -847,6 +891,7 @@ const MainRouteChildren: MainRouteChildren = {
   MainExtensionsIndexRoute: MainExtensionsIndexRoute,
   MainMedialinksIndexRoute: MainMedialinksIndexRoute,
   MainMediastreamIndexRoute: MainMediastreamIndexRoute,
+  MainMoviesIndexRoute: MainMoviesIndexRoute,
   MainOfflineIndexRoute: MainOfflineIndexRoute,
   MainSearchIndexRoute: MainSearchIndexRoute,
   MainSettingsIndexRoute: MainSettingsIndexRoute,
@@ -863,6 +908,7 @@ const MainRouteChildren: MainRouteChildren = {
   MainWebviewIndexLazyRoute: MainWebviewIndexLazyRoute,
   MainAuthCallbackIndexRoute: MainAuthCallbackIndexRoute,
   MainMangaEntryIndexRoute: MainMangaEntryIndexRoute,
+  MainMoviesEntryIndexRoute: MainMoviesEntryIndexRoute,
   MainExtensionsPlaygroundIndexLazyRoute:
     MainExtensionsPlaygroundIndexLazyRoute,
   MainOfflineMangaIndexLazyRoute: MainOfflineMangaIndexLazyRoute,

@@ -24,7 +24,7 @@ def sha256(data):
     return hashlib.sha256(data).hexdigest()
 
 
-def patch_asar(path):
+def patch_asar(path, web_dir=None):
     raw = path.read_bytes()
     _, header_size, _, json_size = struct.unpack('<4I', raw[:16])
     tree = json.loads(raw[16:16 + json_size])
@@ -33,6 +33,14 @@ def patch_asar(path):
     start = base + int(worker['offset'])
     if sha256(raw[start:start + worker['size']]) != ORIGINAL_WORKER_SHA256:
         raise ValueError('Unexpected original JASSUB worker; refusing to patch')
+    if web_dir:
+        # A source-built frontend already contains the overlay scripts and hooks, so it replaces web-denshi wholesale.
+        if not (web_dir / 'index.html').is_file() or not (web_dir / 'media-hub.js').is_file():
+            raise ValueError('--web-dir must be a seanime-web out-denshi build')
+        tree['files']['web-denshi'] = {'files': {}}
+        changed = {'web-denshi/' + f.relative_to(web_dir).as_posix(): f.read_bytes()
+                   for f in sorted(web_dir.rglob('*')) if f.is_file()}
+        return write_asar(path, raw, base, tree, changed)
     public = ROOT / 'seanime-web/public'
     media_data = (public / 'media-hub.js').read_bytes()
     media_name = 'media-hub.' + sha256(media_data)[:8] + '.js'
@@ -131,11 +139,21 @@ def patch_asar(path):
     for part in PRELOAD_PATH.split('/'):preload_entry=preload_entry['files'][part]
     preload_start=base+int(preload_entry['offset'])
     changed[PRELOAD_PATH]=patch_preload(raw[preload_start:preload_start+preload_entry['size']])
+    write_asar(path, raw, base, tree, changed)
+
+
+def write_asar(path, raw, base, tree, changed):
+    for name in (MAIN_PATH, PRELOAD_PATH):
+        if name not in changed:
+            entry = tree
+            for part in name.split('/'): entry = entry['files'][part]
+            start = base + int(entry['offset'])
+            changed[name] = (patch_main if name == MAIN_PATH else patch_preload)(raw[start:start + entry['size']])
     for name in changed:
         node = tree
         parts = name.split('/')
         for part in parts[:-1]:
-            node = node['files'][part]
+            node = node['files'].setdefault(part, {'files': {}})
         node['files'].setdefault(parts[-1], {})
     chunks = []
     offset = 0
@@ -175,6 +193,7 @@ def main():
     parser.add_argument('original', type=Path)
     parser.add_argument('output', type=Path)
     parser.add_argument('--processors', type=int, default=4)
+    parser.add_argument('--web-dir', type=Path, help='Use a source-built frontend (seanime-web/out-denshi) instead of patching the bundled one')
     args = parser.parse_args()
     if args.output.exists():
         parser.error('Output already exists; choose a new path')
@@ -194,7 +213,7 @@ def main():
         temp = Path(temp)
         app_dir = temp / 'AppDir'
         subprocess.run(['unsquashfs', '-no-progress', '-o', str(SQUASHFS_OFFSET), '-d', str(app_dir), str(original)], check=True)
-        patch_asar(app_dir / 'resources/app.asar')
+        patch_asar(app_dir / 'resources/app.asar', args.web_dir.resolve() if args.web_dir else None)
         # Preserve upstream startup and bundle the Python standard-library adapter.
         app_run = app_dir / 'AppRun'
         app_run.rename(app_dir / 'AppRun.upstream')

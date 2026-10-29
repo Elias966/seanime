@@ -28,3 +28,19 @@ test('real local peer supplies verified bytes through seekable HTTP playback; st
   const resumed=await fetch(base+'/torrents',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'resume',hash})});assert.equal(resumed.status,200);const restored=client.torrents[0];if(!restored.ready)await once(restored,'ready');const offline=await fetch(base+'/media-file/'+hash+'/0',{headers:{Range:'bytes=65536-65791'}});assert.equal(offline.status,206);assert.deepEqual(Buffer.from(await offline.arrayBuffer()),content.subarray(65536,65792));
  }finally{await engine.close();if(!seed.destroyed)await new Promise(resolve=>seed.destroy(resolve));fs.rmSync(directory,{recursive:true,force:true})}
 });
+test('finished downloads join the library and stay playable from disk after the transfer stops',{timeout:25000},async()=>{
+ const directory=fs.mkdtempSync(path.join(os.tmpdir(),'seanime-torrent-test-')),source=path.join(directory,'movie.mp4'),content=Buffer.alloc(160*1024);for(let i=0;i<content.length;i++)content[i]=i%241;fs.writeFileSync(source,content);
+ const seed=new WebTorrent({dht:false,tracker:false,utp:false}),client=new WebTorrent({dht:false,tracker:false,utp:false});const engine=createEngine({directory:path.join(directory,'downloads'),client});
+ try{
+  const torrent=await new Promise((resolve,reject)=>{seed.once('error',reject);seed.seed(source,{announce:[]},resolve)});
+  engine.server.listen(0,'127.0.0.1');await once(engine.server,'listening');const base='http://127.0.0.1:'+engine.server.address().port;
+  const media={imdb:'tt1375666',title:'Inception',year:'2010',poster:'https://images.metahub.space/poster/medium/tt1375666/img',background:'javascript:alert(1)'};
+  const hash=await engine.add({magnet:torrent.magnetURI,title:'Inception (2010) [1080p]',mode:'download',media});const receiving=client.torrents[0];receiving.addPeer('127.0.0.1:'+seed.torrentPort);
+  if(receiving.progress<1)await once(receiving,'done');engine.snapshot();
+  const list=await (await fetch(base+'/library')).json();assert.equal(list.length,1);assert.equal(list[0].imdb,'tt1375666');assert.equal(list[0].background,undefined);assert.equal(list[0].url,'/library-file/'+hash);
+  await fetch(base+'/torrents',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'stop',hash})});
+  const r=await fetch(base+list[0].url,{headers:{Range:'bytes=1000-1999'}});assert.equal(r.status,206);assert.equal(r.headers.get('Content-Type'),'video/mp4');assert.deepEqual(Buffer.from(await r.arrayBuffer()),content.subarray(1000,2000));
+  await fetch(base+'/torrents',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'library-remove',hash})});
+  assert.equal((await (await fetch(base+'/library')).json()).length,0);assert.ok(fs.existsSync(path.join(directory,'downloads','movie.mp4')));
+ }finally{await engine.close();if(!seed.destroyed)await new Promise(resolve=>seed.destroy(resolve));fs.rmSync(directory,{recursive:true,force:true})}
+});
