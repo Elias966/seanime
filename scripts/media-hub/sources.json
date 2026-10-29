@@ -5093,6 +5093,123 @@
       "reason": "Explicit browser/human verification wall; excluded without bypass.",
       "browseUrl": "https://share.acgnx.se/",
       "excluded": true
+    },
+    {
+      "id": "animetoki",
+      "name": "AnimeToki",
+      "url": "https://animetoki.com/",
+      "alternateUrls": [],
+      "kinds": [
+        "anime"
+      ],
+      "categories": [
+        "direct-download"
+      ],
+      "provenance": [],
+      "nativeId": null,
+      "status": "reachable",
+      "mode": "site",
+      "accountRequired": false,
+      "openNavigation": true,
+      "audit": {
+        "level": "reachable-page",
+        "playbackTested": false,
+        "probes": [
+          {
+            "url": "https://animetoki.com/",
+            "checkedAt": "2026-10-29T17:14:59.239792+00:00",
+            "level": "reachable-page",
+            "httpStatus": 200,
+            "finalUrl": "https://animetoki.com/",
+            "status": "reachable",
+            "reason": "Homepage reachable; files download through the in-app downloads drawer.",
+            "title": "AnimeToki - The Best Quality Subbed & Dubbed Anime"
+          }
+        ],
+        "checkedAt": "2026-10-29T17:14:59.239792+00:00",
+        "selectedUrl": "https://animetoki.com/"
+      },
+      "reason": "Episode posts link direct files; season folders open in its cloud index.",
+      "browseUrl": "https://animetoki.com/",
+      "excluded": false
+    },
+    {
+      "id": "anidl",
+      "name": "AniDL",
+      "url": "https://anidl.org/",
+      "alternateUrls": [],
+      "kinds": [
+        "anime"
+      ],
+      "categories": [
+        "direct-download"
+      ],
+      "provenance": [],
+      "nativeId": null,
+      "status": "account-required",
+      "mode": "site",
+      "accountRequired": true,
+      "openNavigation": true,
+      "audit": {
+        "level": "reachable-page",
+        "playbackTested": false,
+        "probes": [
+          {
+            "url": "https://anidl.org/",
+            "checkedAt": "2026-10-29T17:14:59.239792+00:00",
+            "level": "reachable-page",
+            "httpStatus": 200,
+            "finalUrl": "https://anidl.org/",
+            "status": "account-required",
+            "reason": "Homepage reachable; files download through the in-app downloads drawer.",
+            "title": "AniDL"
+          }
+        ],
+        "checkedAt": "2026-10-29T17:14:59.239792+00:00",
+        "selectedUrl": "https://anidl.org/"
+      },
+      "reason": "Links pass through shorteners unless the account redeems a 24-hour shortener-free code.",
+      "browseUrl": "https://anidl.org/",
+      "excluded": false
+    },
+    {
+      "id": "animekaizoku",
+      "name": "AnimeKaizoku",
+      "url": "https://animekaizoku.xyz/",
+      "alternateUrls": [],
+      "kinds": [
+        "anime"
+      ],
+      "categories": [
+        "direct-download"
+      ],
+      "provenance": [],
+      "nativeId": null,
+      "status": "reachable",
+      "mode": "site",
+      "accountRequired": false,
+      "openNavigation": true,
+      "audit": {
+        "level": "reachable-page",
+        "playbackTested": false,
+        "probes": [
+          {
+            "url": "https://animekaizoku.xyz/",
+            "checkedAt": "2026-10-29T17:14:59.239792+00:00",
+            "level": "reachable-page",
+            "httpStatus": 200,
+            "finalUrl": "https://animekaizoku.xyz/",
+            "status": "reachable",
+            "reason": "Homepage reachable; files download through the in-app downloads drawer.",
+            "title": "Anime Kaizoku - Free Anime Mini Encodes Download Library"
+          }
+        ],
+        "checkedAt": "2026-10-29T17:14:59.239792+00:00",
+        "selectedUrl": "https://animekaizoku.xyz/"
+      },
+      "reason": "Download links pass through a captcha shortener that the user completes.",
+      "browseUrl": "https://animekaizoku.xyz/",
+      "excluded": false
     }
   ],
   "excludedSources": [
@@ -5534,9 +5651,9 @@
   "auditedAt": "2026-10-29T07:41:16.911745+00:00",
   "auditLevel": "reachable-page",
   "counts": {
-    "account-required": 2,
+    "account-required": 3,
     "directory": 2,
-    "reachable": 62,
+    "reachable": 64,
     "unavailable": 22,
     "unrelated": 1,
     "verification-wall": 8

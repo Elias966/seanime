@@ -295,6 +295,8 @@ export const MOVIE_STREAM_SOURCES: Movie_StreamSource[] = [
         timeout: 40000,
     },
     { id: "aether", name: "Aether", sourceId: "aether", url: tmdbUrl((t, m) => `https://aether.cx/media/tmdb-movie-${t}-${slug(m.title)}`), timeout: 40000 },
+    { id: "1shows", name: "1Shows", sourceId: "1shows", url: tmdbUrl((t, m) => `https://www.1shows.org/movies/${t}-${slug(m.title)}`) },
+    { id: "huzske", name: "Huzske", sourceId: "huzske", url: tmdbUrl((t, m) => `https://huzske.com/?route=${encodeURIComponent(`movie/${slug(m.title)}-${t}/watch`)}`) },
 ]
 
 export type Movie_CapturedStream = {

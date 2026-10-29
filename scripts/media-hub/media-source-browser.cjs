@@ -72,26 +72,55 @@ function createRelay({port=11438,request=upstream}={}){
  });
  server.on('error',()=>{});return {server,context,register,resources};
 }
+// Direct-download sources (openNavigation) save files straight into the folder the app picked for them.
+const DDL_FILE=/\.(mp4|m4v|mkv|webm|avi|zip|7z|rar|srt|ass|ssa|vtt)$/i;
+function safeName(name){return String(name||'').replace(/[\\/:*?"<>|\x00-\x1f]/g,'_').replace(/^[.\s]+/,'').slice(0,200)||'download'}
+function freePath(dir,name){const ext=path.extname(name),base=name.slice(0,name.length-ext.length);let p=path.join(dir,name);for(let i=1;fs.existsSync(p)||fs.existsSync(p+'.part');i++)p=path.join(dir,base+' ('+i+')'+ext);return p}
+function attachDownloads(win,registry){
+ const {ipcMain,session,app}=require('electron');const dirs=new Map(),items=new Map();
+ const sources=registry.sources.filter(s=>s.openNavigation&&s.mode!=='unavailable'),partition=id=>session.fromPartition('persist:seanime-media-source-'+id);
+ // uBlock Origin keeps the download sites' ad scripts and click-trap popups out of the way.
+ const ubo=path.join(__dirname,'ublock-origin');if(fs.existsSync(path.join(ubo,'manifest.json')))for(const source of sources){const s=partition(source.id);(s.extensions||s).loadExtension(ubo,{allowFileAccess:false}).catch(e=>console.warn('uBlock Origin:',e.message))}
+ const send=d=>{if(!win.isDestroyed())win.webContents.send('media-source:event',{type:'download',...d})};
+ for(const source of sources)partition(source.id).on('will-download',(e,item)=>{
+  const name=safeName(item.getFilename());if(!DDL_FILE.test(name))return;
+  const dir=dirs.get(source.id)||path.join(app.getPath('downloads'),'Seanime');try{fs.mkdirSync(dir,{recursive:true})}catch{}
+  const file=freePath(dir,name),id=crypto.randomUUID();item.setSavePath(file);items.set(id,item);let last=0;
+  const report=state=>send({id,sourceId:source.id,name:path.basename(file),path:file,received:item.getReceivedBytes(),total:item.getTotalBytes(),state});
+  report('progressing');
+  item.on('updated',(_,state)=>{const now=Date.now();if(state==='progressing'&&now-last<700)return;last=now;report(state==='interrupted'?'interrupted':'progressing')});
+  // Electron writes straight to the chosen file, so a cancelled or failed download leaves a partial one.
+  item.once('done',(_,state)=>{items.delete(id);report(state);if(state!=='completed')fs.rm(file,{force:true},()=>{})});
+ });
+ ipcMain.on('media-source:download',(e,msg)=>{
+  if(e.sender!==win.webContents||!msg||typeof msg!=='object')return;const source=sources.find(s=>s.id===msg.sourceId);
+  if(msg.action==='dir'&&source&&typeof msg.dir==='string'&&path.isAbsolute(msg.dir)&&!msg.dir.includes('\0'))dirs.set(source.id,path.normalize(msg.dir));
+  else if(msg.action==='start'&&source){try{const u=new URL(msg.url);if(u.protocol==='https:')partition(source.id).downloadURL(u.href,typeof msg.referer==='string'&&/^https:\/\//.test(msg.referer)?{headers:{Referer:msg.referer}}:undefined)}catch{}}
+  else if(msg.action==='cancel'&&typeof msg.id==='string')items.get(msg.id)?.cancel();
+ });
+}
 function attach(win,options={}){
  const registry=options.registry||JSON.parse(fs.readFileSync(path.join(process.resourcesPath,'media-hub','sources.json'),'utf8'));
  const {session}=require('electron');
- const relay=createRelay({request:options.request||((url,headers,c)=>sessionUpstream(session.fromPartition('persist:seanime-media-source-'+c.sourceId),url,headers))});relay.server.listen(11438,'127.0.0.1');let count=0;
+ const relay=createRelay({request:options.request||((url,headers,c)=>sessionUpstream(session.fromPartition('persist:seanime-media-source-'+c.sourceId),url,headers))});relay.server.listen(11438,'127.0.0.1');let count=0;if(!options.registry)attachDownloads(win,registry);
  win.webContents.on('did-attach-webview',(_,guest)=>{
   const marker=/SeanimeSource\/([a-z0-9-]+)/.exec(guest.getUserAgent());if(!marker)return;const source=registry.sources.find(s=>s.id===marker[1]&&s.mode!=='unavailable');if(!source){guest.close();return}
   const c=relay.context(source.id);const origins=new Set([source.url,source.browseUrl,...source.alternateUrls].filter(Boolean).map(u=>new URL(u).origin));const emit=data=>{if(!win.isDestroyed())win.webContents.send('media-source:event',{sourceId:source.id,guestId:guest.id,...data})};const seen=new Set();count++;
-  guest.setWindowOpenHandler(({url})=>{if(url.startsWith('magnet:?'))emit({type:'magnet',magnet:url});return {action:'deny'}});
-  const navigation=(e,url)=>{if(url.startsWith('magnet:?')){e.preventDefault();emit({type:'magnet',magnet:url});return}try{const u=new URL(url);if(!['http:','https:','about:'].includes(u.protocol))e.preventDefault();else if(u.protocol!=='about:'&&!origins.has(u.origin)){e.preventDefault();const kind=mediaKind(u.href);if(kind&&kind!=='subtitle')emit({type:kind,url:relay.register(c,u.href,kind),label:guest.getTitle()||source.name});else emit({type:'blocked-navigation',host:u.hostname})}}catch{e.preventDefault()}};
-  guest.on('page-title-updated',(_,title)=>{if(/^(just a moment|attention required|security verification|captcha)/i.test(title)){guest.stop();guest.loadURL('about:blank');emit({type:'verification-required'})}});
+  guest.setWindowOpenHandler(({url})=>{if(url.startsWith('magnet:?'))emit({type:'magnet',magnet:url});else if(source.openNavigation&&/^https:\/\//.test(url))emit({type:'popup',url});return {action:'deny'}});
+  // Only top-level navigation is restricted; sites embed their players from other hosts in frames.
+  const navigation=(e,url)=>{if(e.isMainFrame===false)return;if(url.startsWith('magnet:?')){e.preventDefault();emit({type:'magnet',magnet:url});return}try{const u=new URL(url);if(!['http:','https:','about:'].includes(u.protocol))e.preventDefault();else if(u.protocol!=='about:'&&!origins.has(u.origin)&&!(source.openNavigation&&u.protocol==='https:')){e.preventDefault();const kind=mediaKind(u.href);if(kind&&kind!=='subtitle')emit({type:kind,url:relay.register(c,u.href,kind),label:guest.getTitle()||source.name});else emit({type:'blocked-navigation',host:u.hostname})}}catch{e.preventDefault()}};
+  guest.on('page-title-updated',(_,title)=>{if(!source.openNavigation&&/^(just a moment|attention required|security verification|captcha)/i.test(title)){guest.stop();guest.loadURL('about:blank');emit({type:'verification-required'})}});
   guest.on('will-navigate',navigation);guest.on('will-redirect',navigation);
-  guest.session.webRequest.onBeforeSendHeaders({urls:['https://*/*']},(details,callback)=>{try{const u=new URL(details.url);c.headers.set(u.origin,{...details.requestHeaders})}catch{}callback({requestHeaders:details.requestHeaders})});
+  // Download sites skip stream sniffing: session.webRequest hooks would shadow uBlock Origin's.
+  if(!source.openNavigation){guest.session.webRequest.onBeforeSendHeaders({urls:['https://*/*']},(details,callback)=>{try{const u=new URL(details.url);c.headers.set(u.origin,{...details.requestHeaders})}catch{}callback({requestHeaders:details.requestHeaders})});
   guest.session.webRequest.onCompleted({urls:['https://*/*']},details=>{
    if(details.statusCode<200||details.statusCode>=300||seen.has(details.url))return;const h=details.responseHeaders||{},type=Object.entries(h).find(([k])=>k.toLowerCase()==='content-type')?.[1]?.[0]||'';let kind;try{kind=mediaKind(details.url,type)}catch{return}if(!kind)return;
    seen.add(details.url);try{emit({type:kind,url:relay.register(c,details.url,kind,c.headers.get(new URL(details.url).origin)),label:decodeURIComponent(new URL(details.url).pathname.split('/').pop()||kind),originalHost:new URL(details.url).hostname})}catch{}
-  });
+  });}
   // Provider pages run without a preload, Node access or popup permissions.
   // Requests remain visible so their original media headers can be relayed only
   // to registered public HTTPS URLs; no arbitrary URL-fetch IPC is exposed.
-  const download=(e,item,contents)=>{if(contents!==guest)return;const url=item.getURL();if(url.startsWith('magnet:?')){e.preventDefault();emit({type:'magnet',magnet:url});return}if(/\.torrent(?:\?|$)/i.test(url)||/bittorrent/i.test(item.getMimeType())){e.preventDefault();try{emit({type:'torrent-link',url:relay.register(c,url,'torrent',c.headers.get(new URL(url).origin)),label:item.getFilename()})}catch{}return}if(!/\.(mp4|mkv|webm|m4v|srt|ass|ssa|vtt|zip|7z)$/i.test(item.getFilename()))e.preventDefault()};guest.session.on('will-download',download);
+  const download=(e,item,contents)=>{if(contents!==guest)return;const url=item.getURL();if(url.startsWith('magnet:?')){e.preventDefault();emit({type:'magnet',magnet:url});return}if(/\.torrent(?:\?|$)/i.test(url)||/bittorrent/i.test(item.getMimeType())){e.preventDefault();try{emit({type:'torrent-link',url:relay.register(c,url,'torrent',c.headers.get(new URL(url).origin)),label:item.getFilename()})}catch{}return}if(!DDL_FILE.test(item.getFilename()))e.preventDefault()};guest.session.on('will-download',download);
   const guestSession=guest.session;guest.once('destroyed',()=>{count--;guestSession.removeListener('will-download',download);});
  });
  win.once('closed',()=>relay.server.close());return relay;

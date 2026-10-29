@@ -8,6 +8,8 @@ import shutil
 import struct
 import subprocess
 import tempfile
+import urllib.request
+import zipfile
 from patch_media_electron import MAIN_PATH, PRELOAD_PATH, patch_main, patch_preload
 from patch_media_player import NATIVE_PLAYER_PATH, patch_native_player
 from patch_download_navigation import MAGNET_PATH, patch_download_entry, patch_magnet, patch_download_bootstrap
@@ -18,6 +20,34 @@ ORIGINAL_SHA256 = 'bc1d3b5b045b1be1378f4501afc436bf282c052d5fb254513addf2e3af701
 ORIGINAL_WORKER_SHA256 = '8b16fa788be8ca5d36571539dbf6915018fbbc46f095277770126f0bc791aac9'
 SQUASHFS_OFFSET = 188392
 ROOT = Path(__file__).resolve().parents[1]
+
+
+
+UBLOCK_VERSION = '1.75.0'
+UBLOCK_SHA256 = '393cf95709d1074d4022970e9014e434395c53a822387f1e25f43be97cf4b582'
+
+
+def ensure_ublock(dest):
+    """Fetch the pinned uBlock Origin Chromium build loaded into the download-site browsers."""
+    if not (dest / 'manifest.json').is_file():
+        download_ublock(dest)
+    shutil.copyfile(ROOT / 'scripts/media-hub/ublock-electron-shim.js', dest / 'js/electron-shim.js')
+    page = dest / 'background.html'
+    html = page.read_text()
+    if 'electron-shim.js' not in html:
+        page.write_text(html.replace('<script src="js/vapi.js">', '<script src="js/electron-shim.js"></script>\n<script src="js/vapi.js">', 1))
+
+
+def download_ublock(dest):
+    url = f'https://github.com/gorhill/uBlock/releases/download/{UBLOCK_VERSION}/uBlock0_{UBLOCK_VERSION}.chromium.zip'
+    with tempfile.TemporaryDirectory() as tmp:
+        archive = Path(tmp) / 'ublock.zip'
+        urllib.request.urlretrieve(url, archive)
+        if hashlib.sha256(archive.read_bytes()).hexdigest() != UBLOCK_SHA256:
+            raise SystemExit('uBlock Origin download failed its checksum')
+        with zipfile.ZipFile(archive) as z:
+            z.extractall(tmp)
+        shutil.move(str(Path(tmp) / 'uBlock0.chromium'), dest)
 
 
 def sha256(data):
@@ -232,6 +262,7 @@ def main():
                         app_dir / 'resources/cover_store.py')
         shutil.copyfile(ROOT / 'scripts/arabic-translation/media_hub.py', app_dir / 'resources/media_hub.py')
         shutil.copyfile(ROOT / 'scripts/media-hub/sources.json', app_dir / 'resources/sources.json')
+        ensure_ublock(ROOT / 'scripts/media-hub/ublock-origin')
         shutil.copytree(ROOT / 'scripts/media-hub', app_dir / 'resources/media-hub', ignore=shutil.ignore_patterns('test-*', 'test_*', '*.log', '__pycache__'))
         filesystem = temp / 'patched.squashfs'
         subprocess.run(['mksquashfs', str(app_dir), str(filesystem), '-noappend', '-comp', 'xz', '-processors', str(args.processors), '-quiet'], check=True)

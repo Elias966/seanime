@@ -34,7 +34,7 @@ export function TorrentSearchButton({ entry, onClick }: { entry: Anime_Entry, on
                     {(!isMovie) && `Download ${entry.downloadInfo?.batchAll ? "batch /" : "next"} ${count > 1 ? `${count} episodes` : "episode"}`}
                     {(isMovie) && `Download movie`}
                 </> : <>
-                    Download
+                    Torrent download
                 </>}
             </AnimeMetaActionButton>
         </div>

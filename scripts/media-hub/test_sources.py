@@ -170,7 +170,10 @@ class SourceTests(unittest.TestCase):
                   for s in self.catalog['sources'] for p in s['provenance']]
         self.assertEqual(sorted(actual), sorted(EXPECTED))
         self.assertEqual(len(actual), 100)
-        self.assertEqual(len(self.catalog['sources']), 97)
+        # Megathread sources plus the direct-download sites added on request (no megathread heading).
+        self.assertEqual(len(self.catalog['sources']), 100)
+        self.assertEqual({s['id'] for s in self.catalog['sources'] if not s['provenance']}, {'animetoki','anidl','animekaizoku'})
+        self.assertTrue(all(s.get('openNavigation') for s in self.catalog['sources'] if not s['provenance']))
         self.assertEqual(len(self.catalog['excludedSources']), 27)
 
     def test_every_domain_audited_and_every_blocker_retained(self):
@@ -191,7 +194,7 @@ class SourceTests(unittest.TestCase):
                 self.assertEqual(source['mode'], 'unavailable')
             else:
                 self.assertIn(source['mode'], ('site','native'))
-        self.assertEqual(len(urls), 125)
+        self.assertEqual(len(urls), 128)
         hydra = next(s for s in self.catalog['sources'] if s['nativeId'] == 'hydra')
         self.assertIn('https://hydrahd.gd/', hydra['alternateUrls'])
         self.assertEqual({s['nativeId'] for s in self.catalog['sources'] if s['nativeId']},

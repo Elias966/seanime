@@ -24,4 +24,8 @@ PRELOAD_PATH = 'src/preload.js'
 def patch_preload(raw):
     text=raw.decode();needle='"cast:error",'
     if text.count(needle)!=1:raise ValueError('Unexpected preload event channel whitelist')
-    return text.replace(needle,needle+'\n                "media-source:event",',1).encode()
+    text=text.replace(needle,needle+'\n                "media-source:event",',1)
+    # Lets the app tell direct-download sources where to save and start or cancel their downloads.
+    emit='"macos-activation-policy-regular"'
+    if text.count(emit)!=1:raise ValueError('Unexpected preload emit channel whitelist')
+    return text.replace(emit,emit+',\n                "media-source:download"',1).encode()

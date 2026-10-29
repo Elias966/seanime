@@ -21,6 +21,7 @@ import { NextAiringEpisode } from "@/app/(main)/entry/_components/next-airing-ep
 import { EntrySectionTabs, useAnimeEntryPageView } from "@/app/(main)/entry/_containers/anime-entry-page"
 import { AnimeEntryDropdownMenu } from "@/app/(main)/entry/_containers/entry-actions/anime-entry-dropdown-menu"
 import { AnimeEntrySilenceToggle } from "@/app/(main)/entry/_containers/entry-actions/anime-entry-silence-toggle"
+import { OnlineDownloadButton } from "@/app/(main)/entry/_containers/online-download/online-download-drawer"
 import { TorrentSearchButton } from "@/app/(main)/entry/_containers/torrent-search/torrent-search-button"
 import { SeaLink } from "@/components/shared/sea-link"
 import { Badge } from "@/components/ui/badge"
@@ -220,6 +221,8 @@ export function MetaSection(props: { entry: Anime_Entry, details: AL_AnimeDetail
                                 }}
                             />
                         )}
+
+                        {entry.media.status !== "NOT_YET_RELEASED" && !entry._isNakamaEntry && <OnlineDownloadButton />}
 
                         {entry._isNakamaEntry && currentView === "library" &&
                             <div className="flex items-center gap-2 h-10 px-4 border rounded-md flex-none">
