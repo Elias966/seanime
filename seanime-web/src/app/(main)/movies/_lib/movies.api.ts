@@ -363,6 +363,22 @@ function findPlayTarget(step: number, selector: string) {
  * Opens the website in an invisible page and waits for the video stream its player requests.
  * The Electron media relay captures it and returns a local URL the Seanime player can play.
  */
+/** Playlists before video files, then the first one the relay can still load. */
+async function pickStream(streams: Omit<Movie_CapturedStream, "subtitles">[]) {
+    const ordered = [...streams.filter(s => s.type === "hls"), ...streams.filter(s => s.type === "video")]
+    for (const s of ordered) {
+        try {
+            // The relay passes a range on to the CDN, so only video files are asked for their first byte
+            const res = await fetch(s.url, { headers: s.type === "video" ? { Range: "bytes=0-0" } : {}, signal: AbortSignal.timeout(8000) })
+            res.body?.cancel()
+            if (res.ok) return s
+        }
+        catch {
+        }
+    }
+    return ordered[0]
+}
+
 export function captureMovieStream(source: Movie_StreamSource, ref: Movie_StreamRef, signal?: AbortSignal) {
     return new Promise<Movie_CapturedStream>((resolve, reject) => {
         const url = source.url(ref)
@@ -380,6 +396,8 @@ export function captureMovieStream(source: Movie_StreamSource, ref: Movie_Stream
         view.setAttribute("src", url)
 
         let guestId: number | undefined
+        // Every stream the page loads, ads and spent one-time playlists included, the first one that replays is used
+        const streams: Omit<Movie_CapturedStream, "subtitles">[] = []
         let stream: Omit<Movie_CapturedStream, "subtitles"> | undefined
         let done = false
         const subtitles: Movie_CapturedStream["subtitles"] = []
@@ -393,7 +411,7 @@ export function captureMovieStream(source: Movie_StreamSource, ref: Movie_Stream
             signal?.removeEventListener("abort", onAbort)
             view.remove()
             if (error) reject(error)
-            else resolve({ ...stream!, subtitles })
+            else pickStream(streams).then(s => resolve({ ...s, subtitles }))
         }
         const onAbort = () => finish(new DOMException("Aborted", "AbortError"))
         signal?.addEventListener("abort", onAbort)
@@ -410,10 +428,13 @@ export function captureMovieStream(source: Movie_StreamSource, ref: Movie_Stream
                     : /(?:^|[_\W])(en|eng|english)(?:[_\W]|$)/i.test(label) ? "en" : ""
                 subtitles.push({ src: event.url, type: /\.(ass|ssa|srt|vtt)(?:$|\?)/i.exec(label)?.[1] || "vtt", label: label || "Subtitles", language })
             }
-            else if ((event.type === "hls" || event.type === "video") && !stream) {
-                stream = { url: event.url, type: event.type }
-                // Subtitle requests usually follow the playlist, give them a moment
-                timers.push(setTimeout(() => finish(), 1500))
+            else if (event.type === "hls" || event.type === "video") {
+                streams.push({ url: event.url, type: event.type })
+                if (stream) return
+                stream = streams[0]
+                // Subtitle requests usually follow the playlist, give them a moment. A plain video file may be an ad
+                // that played before the episode, so the episode's playlist gets longer to show up.
+                timers.push(setTimeout(() => finish(), event.type === "hls" ? 1500 : 5000))
             }
         })
 

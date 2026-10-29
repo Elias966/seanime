@@ -78,6 +78,20 @@ const SITES: AnimeStreamSite[] = [
                 && l.text.replace(/\s+/g, " ").match(/(\d+) \d+$/)?.[1] === String(a.episode))?.href, signal)
         },
     },
+    {
+        id: "yenime", name: "Yenime", host: "yenime.net", sourceId: "yenime", audio: ["sub"],
+        url: a => a.malId ? `https://yenime.net/watch/${a.malId}/${a.episode}` : undefined,
+    },
+    {
+        id: "anizone", name: "AnimeZone", host: "anizone.to", sourceId: "anizone", audio: ["sub"],
+        // Series addresses use the site's own ids, the search results are titled in romaji
+        resolve: async (a, signal) => {
+            const want = titleKeys(a)
+            const series = await findPageLink(`https://anizone.to/anime?search=${encodeURIComponent(a.romaji || a.english)}`, "anizone", links =>
+                links.find(l => /^https?:\/\/anizone\.to\/anime\/[a-z0-9]{8}$/.test(l.href) && want.includes(alnum(l.text)))?.href, signal)
+            return series && `${series.replace(/^http:/, "https:")}/${a.episode}`
+        },
+    },
 ]
 
 function toStreamSource(site: AnimeStreamSite, a: AnimeRef): Movie_StreamSource {
