@@ -37,7 +37,7 @@ import { BiChevronRight, BiExtension, BiLogIn, BiLogOut } from "react-icons/bi"
 import { FiLogIn, FiSearch } from "react-icons/fi"
 import { HiOutlineServerStack } from "react-icons/hi2"
 import { IoCloudOfflineOutline, IoHomeOutline } from "react-icons/io5"
-import { LuBookOpen, LuCalendar, LuCompass, LuRefreshCw, LuRss, LuSettings } from "react-icons/lu"
+import { LuBookOpen, LuFilm, LuCalendar, LuCompass, LuRefreshCw, LuRss, LuSettings } from "react-icons/lu"
 import { MdArrowForward } from "react-icons/md"
 import { MdArrowBack } from "react-icons/md"
 import { MdOutlineConnectWithoutContact } from "react-icons/md"
@@ -194,6 +194,17 @@ function SidebarNavigation({ isCollapsed, containerRef }: { isCollapsed: boolean
             name: "Home",
             href: "/",
             isCurrent: pathname === "/",
+        },
+        {
+            id: "movies",
+            iconType: LuFilm,
+            name: "Movies",
+            href: "#movies",
+            isCurrent: typeof window !== "undefined" && window.location.hash === "#movies",
+            onClick: (event: React.MouseEvent<HTMLElement>) => {
+                event.preventDefault()
+                window.SeanimeMediaHub?.open("movies")
+            },
         },
         // ...(import.meta.env.MODE === "development" ? [{
         //     id: "test",

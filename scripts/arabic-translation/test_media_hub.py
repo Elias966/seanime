@@ -1,0 +1,71 @@
+import json
+import io
+from pathlib import Path
+import tempfile
+import unittest
+from unittest.mock import patch
+import urllib.parse as U
+import sys
+sys.path.insert(0,str(Path(__file__).resolve().parent.parent))
+from patch_media_electron import patch_main,GUARD
+from media_hub import MediaHub,Page,hydra_items,torrent_rss,fetch,id_part
+
+class MediaTests(unittest.TestCase):
+    def setUp(self):
+        self.tmp=tempfile.TemporaryDirectory();self.addCleanup(self.tmp.cleanup)
+        self.calls=[]
+        def fake(url,*args):
+            self.calls.append(url)
+            return json.dumps({'status':'ok','data':{'movie_count':1,'movies':[{'id':1,'title':'Test Movie','year':2020,'rating':8,'medium_cover_image':'https://yts.gg/cover.jpg','torrents':[{'hash':'a'*40,'quality':'1080p'}]}]}})
+        self.hub=MediaHub(self.tmp.name,fake)
+    def test_movie_catalog_encodes_filters_pagination_and_returns_release_metadata(self):
+        r=self.hub.get('/media/catalog',{'provider':['yts'],'q':['Movie & Test'],'page':['2'],'genre':['Action']})
+        self.assertEqual(r['items'][0]['torrents'][0]['quality'],'1080p');q=U.parse_qs(U.urlsplit(self.calls[0]).query);self.assertEqual(q['query_term'],['Movie & Test']);self.assertEqual(q['page'],['2']);self.assertEqual(q['genre'],['Action'])
+    def test_cached_catalog_and_saved_library_survive_restart_without_network(self):
+        query={'provider':['yts']};item=self.hub.get('/media/catalog',query)['items'][0];self.hub.save({'item':item})
+        second=MediaHub(self.tmp.name,lambda *_: (_ for _ in ()).throw(OSError('offline')))
+        self.assertEqual(second.get('/media/catalog',query)['items'][0],item);self.assertEqual(second.get('/media/library',{})[0],item)
+        second.save({'item':item,'action':'remove'});self.assertEqual(second.get('/media/library',{}),[])
+    def test_json_in_html_decodes_without_evaluating_javascript(self):
+        encoded=json.dumps([{'src':'https://suzaku.xin-cdn.xyz/test/master.m3u8','title':'مرحبا'}],ensure_ascii=True).replace('"',r'\u0022')
+        doc=Page('<div x-data="'+__import__('html').escape("{video:JSON.parse('"+encoded+"'),bad:alert(1)}",quote=True)+'"></div>')
+        self.assertEqual(doc.arrays[0][0]['title'],'مرحبا')
+    def test_hydra_parser_deduplicates_cards_and_excludes_series_and_external_adverts(self):
+        s='<a href="/movie/123-test"><img src="https://image.tmdb.org/t/p/w342/x.jpg" alt="Test"></a>'
+        s+='<a href="https://evil.example/movie/xxx"><img src="https://evil.example/ad.jpg" alt="Ad"></a>'
+        s+='<a href="/series/123-test"><img src="https://image.tmdb.org/x.jpg" alt="Series"></a>'
+        self.assertEqual([a['title'] for a in hydra_items(s+s)],['Test'])
+    def test_nyaa_feed_requires_real_infohash_and_ignores_bad_entries(self):
+        s='<rss xmlns:nyaa="https://nyaa.si/xmlns/nyaa"><channel><item><title>Test</title><nyaa:infoHash>'+'a'*40+'</nyaa:infoHash><nyaa:seeders>20</nyaa:seeders></item><item><title>Bad</title></item></channel></rss>'
+        a=torrent_rss(s);self.assertEqual(len(a),1);self.assertEqual(a[0]['seeds'],'20');self.assertIn('magnet:',a[0]['magnet'])
+    def test_source_ids_and_stream_proxy_cannot_reach_arbitrary_urls(self):
+        for s in ['../secret','../../etc/passwd','https://evil.example','a?x=1']:
+            with self.assertRaises(ValueError):id_part(s)
+        for u in ['http://127.0.0.1/a','https://suzaku.xin-cdn.xyz.evil.example/a','https://user:pass@suzaku.xin-cdn.xyz/a','https://suzaku.xin-cdn.xyz:43211/a']:
+            with self.assertRaises(ValueError):self.hub.proxy(u,'http://127.0.0.1:11435')
+    def test_subtitles_convert_srt_timestamps_to_native_vtt(self):
+        self.hub.fetcher=lambda *_:'1\n00:00:01,000 --> 00:00:02,500\nمرحبا\n'
+        a=self.hub.get('/media/subtitle',{'url':['https://suzaku.xin-cdn.xyz/test/ar.srt']})
+        self.assertTrue(a['vtt'].startswith('WEBVTT'));self.assertIn('00:00:02.500',a['vtt']);self.assertIn('مرحبا',a['vtt'])
+
+    def test_electron_patch_fails_closed_and_retains_existing_external_link_behavior(self):
+        needle='setWindowOpenHandler(({ frameName, url }) => {\n'
+        result=patch_main((needle+'ORIGINAL').encode()).decode()
+        self.assertEqual(result,needle+GUARD+'ORIGINAL')
+        with self.assertRaises(ValueError):patch_main(b'changed upstream handler')
+
+    def test_hls_proxy_rewrites_variant_audio_and_key_uris_to_local_requests(self):
+        data=b'#EXTM3U\n#EXT-X-MEDIA:TYPE=AUDIO,URI="audio/main.m3u8?token=x"\n#EXT-X-KEY:METHOD=AES-128,URI="../key.bin"\nvideo/720.m3u8\n'
+        class Response(io.BytesIO):
+            status=200;headers={'Content-Type':'application/vnd.apple.mpegurl'}
+            def geturl(self):return 'https://suzaku.xin-cdn.xyz/episode/master.m3u8'
+        with patch('media_hub.R.urlopen',return_value=Response(data)):
+            code,kind,body,_=self.hub.proxy('https://suzaku.xin-cdn.xyz/episode/master.m3u8','http://127.0.0.1:11435')
+        self.assertEqual(code,200);self.assertEqual(kind,'application/vnd.apple.mpegurl');self.assertEqual(body.count(b'http://127.0.0.1:11435/media/proxy?url='),3)
+        self.assertIn(b'%2Fkey.bin',body);self.assertIn(b'audio%2Fmain.m3u8%3Ftoken%3Dx',body)
+    def test_source_captcha_is_rejected_instead_of_parsed_as_content(self):
+        class Response(io.BytesIO):pass
+        with patch('media_hub.R.urlopen',return_value=Response(b'<html><title>Just a moment</title><div class="cf-turnstile"></div></html>')):
+            with self.assertRaisesRegex(ValueError,'requires verification'):fetch('https://anizone.to/anime')
+
+if __name__=='__main__':unittest.main()

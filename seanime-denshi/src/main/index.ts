@@ -997,7 +997,15 @@ function createMainWindow() {
     })
 
 
+    win.webContents.on("will-navigate", (event, targetUrl) => {
+        const sourceFrameIsOpen = win.webContents.mainFrame.framesInSubtree.some(frame => frame !== win.webContents.mainFrame && /^https?:/.test(frame.url))
+        if (sourceFrameIsOpen && /^https?:/.test(targetUrl) && !/^https?:\/\/(?:127\.0\.0\.1|localhost)(?::\d+)?(?:\/|$)/.test(targetUrl)) event.preventDefault()
+    })
     win.webContents.setWindowOpenHandler(({ frameName, url }: Electron.HandlerDetails) => {
+        // A third-party media frame must not open advertising tabs externally.
+        if (win.webContents.mainFrame.framesInSubtree.some(frame => frame !== win.webContents.mainFrame && /^https?:/.test(frame.url))) {
+            return { action: "deny" }
+        }
         // Allow DocumentPictureInPicture window requests which use about:blank
         if (url === "about:blank") {
             return { action: "allow" }

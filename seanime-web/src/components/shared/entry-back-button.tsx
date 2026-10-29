@@ -13,6 +13,7 @@ export function EntryBackButton() {
 
 declare global {
     interface Window {
+        SeanimeMediaHub?: { open(kind?: string, query?: string): void }
         SeanimeCovers?: { resolve(url: string): string | undefined; open(id?: string): void }
         SeanimeNavigation?: {
             connectRouter(router: AnyRouter): void

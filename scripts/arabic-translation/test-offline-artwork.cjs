@@ -2,7 +2,7 @@ const {test}=require('node:test'),assert=require('node:assert/strict'),fs=requir
 const m={exports:{}};new Function('module',fs.readFileSync(__dirname+'/../../seanime-web/public/offline-artwork.js','utf8'))(m);
 const {resolve,collect}=m.exports;
 test('known covers and episode thumbnails use the same persistent URL online and offline',()=>{
- for(const url of ['https://s4.anilist.co/file/cover.jpg','https://artworks.thetvdb.com/banners/episode.jpg','https://image.tmdb.org/t/p/original/frame.webp'])assert.equal(resolve(url),'http://127.0.0.1:11435/images?url='+encodeURIComponent(url));
+ for(const url of ['https://s4.anilist.co/file/cover.jpg','https://img.yts.gg/assets/cover.jpg','https://anizone.to/images/anime/cover.jpg','https://artworks.thetvdb.com/banners/episode.jpg','https://image.tmdb.org/t/p/original/frame.webp'])assert.equal(resolve(url),'http://127.0.0.1:11435/images?url='+encodeURIComponent(url));
 });
 test('local offline placeholders resolve and unrelated or unsupported URLs stay unchanged',()=>{
  assert.equal(resolve('{{LOCAL_ASSETS}}/12/cover.jpg'),'http://127.0.0.1:43211/offline-assets/12/cover.jpg');

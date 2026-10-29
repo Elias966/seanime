@@ -5,7 +5,7 @@
     else { root.SeanimeResolveImageUrl = api.resolve; api.install(root); }
 })(typeof window === 'object' ? window : globalThis, function () {
     'use strict';
-    const hosts = new Set(['s4.anilist.co', 's.anilist.co', 'artworks.thetvdb.com', 'image.tmdb.org', 'cdn.myanimelist.net', 'i.ytimg.com']);
+    const hosts = new Set(['s4.anilist.co', 's.anilist.co', 'artworks.thetvdb.com', 'image.tmdb.org', 'cdn.myanimelist.net', 'i.ytimg.com', 'yts.gg', 'img.yts.gg', 'yts.lt', 'img.yts.lt', 'anizone.to']);
     const helper = 'http://127.0.0.1:11435';
     function isArtwork(value) {
         try { const url = new URL(value); return url.protocol === 'https:' && hosts.has(url.hostname) && !url.username && !url.password && (!url.port || url.port === '443') && !url.hash; }

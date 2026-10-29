@@ -7,6 +7,9 @@ on:
       - 'scripts/patch_entry_navigation.py'
       - 'scripts/patch_download_navigation.py'
       - 'scripts/repack-arabic-appimage.py'
+      - 'scripts/patch_media_electron.py'
+      - 'scripts/media-hub/**'
+      - 'seanime-denshi/src/main/index.ts'
       - 'seanime-web/public/**'
       - 'seanime-web/src/**'
       - 'seanime-web/index.html'
@@ -18,6 +21,9 @@ on:
       - 'scripts/patch_entry_navigation.py'
       - 'scripts/patch_download_navigation.py'
       - 'scripts/repack-arabic-appimage.py'
+      - 'scripts/patch_media_electron.py'
+      - 'scripts/media-hub/**'
+      - 'seanime-denshi/src/main/index.ts'
       - 'seanime-web/public/**'
       - 'seanime-web/src/**'
       - 'seanime-web/index.html'
@@ -39,3 +45,7 @@ jobs:
         run: node --test scripts/arabic-translation/test-*.cjs
       - name: Translation helper and persistent cache tests
         run: python3 -m unittest discover -s scripts/arabic-translation -p 'test_*.py'
+      - name: Install the pinned media engine dependencies
+        run: npm ci --omit=optional --no-fund --prefix scripts/media-hub
+      - name: Verify torrent streaming and seekable local-peer playback
+        run: node --test scripts/media-hub/test-engine.mjs

@@ -4,12 +4,12 @@ Unofficial Linux x86_64 Seanime 3.10.4 build, forked from [5rahim/seanime](https
 
 ## Download and run
 
-Download `Seanime-3.10.4-Arabic-Fixed-13.AppImage` and `SHA256SUMS` from [release 13](https://github.com/Elias966/seanime/releases/tag/v3.10.4-arabic-fix.13). Close any running Seanime instance, then:
+Download `Seanime-3.10.4-Arabic-Fixed-14.AppImage` and `SHA256SUMS` from [release 14](https://github.com/Elias966/seanime/releases/tag/v3.10.4-arabic-fix.14). Close any running Seanime instance, then:
 
 ```sh
 sha256sum -c SHA256SUMS
-chmod +x Seanime-3.10.4-Arabic-Fixed-13.AppImage
-./Seanime-3.10.4-Arabic-Fixed-13.AppImage
+chmod +x Seanime-3.10.4-Arabic-Fixed-14.AppImage
+./Seanime-3.10.4-Arabic-Fixed-14.AppImage
 ```
 
 Python 3 is required; no pip packages are needed. The build uses the existing Seanime profile. The launcher starts the bundled local helper on `127.0.0.1:11435`, or reuses a compatible already-running helper. Helper revision is checked so an older helper cannot silently override these fixes. If an old standalone service occupies this port, update it or stop it before opening the AppImage:
@@ -32,6 +32,30 @@ For local Ollama:
 Ollama itself remains at `http://127.0.0.1:11434`. All model requests stay local; no cloud fallback or model weights are bundled. Keep Ollama running.
 
 **Restart Seanime and reload the episode/subtitle track after upgrading**, because old untranslated results can remain in the player/backend caches. The user also reported that toggling translation mode away and back after changing models helped stale model selection.
+
+## Release 14: Movies and additional built-in anime sources
+
+A film icon in the left sidebar opens **Movies**, with Discover, My library, Downloads and Sources sections. Search by title, filter by genre, sort by popularity/year/rating/title, and browse multiple pages. Film detail pages offer torrent quality selection, streaming, downloading, saving and a back button that keeps the search/filter/page/scroll state. A download starts without navigating away and automatically saves the film and transfer hash to My library. Downloaded files can be played again from that saved title.
+
+Built-in providers, selected from the [movie](https://rentry.org/megathread-movies-and-tv) and [anime](https://rentry.org/megathread-anime) lists:
+
+| Source | Integration |
+| --- | --- |
+| YTS | Movie catalog and quality-specific torrent releases |
+| HydraHD | Movie matching and its actual online player/server options |
+| AniZone | Anime catalog, episodes, native HLS playback and provider subtitle tracks |
+| Nyaa | Additional anime torrent search through RSS |
+| AnimeTosho | Additional anime torrent search through its HTML pages |
+
+**Anime sources** is available inside Movies, and **Built-in sources** appears beside the controls on anime detail pages. These sources work alongside installed extensions. CAPTCHA/verification pages are rejected; no CAPTCHA solver, account or cloud debrid service is added. The listed AnimeSilo domain served unrelated cryptocurrency content during validation and was excluded. The old AnimeTosho feed server was unreachable, so the HTML provider is used. This is a selected set of working integrations, not an import of every website in the lists; Asiaflix and 1Shows are not separate adapters in this build.
+
+Torrent playback/download uses the bundled WebTorrent engine on loopback port **11437**, independent of the existing anime torrent client settings. It verifies pieces and supports HTTP byte-range seeking, file selection, progress, speed and peer count. Stopping a transfer retains downloaded data. Transfers resume after explicitly opening Downloads or playing a saved download, rather than automatically at application launch. Files and job/library metadata live under `${XDG_DATA_HOME:-~/.local/share}/seanime/media-hub`. Cached catalog responses and viewed posters remain available offline. WebTorrent and its N-API dependency run using Electron's bundled Node runtime, so users do not need to install Node.
+
+AniZone playback uses a local HLS proxy confined to the observed video host, with correct URI rewriting for variants, audio and keys. Available SRT tracks become WebVTT; Arabic is selected when the provider supplies it. This new player uses provider subtitles; it does not claim the existing anime player's AI translation pipeline. Hydra movie playback uses the site's cross-origin source players. The packaged Electron handler blocks source-frame popups from opening external tabs and stops remote frames from navigating the app externally; existing renderer sandbox/context isolation/web security are retained.
+
+Helper revision: `media-hub-v8`. Validation: **97 tests passed** (59 compiled/frontend JavaScript regressions, 34 Python tests, 4 engine tests). A real loopback peer supplied verified HTTP seek ranges; stopping kept the file. Live browser checks covered title search, release choices, saved-library reload, cached poster rendering, a 1080p anime stream advancing beyond one minute with Arabic selected, and an online movie player advancing beyond one minute. The UI checks used the packaged interface with the running local backend; native startup is verified separately. Domain availability, hoster behavior, codec support and subtitle availability can change. See [engine details](../../scripts/media-hub/README.md).
+
+Static Electron review used the reverse-engineer-anything skill and REA evidence `ev_628c06fe65a9c9906297cc6ceb519a6a2eb20c88fe7dc6ba33e7443a6e3c8b2e`, limited to the package manifest and packaged main-process JavaScript; unrelated artifact sources were outside that analysis. Popup behavior is also tested against the resulting packaged handler. No claim of a complete security audit is made.
 
 ## Release 13: choose alternative anime artwork
 
@@ -227,14 +251,15 @@ The release repackages the official [3.10.4 Linux x86_64 AppImage](https://githu
 bc1d3b5b045b1be1378f4501afc436bf282c052d5fb254513addf2e3af7014f5
 ```
 
-The script preserves the original runtime, extracts SquashFS, rewrites Electron ASAR offsets/integrity metadata, and repacks with xz. Nine ASAR entries are added or changed from upstream: the worker, font, font license, content-addressed progress/queue/artwork scripts, patched player chunk, updated runtime bootstrap, and `index.html`. The index loads the new bootstrap, whose chunk map selects the patched player. It preserves the original `AppRun` as `AppRun.upstream`, installs a helper startup wrapper, and adds `resources/seanime-translation-helper.py` and `resources/artwork_cache.py`. The bootstrap also patches the shared Image component to use the artwork resolver and retry events. The Go backend, Electron and WebAssembly binaries are unchanged.
+The script preserves the original binaries, extracts SquashFS, rewrites Electron ASAR offsets/integrity metadata, and repacks with xz. It bundles content-addressed frontend scripts/chunks, the Arabic font and worker repair, native media UI/HLS, the Python helpers, the media engine and its pinned dependencies. The shared Image component resolves offline/custom artwork; the main-process popup handler guards remote player frames. Original `AppRun` is preserved as `AppRun.upstream`. The Go backend, Electron executable and WebAssembly binaries are unchanged.
 
-Check out the release tag, install Python 3 and `squashfs-tools`, then:
+Check out the release tag and install Python 3, Node.js 24 and `squashfs-tools` for building, then:
 
 ```sh
+npm ci --omit=optional --prefix scripts/media-hub
 python3 scripts/repack-arabic-appimage.py \
   /path/to/seanime-denshi-3.10.4_Linux_x86_64.AppImage \
-  ./Seanime-3.10.4-Arabic-Fixed-13.AppImage
+  ./Seanime-3.10.4-Arabic-Fixed-14.AppImage
 ```
 
 The script verifies the official image and original worker hashes. Allow several GB of temporary disk space. Filesystem timestamps/tool versions can change the final compressed AppImage checksum; `SHA256SUMS` applies to the uploaded asset.

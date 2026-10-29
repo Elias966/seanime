@@ -8,6 +8,7 @@ import shutil
 import struct
 import subprocess
 import tempfile
+from patch_media_electron import MAIN_PATH, patch_main
 from patch_download_navigation import MAGNET_PATH, patch_download_entry, patch_magnet, patch_download_bootstrap
 from patch_entry_navigation import SEARCH_PATH, patch_search, patch_entry, patch_bootstrap
 from patch_subtitle_scheduler import BUNDLE_PATH, patch_player_bundle
@@ -32,6 +33,10 @@ def patch_asar(path):
     if sha256(raw[start:start + worker['size']]) != ORIGINAL_WORKER_SHA256:
         raise ValueError('Unexpected original JASSUB worker; refusing to patch')
     public = ROOT / 'seanime-web/public'
+    media_data = (public / 'media-hub.js').read_bytes()
+    media_name = 'media-hub.' + sha256(media_data)[:8] + '.js'
+    hls_data = (ROOT / 'scripts/media-hub/node_modules/hls.js/dist/hls.min.js').read_bytes()
+    hls_name = 'hls.' + sha256(hls_data)[:8] + '.js'
     progress_data = (public / 'translation-progress.js').read_bytes()
     queue_data = (public / 'subtitle-translation-queue.js').read_bytes()
     navigation_data = (public / 'entry-navigation.js').read_bytes()
@@ -43,6 +48,8 @@ def patch_asar(path):
     progress_name = 'translation-progress.' + sha256(progress_data)[:8] + '.js'
     queue_name = 'subtitle-translation-queue.' + sha256(queue_data)[:8] + '.js'
     changed = {
+        'web-denshi/' + media_name: media_data,
+        'web-denshi/' + hls_name: hls_data,
         'web-denshi/' + cover_name: cover_data,
         'web-denshi/' + navigation_name: navigation_data,
         'web-denshi/jassub/jassub-worker.js': (public / 'jassub/jassub-worker.js').read_bytes(),
@@ -106,7 +113,11 @@ def patch_asar(path):
     index_html = raw[start:start + index_entry['size']].decode()
     index_html = index_html.replace('/static/js/index.c4fd1c85.js', '/' + new_bootstrap_path.removeprefix('web-denshi/'), 1)
     changed['web-denshi/index.html'] = index_html.replace(
-        '</head>', '<script src="/' + cover_name + '"></script><script src="/' + navigation_name + '"></script><script src="/' + artwork_name + '"></script><script src="/' + progress_name + '"></script><script src="/' + queue_name + '"></script></head>', 1).encode()
+        '</head>', '<script src="/' + hls_name + '"></script><script src="/' + media_name + '"></script><script src="/' + cover_name + '"></script><script src="/' + navigation_name + '"></script><script src="/' + artwork_name + '"></script><script src="/' + progress_name + '"></script><script src="/' + queue_name + '"></script></head>', 1).encode()
+    main_entry = tree
+    for part in MAIN_PATH.split('/'): main_entry = main_entry['files'][part]
+    main_start = base + int(main_entry['offset'])
+    changed[MAIN_PATH] = patch_main(raw[main_start:main_start + main_entry['size']])
     for name in changed:
         node = tree
         parts = name.split('/')
@@ -182,6 +193,8 @@ def main():
                         app_dir / 'resources/artwork_cache.py')
         shutil.copyfile(ROOT / 'scripts/arabic-translation/cover_store.py',
                         app_dir / 'resources/cover_store.py')
+        shutil.copyfile(ROOT / 'scripts/arabic-translation/media_hub.py', app_dir / 'resources/media_hub.py')
+        shutil.copytree(ROOT / 'scripts/media-hub', app_dir / 'resources/media-hub', ignore=shutil.ignore_patterns('test-*', '*.log'))
         filesystem = temp / 'patched.squashfs'
         subprocess.run(['mksquashfs', str(app_dir), str(filesystem), '-noappend', '-comp', 'xz', '-processors', str(args.processors), '-quiet'], check=True)
         with output.open('xb') as dest:

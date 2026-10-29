@@ -10,7 +10,9 @@ fi
 port="${SEANIME_TRANSLATION_PORT:-11435}"
 helper_pid=''
 app_pid=''
+media_pid=''
 cleanup() {
+    if [ -n "$media_pid" ]; then kill "$media_pid" 2>/dev/null || true; wait "$media_pid" 2>/dev/null || true; fi
     if [ -n "$helper_pid" ]; then
         kill "$helper_pid" 2>/dev/null || true
         wait "$helper_pid" 2>/dev/null || true
@@ -25,7 +27,7 @@ import json,sys,urllib.request
 try:
     with urllib.request.urlopen('http://127.0.0.1:' + sys.argv[1] + '/health',timeout=0.5) as r:
         data = json.load(r)
-        assert data.get('ok') is True and data.get('revision') == 'arabic-covers-v7'
+        assert data.get('ok') is True and data.get('revision') == 'media-hub-v8'
 except Exception:
     raise SystemExit(1)
 PY
@@ -47,6 +49,18 @@ fi
 if [ "${1:-}" = '--translation-helper-check' ]; then
     echo "Bundled translation helper ready at http://127.0.0.1:$port/v1"
     exit 0
+fi
+# Electron's bundled Node runtime runs the separately packaged torrent service.
+if ! python3 - <<'PYMEDIA'
+import json,urllib.request
+try:
+    with urllib.request.urlopen('http://127.0.0.1:11437/health',timeout=0.5) as r:
+        assert json.load(r).get('revision') == 'media-engine-v1'
+except Exception: raise SystemExit(1)
+PYMEDIA
+then
+    ELECTRON_RUN_AS_NODE=1 "$APPDIR/seanime-denshi" "$APPDIR/resources/media-hub/torrent-engine.mjs" &
+    media_pid=$!
 fi
 "$APPDIR/AppRun.upstream" "$@" &
 app_pid=$!

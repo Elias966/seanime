@@ -16,9 +16,10 @@ import unicodedata
 import urllib.parse
 from artwork_cache import ArtworkCache
 from cover_store import CoverStore
+from media_hub import MediaHub
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-HELPER_REVISION = 'arabic-covers-v7'
+HELPER_REVISION = 'media-hub-v8'
 LOG = logging.getLogger('seanime-translation')
 ARABIC = re.compile(r'[\u0620-\u064a\u066e-\u06d3\u06fa-\u06ff\u0750-\u077f\u08a0-\u08c9]')
 LATIN_WORDS = re.compile(r'[A-Za-z]+')
@@ -233,7 +234,7 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header('Cache-Control', 'no-store'); self.end_headers(); self.wfile.write(data)
 
     def do_OPTIONS(self):
-        if not self.path.startswith('/covers') or not self.cover_origin():
+        if not self.path.startswith(('/covers','/media/')) or not self.cover_origin():
             return self.send_json(403, {'error':'Origin not allowed'})
         self.send_response(204); self.cover_cors()
         self.send_header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
@@ -242,6 +243,21 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         route = urllib.parse.urlsplit(self.path)
+        if route.path.startswith('/media/'):
+            if not self.cover_origin(): return self.send_json(403, {'error':'Origin not allowed'})
+            if route.path == '/media/proxy':
+                try:
+                    query=urllib.parse.parse_qs(route.query)
+                    code,kind,data,content_range=self.server.media.proxy(query.get('url',[''])[0], 'http://127.0.0.1:'+str(self.server.server_port),self.headers.get('Range'))
+                    self.send_response(code);self.cover_cors();self.send_header('Content-Type',kind);self.send_header('Content-Length',str(len(data)));self.send_header('Cache-Control','no-store')
+                    if content_range:self.send_header('Content-Range',content_range)
+                    self.end_headers();self.wfile.write(data);return
+                except ValueError:return self.cover_json(400,{'error':'Unsupported media request'})
+                except (BrokenPipeError, ConnectionResetError):return
+                except Exception:return self.cover_json(502,{'error':'Streaming server unavailable'})
+            try: return self.cover_json(200, self.server.media.get(route.path, urllib.parse.parse_qs(route.query)))
+            except ValueError as e: return self.cover_json(400, {'error':str(e)})
+            except Exception: return self.cover_json(502, {'error':'Source unavailable. Choose another source or try again later.'})
         if route.path.startswith('/covers'):
             if not self.cover_origin(): return self.send_json(403, {'error':'Origin not allowed'})
             query = urllib.parse.parse_qs(route.query)
@@ -288,6 +304,13 @@ class Handler(BaseHTTPRequestHandler):
         self.send_json(404, {'error': {'message': 'Unknown endpoint'}})
 
     def do_POST(self):
+        if self.path == '/media/library':
+            if not self.cover_origin(): return self.send_json(403, {'error':'Origin not allowed'})
+            try:
+                length=int(self.headers.get('Content-Length','0'))
+                if not 0 < length <= 262144 or not self.headers.get('Content-Type','').startswith('application/json'):raise ValueError('Invalid library request')
+                return self.cover_json(200,self.server.media.save(json.loads(self.rfile.read(length))))
+            except Exception: return self.cover_json(400, {'error':'Could not save library item'})
         if self.path == '/covers':
             if not self.cover_origin(): return self.send_json(403, {'error':'Origin not allowed'})
             try:
@@ -330,6 +353,7 @@ def main():
     server.translator = Translator()
     server.artwork = ArtworkCache()
     server.covers = CoverStore(server.artwork)
+    server.media = MediaHub()
     LOG.info('Listening on 127.0.0.1:%d; local Ollama adapter and persistent artwork cache', args.port)
     server.serve_forever()
 
