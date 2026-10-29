@@ -31,6 +31,9 @@ type AnimeStreamSite = {
 }
 
 const slug = (s: string) => s.toLowerCase().normalize("NFKD").replace(/[^\w\s-]/g, "").trim().replace(/[\s_]+/g, "-").replace(/-+/g, "-")
+// Sites spell punctuation differently in addresses ("journeys" / "journey-s"), so titles are compared by letters and digits only
+const alnum = (s: string) => s.toLowerCase().normalize("NFKD").replace(/[^a-z0-9]/g, "")
+const titleKeys = (a: AnimeRef) => [a.romaji, a.english].filter(Boolean).map(alnum)
 
 /** Websites whose player hands Seanime a playable stream for one episode, used in this order by Play. */
 const SITES: AnimeStreamSite[] = [
@@ -50,6 +53,30 @@ const SITES: AnimeStreamSite[] = [
     {
         id: "vidnest", name: "Vidnest", host: "vidnest.fun", sourceId: "bingeflix", audio: ["sub", "dub"],
         url: a => `https://vidnest.fun/anime/${a.anilistId}/${a.episode}/${a.audio}`,
+    },
+    {
+        id: "allwish", name: "All-Wish", host: "all-wish.me", sourceId: "allwish", audio: ["sub"],
+        // Series addresses end in an id of the site's own, some with "-tv" before it: /watch/<title>[-tv]-<id>/ep-<n>
+        resolve: async (a, signal) => {
+            const want = titleKeys(a)
+            const page = await findPageLink(`https://all-wish.me/filter?keyword=${encodeURIComponent(a.romaji || a.english)}`, "allwish", links =>
+                links.map(l => l.href.match(/^https:\/\/all-wish\.me\/watch\/([^/?#]+?)(?:-tv)?-[a-z0-9]{5}(?=\/|$)/))
+                    .find(m => m && want.includes(alnum(m[1])))?.[0], signal)
+            return page && `${page}/ep-${a.episode}`
+        },
+    },
+    {
+        id: "animeparadise", name: "AnimeParadise", host: "animeparadise.moe", sourceId: "animeparadise", audio: ["sub"],
+        // Episodes have random ids, so the series page is found through the search and the episode is picked from its list
+        resolve: async (a, signal) => {
+            const want = titleKeys(a)
+            const series = await findPageLink(`https://www.animeparadise.moe/search?q=${encodeURIComponent(a.romaji || a.english)}`, "animeparadise",
+                links => links.find(l => /^https:\/\/www\.animeparadise\.moe\/anime\/[^/?#]+$/.test(l.href) && want.includes(alnum(l.href.split("/").pop()!)))?.href,
+                signal)
+            // An episode link reads "<episode title> <number> <views>"
+            return series && findPageLink(series, "animeparadise", links => links.find(l => l.href.includes("/watch/")
+                && l.text.replace(/\s+/g, " ").match(/(\d+) \d+$/)?.[1] === String(a.episode))?.href, signal)
+        },
     },
 ]
 
