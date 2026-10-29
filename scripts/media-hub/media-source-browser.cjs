@@ -83,26 +83,51 @@ const DDL_FILE=/\.(mp4|m4v|mkv|webm|avi|zip|7z|rar|srt|ass|ssa|vtt)$/i;
 function safeName(name){return String(name||'').replace(/[\\/:*?"<>|\x00-\x1f]/g,'_').replace(/^[.\s]+/,'').slice(0,200)||'download'}
 function freePath(dir,name){const ext=path.extname(name),base=name.slice(0,name.length-ext.length);let p=path.join(dir,name);for(let i=1;fs.existsSync(p)||fs.existsSync(p+'.part');i++)p=path.join(dir,base+' ('+i+')'+ext);return p}
 function attachDownloads(win,registry){
- const {ipcMain,session,app}=require('electron');const dirs=new Map(),items=new Map();
+ const {ipcMain,session,app,shell}=require('electron');const dirs=new Map(),items=new Map(),records=new Map(),reports=new Map(),pending=new Map();
  const sources=registry.sources.filter(s=>s.openNavigation&&s.mode!=='unavailable'),partition=id=>session.fromPartition('persist:seanime-media-source-'+id);
  // uBlock Origin keeps the download sites' ad scripts and click-trap popups out of the way.
  const ubo=path.join(__dirname,'ublock-origin');if(fs.existsSync(path.join(ubo,'manifest.json')))for(const source of sources){const s=partition(source.id);(s.extensions||s).loadExtension(ubo,{allowFileAccess:false}).catch(e=>console.warn('uBlock Origin:',e.message))}
- const send=d=>{if(!win.isDestroyed())win.webContents.send('media-source:event',{type:'download',...d})};
+ // The list is kept between runs for the Online downloads page. Electron writes straight to the final file,
+ // so one still running when the app closed is only a partial file and is removed.
+ const store=path.join(app.getPath('userData'),'online-downloads.json');
+ try{for(const r of JSON.parse(fs.readFileSync(store,'utf8'))){if(!r||typeof r.id!=='string'||typeof r.path!=='string')continue;if(r.state==='progressing'||r.state==='paused'||r.state==='interrupted'){r.state='failed';if(r.path)fs.rm(r.path,{force:true},()=>{})}records.set(r.id,{...r,speed:0})}}catch{}
+ let saveTimer;const save=()=>{clearTimeout(saveTimer);saveTimer=setTimeout(()=>fs.writeFile(store,JSON.stringify([...records.values()].slice(-300)),()=>{}),500)};
+ const send=d=>{if(!win.isDestroyed())win.webContents.send('media-source:event',d)};
+ const sendList=()=>send({type:'downloads',list:[...records.values()]});
+ const okDir=d=>typeof d==='string'&&path.isAbsolute(d)&&!d.includes('\0');
+ const start=(sourceId,url,meta,referer)=>{const u=new URL(url);if(u.protocol!=='https:')return;if(pending.size>50)pending.delete(pending.keys().next().value);pending.set(u.href,meta);partition(sourceId).downloadURL(u.href,referer?{headers:{Referer:referer}}:undefined)};
  for(const source of sources)partition(source.id).on('will-download',(e,item)=>{
-  const name=safeName(item.getFilename());if(!DDL_FILE.test(name))return;
-  const dir=dirs.get(source.id)||path.join(app.getPath('downloads'),'Seanime');try{fs.mkdirSync(dir,{recursive:true})}catch{}
-  const file=freePath(dir,name),id=crypto.randomUUID();item.setSavePath(file);items.set(id,item);let last=0;
-  const report=state=>send({id,sourceId:source.id,name:path.basename(file),path:file,received:item.getReceivedBytes(),total:item.getTotalBytes(),state});
-  report('progressing');
-  item.on('updated',(_,state)=>{const now=Date.now();if(state==='progressing'&&now-last<700)return;last=now;report(state==='interrupted'?'interrupted':'progressing')});
-  // Electron writes straight to the chosen file, so a cancelled or failed download leaves a partial one.
-  item.once('done',(_,state)=>{items.delete(id);report(state);if(state!=='completed')fs.rm(file,{force:true},()=>{})});
+  const name=safeName(item.getFilename()),chain=item.getURLChain(),asked=chain.map(u=>pending.get(u)).find(Boolean);chain.forEach(u=>pending.delete(u));
+  // A download the app asked for that turns out not to be a video (an error page) is dropped and shown as failed
+  if(!DDL_FILE.test(name)){if(asked){e.preventDefault();const r={id:crypto.randomUUID(),sourceId:source.id,name,path:'',url:chain[0],title:asked.title||'',mediaId:asked.mediaId||0,received:0,total:0,state:'failed',error:'The site sent '+name+' instead of a video',speed:0,started:Date.now()};records.set(r.id,r);send({type:'download',...r});save()}return}
+  // Files the user gets by browsing the site go where the drawer last pointed this site
+  const meta={...dirs.get(source.id),...asked};
+  const dir=meta.dir||path.join(app.getPath('downloads'),'Seanime');try{fs.mkdirSync(dir,{recursive:true})}catch{}
+  const file=freePath(dir,name),id=crypto.randomUUID();item.setSavePath(file);items.set(id,item);
+  const r={id,sourceId:source.id,name:path.basename(file),path:file,url:chain[0],referer:meta.referer||'',title:meta.title||'',mediaId:meta.mediaId||0,received:0,total:item.getTotalBytes(),state:'progressing',speed:0,started:Date.now()};records.set(id,r);
+  let last=0,lastBytes=0,lastAt=Date.now();
+  const report=state=>{const now=Date.now(),got=item.getReceivedBytes();if(now-lastAt>=500){r.speed=Math.max(0,(got-lastBytes)*1000/(now-lastAt));lastBytes=got;lastAt=now}Object.assign(r,{received:got,total:item.getTotalBytes(),state});if(state!=='progressing')r.speed=0;send({type:'download',...r})};
+  reports.set(id,report);report('progressing');save();
+  item.on('updated',(_,state)=>{const now=Date.now();if(state==='progressing'&&!item.isPaused()&&now-last<700)return;last=now;report(state==='interrupted'?'interrupted':item.isPaused()?'paused':'progressing')});
+  // A cancelled or failed download leaves a partial file, which is removed.
+  item.once('done',(_,state)=>{items.delete(id);reports.delete(id);r.finished=Date.now();report(state);save();if(state!=='completed')fs.rm(file,{force:true},()=>{})});
  });
  ipcMain.on('media-source:download',(e,msg)=>{
   if(e.sender!==win.webContents||!msg||typeof msg!=='object')return;const source=sources.find(s=>s.id===msg.sourceId);
-  if(msg.action==='dir'&&source&&typeof msg.dir==='string'&&path.isAbsolute(msg.dir)&&!msg.dir.includes('\0'))dirs.set(source.id,path.normalize(msg.dir));
-  else if(msg.action==='start'&&source){try{const u=new URL(msg.url);if(u.protocol==='https:')partition(source.id).downloadURL(u.href,typeof msg.referer==='string'&&/^https:\/\//.test(msg.referer)?{headers:{Referer:msg.referer}}:undefined)}catch{}}
-  else if(msg.action==='cancel'&&typeof msg.id==='string')items.get(msg.id)?.cancel();
+  const id=typeof msg.id==='string'?msg.id:'',item=items.get(id),r=records.get(id);
+  try{
+   if(msg.action==='dir'&&source&&okDir(msg.dir))dirs.set(source.id,{dir:path.normalize(msg.dir),title:String(msg.title||'').slice(0,200),mediaId:Number(msg.mediaId)||0});
+   else if(msg.action==='start'&&source){const referer=typeof msg.referer==='string'&&/^https:\/\//.test(msg.referer)?msg.referer:'';start(source.id,msg.url,{...(okDir(msg.dir)&&{dir:path.normalize(msg.dir)}),title:String(msg.title||'').slice(0,200),mediaId:Number(msg.mediaId)||0,referer},referer)}
+   else if(msg.action==='list')sendList();
+   else if(msg.action==='cancel')item?.cancel();
+   else if(msg.action==='pause'&&item){item.pause();reports.get(id)?.('paused')}
+   else if(msg.action==='resume'&&item?.canResume()){item.resume();reports.get(id)?.('progressing')}
+   else if(msg.action==='retry'&&r&&!item&&r.url&&sources.some(s=>s.id===r.sourceId)){records.delete(id);start(r.sourceId,r.url,{...(r.path&&{dir:path.dirname(r.path)}),title:r.title,mediaId:r.mediaId,referer:r.referer},r.referer);save();sendList()}
+   else if(msg.action==='remove'&&r&&!item){records.delete(id);save();sendList()}
+   else if(msg.action==='clear'){for(const k of [...records.keys()])if(!items.has(k))records.delete(k);save();sendList()}
+   else if(msg.action==='folder'&&r?.path){if(fs.existsSync(r.path))shell.showItemInFolder(r.path);else shell.openPath(path.dirname(r.path))}
+   else if(msg.action==='open'&&r?.state==='completed'&&fs.existsSync(r.path))shell.openPath(r.path);
+  }catch(err){console.warn('online download:',err.message)}
  });
 }
 function attach(win,options={}){

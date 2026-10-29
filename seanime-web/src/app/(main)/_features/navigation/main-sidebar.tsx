@@ -28,12 +28,13 @@ import { openTab } from "@/lib/helpers/browser"
 import { usePathname, useRouter } from "@/lib/navigation"
 import { ANILIST_OAUTH_URL, ANILIST_PIN_URL } from "@/lib/server/config"
 import { TORRENT_CLIENT, TORRENT_PROVIDER } from "@/lib/server/settings"
+import { isActiveDownload, useOnlineDownloads } from "@/app/(main)/online-downloads/_lib/online-downloads"
 import { WSEvents } from "@/lib/server/ws-events"
 import { useThemeSettings } from "@/lib/theme/theme-hooks"
 import { __isDesktop__, __isElectronDesktop__ } from "@/types/constants"
 import { useAtom } from "jotai"
 import React from "react"
-import { BiChevronRight, BiExtension, BiLogIn, BiLogOut } from "react-icons/bi"
+import { BiChevronRight, BiCloudDownload, BiExtension, BiLogIn, BiLogOut } from "react-icons/bi"
 import { FiLogIn, FiSearch } from "react-icons/fi"
 import { HiOutlineServerStack } from "react-icons/hi2"
 import { IoCloudOfflineOutline, IoHomeOutline } from "react-icons/io5"
@@ -174,6 +175,8 @@ function SidebarNavigation({ isCollapsed, containerRef }: { isCollapsed: boolean
     const missingEpisodeCount = useMissingEpisodeCount()
     const autoDownloaderQueueCount = useAutoDownloaderQueueCount()
 
+    const onlineDownloadCount = useOnlineDownloads().filter(isActiveDownload).length
+
     // Torrents
     const [activeTorrentCount, setActiveTorrentCount] = React.useState({ downloading: 0, paused: 0, seeding: 0 })
     useWebsocketMessageListener<{ downloading: number, paused: number, seeding: number }>({
@@ -272,6 +275,16 @@ function SidebarNavigation({ isCollapsed, containerRef }: { isCollapsed: boolean
                     >{activeTorrentCount.downloading + activeTorrentCount.paused}</Badge>
                     : undefined,
             }] : [],
+        ...__isElectronDesktop__ ? [{
+            id: "online-downloads",
+            iconType: BiCloudDownload,
+            name: "Online downloads",
+            href: "/online-downloads",
+            isCurrent: pathname === "/online-downloads",
+            addon: onlineDownloadCount > 0
+                ? <Badge className="absolute right-0 top-0 bg-green-500" size="sm" intent="alert-solid">{onlineDownloadCount}</Badge>
+                : undefined,
+        }] : [],
         ...(serverStatus?.debridSettings?.enabled && !!serverStatus?.debridSettings?.provider) ? [{
             id: "debrid",
             iconType: HiOutlineServerStack,

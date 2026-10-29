@@ -52,6 +52,9 @@ const MainScanSummariesIndexLazyRouteImport = createFileRoute(
 const MainQbittorrentIndexLazyRouteImport = createFileRoute(
   '/_main/qbittorrent/',
 )()
+const MainOnlineDownloadsIndexLazyRouteImport = createFileRoute(
+  '/_main/online-downloads/',
+)()
 const MainMangaIndexLazyRouteImport = createFileRoute('/_main/manga/')()
 const MainListsIndexLazyRouteImport = createFileRoute('/_main/lists/')()
 const MainDebridIndexLazyRouteImport = createFileRoute('/_main/debrid/')()
@@ -160,6 +163,14 @@ const MainQbittorrentIndexLazyRoute =
     getParentRoute: () => MainRoute,
   } as any).lazy(() =>
     import('./routes/_main/qbittorrent/index.lazy').then((d) => d.Route),
+  )
+const MainOnlineDownloadsIndexLazyRoute =
+  MainOnlineDownloadsIndexLazyRouteImport.update({
+    id: '/online-downloads/',
+    path: '/online-downloads/',
+    getParentRoute: () => MainRoute,
+  } as any).lazy(() =>
+    import('./routes/_main/online-downloads/index.lazy').then((d) => d.Route),
   )
 const MainMangaIndexLazyRoute = MainMangaIndexLazyRouteImport.update({
   id: '/manga/',
@@ -350,6 +361,7 @@ export interface FileRoutesByFullPath {
   '/debrid/': typeof MainDebridIndexLazyRoute
   '/lists/': typeof MainListsIndexLazyRoute
   '/manga/': typeof MainMangaIndexLazyRoute
+  '/online-downloads/': typeof MainOnlineDownloadsIndexLazyRoute
   '/qbittorrent/': typeof MainQbittorrentIndexLazyRoute
   '/scan-summaries/': typeof MainScanSummariesIndexLazyRoute
   '/schedule/': typeof MainScheduleIndexLazyRoute
@@ -389,6 +401,7 @@ export interface FileRoutesByTo {
   '/debrid': typeof MainDebridIndexLazyRoute
   '/lists': typeof MainListsIndexLazyRoute
   '/manga': typeof MainMangaIndexLazyRoute
+  '/online-downloads': typeof MainOnlineDownloadsIndexLazyRoute
   '/qbittorrent': typeof MainQbittorrentIndexLazyRoute
   '/scan-summaries': typeof MainScanSummariesIndexLazyRoute
   '/schedule': typeof MainScheduleIndexLazyRoute
@@ -430,6 +443,7 @@ export interface FileRoutesById {
   '/_main/debrid/': typeof MainDebridIndexLazyRoute
   '/_main/lists/': typeof MainListsIndexLazyRoute
   '/_main/manga/': typeof MainMangaIndexLazyRoute
+  '/_main/online-downloads/': typeof MainOnlineDownloadsIndexLazyRoute
   '/_main/qbittorrent/': typeof MainQbittorrentIndexLazyRoute
   '/_main/scan-summaries/': typeof MainScanSummariesIndexLazyRoute
   '/_main/schedule/': typeof MainScheduleIndexLazyRoute
@@ -471,6 +485,7 @@ export interface FileRouteTypes {
     | '/debrid/'
     | '/lists/'
     | '/manga/'
+    | '/online-downloads/'
     | '/qbittorrent/'
     | '/scan-summaries/'
     | '/schedule/'
@@ -510,6 +525,7 @@ export interface FileRouteTypes {
     | '/debrid'
     | '/lists'
     | '/manga'
+    | '/online-downloads'
     | '/qbittorrent'
     | '/scan-summaries'
     | '/schedule'
@@ -550,6 +566,7 @@ export interface FileRouteTypes {
     | '/_main/debrid/'
     | '/_main/lists/'
     | '/_main/manga/'
+    | '/_main/online-downloads/'
     | '/_main/qbittorrent/'
     | '/_main/scan-summaries/'
     | '/_main/schedule/'
@@ -681,6 +698,13 @@ declare module '@tanstack/react-router' {
       path: '/qbittorrent'
       fullPath: '/qbittorrent/'
       preLoaderRoute: typeof MainQbittorrentIndexLazyRouteImport
+      parentRoute: typeof MainRoute
+    }
+    '/_main/online-downloads/': {
+      id: '/_main/online-downloads/'
+      path: '/online-downloads'
+      fullPath: '/online-downloads/'
+      preLoaderRoute: typeof MainOnlineDownloadsIndexLazyRouteImport
       parentRoute: typeof MainRoute
     }
     '/_main/manga/': {
@@ -865,6 +889,7 @@ interface MainRouteChildren {
   MainDebridIndexLazyRoute: typeof MainDebridIndexLazyRoute
   MainListsIndexLazyRoute: typeof MainListsIndexLazyRoute
   MainMangaIndexLazyRoute: typeof MainMangaIndexLazyRoute
+  MainOnlineDownloadsIndexLazyRoute: typeof MainOnlineDownloadsIndexLazyRoute
   MainQbittorrentIndexLazyRoute: typeof MainQbittorrentIndexLazyRoute
   MainScanSummariesIndexLazyRoute: typeof MainScanSummariesIndexLazyRoute
   MainScheduleIndexLazyRoute: typeof MainScheduleIndexLazyRoute
@@ -899,6 +924,7 @@ const MainRouteChildren: MainRouteChildren = {
   MainDebridIndexLazyRoute: MainDebridIndexLazyRoute,
   MainListsIndexLazyRoute: MainListsIndexLazyRoute,
   MainMangaIndexLazyRoute: MainMangaIndexLazyRoute,
+  MainOnlineDownloadsIndexLazyRoute: MainOnlineDownloadsIndexLazyRoute,
   MainQbittorrentIndexLazyRoute: MainQbittorrentIndexLazyRoute,
   MainScanSummariesIndexLazyRoute: MainScanSummariesIndexLazyRoute,
   MainScheduleIndexLazyRoute: MainScheduleIndexLazyRoute,
