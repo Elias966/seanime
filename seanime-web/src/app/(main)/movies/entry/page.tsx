@@ -8,6 +8,7 @@ import { MovieCarousel } from "@/app/(main)/movies/_containers/movie-carousel"
 import { MovieDownloads } from "@/app/(main)/movies/_containers/movie-downloads"
 import {
     captureMovieStream,
+    engineAction,
     fetchEngineTorrents,
     formatBytes,
     largestPlayableFile,
@@ -26,6 +27,7 @@ import {
     playEngineFile,
     playLibraryItem,
     startEngineTorrent,
+    useEngineTorrents,
     useMovieHydraMatches,
     useMovieLibrary,
     useMovieMeta,
@@ -243,13 +245,17 @@ function releaseTitle(meta: Movie_Meta, t: Movie_YtsTorrent) {
 
 function MovieTorrentSection({ meta }: { meta: Movie_Meta }) {
     const { data: yts, isLoading, isError } = useMovieTorrents(meta.id)
+    const { data: library } = useMovieLibrary()
+    const { data: active } = useEngineTorrents(3000)
     const [streaming, setStreaming] = React.useState<{ hash: string, title: string }>()
+    const [busy, setBusy] = React.useState<string>()
 
     const torrents = React.useMemo(() => [...(yts?.torrents ?? [])].sort((a, b) => qualityRank(b.quality) - qualityRank(a.quality) || b.seeds - a.seeds),
         [yts])
 
     async function start(t: Movie_YtsTorrent, mode: "stream" | "download") {
         const title = releaseTitle(meta, t)
+        setBusy(t.hash)
         try {
             const { hash } = await startEngineTorrent(ytsMagnet(t.hash, title), title, mode, metaToLibraryMedia(meta))
             if (mode === "stream") setStreaming({ hash: hash || t.hash.toLowerCase(), title })
@@ -257,6 +263,9 @@ function MovieTorrentSection({ meta }: { meta: Movie_Meta }) {
         }
         catch (e: any) {
             toast.error(e?.message ?? "The torrent engine is unavailable")
+        }
+        finally {
+            setBusy(undefined)
         }
     }
 
@@ -272,8 +281,12 @@ function MovieTorrentSection({ meta }: { meta: Movie_Meta }) {
                             <p>No torrent releases found for this movie. Try Online streaming.</p>
                         </LuffyError>
                             : <div className="grid grid-cols-1 md:grid-cols-2 2xl:grid-cols-3 gap-4">
-                                {torrents.map(t => (
-                                    <div
+                                {torrents.map(t => {
+                                    const hash = t.hash.toLowerCase()
+                                    const saved = library?.find(x => x.hash === hash)
+                                    const job = active?.find(x => x.hash === hash)
+                                    const downloading = !saved && job?.mode === "download"
+                                    return <div
                                         key={t.hash}
                                         className="border rounded-[--radius-md] bg-[--paper] p-4 flex items-center gap-4 hover:border-[--brand] transition-colors"
                                         data-movie-torrent-row
@@ -294,14 +307,34 @@ function MovieTorrentSection({ meta }: { meta: Movie_Meta }) {
                                                 </span>
                                             </p>
                                         </div>
-                                        <Button size="sm" intent="white" leftIcon={<BiPlay className="text-xl" />} onClick={() => start(t, "stream")}>
+                                        {saved ? <Button
+                                            size="sm"
+                                            intent="white"
+                                            leftIcon={<BiPlay className="text-xl" />}
+                                            onClick={() => playLibraryItem(saved).catch((e: any) => toast.error(e?.message ?? String(e)))}
+                                        >
+                                            Play
+                                        </Button> : <Button
+                                            size="sm"
+                                            intent="white"
+                                            leftIcon={<BiPlay className="text-xl" />}
+                                            disabled={!!busy}
+                                            loading={busy === t.hash}
+                                            onClick={() => start(t, "stream")}
+                                        >
                                             Stream
-                                        </Button>
-                                        <Button size="sm" intent="gray-subtle" leftIcon={<LuDownload />} onClick={() => start(t, "download")}>
-                                            Download
-                                        </Button>
+                                        </Button>}
+                                        {saved ? <Badge intent="success">In Library</Badge> : <Button
+                                            size="sm"
+                                            intent="gray-subtle"
+                                            leftIcon={<LuDownload />}
+                                            disabled={!!busy || downloading}
+                                            onClick={() => start(t, "download")}
+                                        >
+                                            {downloading ? `${Math.floor((job?.progress ?? 0) * 100)}%` : "Download"}
+                                        </Button>}
                                     </div>
-                                ))}
+                                })}
                             </div>}
             </div>
 
@@ -310,7 +343,15 @@ function MovieTorrentSection({ meta }: { meta: Movie_Meta }) {
                 <MovieDownloads filter={t => hashes.has(t.hash.toLowerCase())} />
             </div>}
 
-            <TorrentStreamModal streaming={streaming} onClose={() => setStreaming(undefined)} />
+            <TorrentStreamModal
+                streaming={streaming}
+                onClose={played => {
+                    // Cancelling before playback stops the stream so it doesn't keep using bandwidth, downloads keep going
+                    const job = active?.find(x => x.hash === streaming?.hash)
+                    if (!played && streaming && job?.mode !== "download") engineAction("stop", streaming.hash).catch(() => {})
+                    setStreaming(undefined)
+                }}
+            />
         </>
     )
 }
@@ -320,7 +361,7 @@ function qualityRank(q: string) {
 }
 
 /** Waits for the torrent to be ready (metadata + first pieces), then hands it to the native player. */
-function TorrentStreamModal({ streaming, onClose }: { streaming?: { hash: string, title: string }, onClose: () => void }) {
+function TorrentStreamModal({ streaming, onClose }: { streaming?: { hash: string, title: string }, onClose: (played?: boolean) => void }) {
     const [torrent, setTorrent] = React.useState<Movie_EngineTorrent>()
     const [error, setError] = React.useState<string>()
 
@@ -330,6 +371,7 @@ function TorrentStreamModal({ streaming, onClose }: { streaming?: { hash: string
         if (!streaming) return
         let cancelled = false
         let timer: ReturnType<typeof setTimeout>
+        let missing = 0
 
         const poll = async () => {
             try {
@@ -337,12 +379,13 @@ function TorrentStreamModal({ streaming, onClose }: { streaming?: { hash: string
                 if (cancelled) return
                 const t = list.find(x => x.hash.toLowerCase() === streaming.hash.toLowerCase())
                 setTorrent(t)
+                if (!t && ++missing > 10) return setError("The torrent was stopped")
                 if (t?.error) return setError(t.error)
                 if (t?.ready) {
                     const file = largestPlayableFile(t)
                     if (!file) return setError("No supported video files in this torrent")
                     await playEngineFile(file, streaming.title)
-                    onClose()
+                    if (!cancelled) onClose(true)
                     return
                 }
             }
@@ -398,6 +441,11 @@ function MovieOnlineSection({ meta }: { meta: Movie_Meta }) {
 
     const available = MOVIE_STREAM_SOURCES.filter(s => !!s.url(ref))
     const play = (sources: Movie_StreamSource[]) => setStreaming({ sources, key: Date.now() })
+    // The website that played last time is tried first, it is the most likely to work again
+    const playAll = () => {
+        const last = readLastSource()
+        play([...available].sort((a, b) => Number(b.id === last) - Number(a.id === last)))
+    }
 
     return (
         <>
@@ -409,13 +457,13 @@ function MovieOnlineSection({ meta }: { meta: Movie_Meta }) {
                         className="rounded-full"
                         leftIcon={<BiPlay className="text-2xl" />}
                         disabled={!available.length}
-                        onClick={() => play(available)}
+                        onClick={playAll}
                     >
                         Play
                     </Button>
                 </div>
                 <p className="text-sm text-[--muted]">
-                    Play picks the first website that has this movie. Choose a website below to use it instead.
+                    Play tries the websites one by one until one plays, starting with the one that worked last. Choose a website below to use it instead.
                 </p>
                 {!available.length && !hydraLoading ? <LuffyError title={null}><p>No website can find this movie.</p></LuffyError>
                     : <div className="grid grid-cols-2 md:grid-cols-3 2xl:grid-cols-4 gap-3">
@@ -449,9 +497,21 @@ function MovieOnlineSection({ meta }: { meta: Movie_Meta }) {
                 streaming={streaming}
                 ref_={ref}
                 onClose={() => setStreaming(undefined)}
+                onTryAll={playAll}
             />
         </>
     )
+}
+
+const LAST_SOURCE_KEY = "seanime-movies-last-stream-source"
+
+function readLastSource() {
+    try {
+        return localStorage.getItem(LAST_SOURCE_KEY) ?? undefined
+    }
+    catch {
+        return undefined
+    }
 }
 
 /** Plays one website's video, returning why it failed or undefined once it plays. */
@@ -469,15 +529,17 @@ async function streamFromSource(source: Movie_StreamSource, ref: Movie_StreamRef
 }
 
 /** Tries the websites one after another until one of them returns a video, then hands it to the native player. */
-function OnlineStreamModal({ streaming, ref_, onClose }: {
+function OnlineStreamModal({ streaming, ref_, onClose, onTryAll }: {
     streaming?: { sources: Movie_StreamSource[], key: number },
     ref_: Movie_StreamRef,
-    onClose: () => void
+    onClose: () => void,
+    onTryAll: () => void
 }) {
     const [current, setCurrent] = React.useState<Movie_StreamSource>()
     const [failed, setFailed] = React.useState<{ name: string, error: string }[]>([])
     const [error, setError] = React.useState<string>()
     const [starting, setStarting] = React.useState(false)
+    const skipRef = React.useRef<(() => void) | undefined>(undefined)
 
     React.useEffect(() => {
         setCurrent(undefined)
@@ -491,14 +553,27 @@ function OnlineStreamModal({ streaming, ref_, onClose }: {
             for (const source of streaming.sources) {
                 if (controller.signal.aborted) return
                 setCurrent(source)
-                const message = await streamFromSource(source, ref_, controller.signal, () => setStarting(true))
+                // Skip only cancels this website, closing the modal cancels everything
+                const attempt = new AbortController()
+                const cancel = () => attempt.abort()
+                controller.signal.addEventListener("abort", cancel)
+                skipRef.current = cancel
+                const message = await streamFromSource(source, ref_, attempt.signal, () => setStarting(true))
+                controller.signal.removeEventListener("abort", cancel)
+                skipRef.current = undefined
                 if (controller.signal.aborted) return
-                if (!message) {
+                if (!attempt.signal.aborted && !message) {
+                    try {
+                        localStorage.setItem(LAST_SOURCE_KEY, source.id)
+                    }
+                    catch {
+                    }
                     onClose()
                     return
                 }
                 setStarting(false)
-                const line = { name: source.name, error: message.startsWith(source.name) ? message : `${source.name}: ${message}` }
+                const reason = attempt.signal.aborted ? "skipped" : message!
+                const line = { name: source.name, error: reason.startsWith(source.name) ? reason : `${source.name}: ${reason}` }
                 setFailed(f => [...f, line])
             }
             setCurrent(undefined)
@@ -517,9 +592,27 @@ function OnlineStreamModal({ streaming, ref_, onClose }: {
         >
             <div className="space-y-4" data-movie-online-stream-modal>
                 <p className="font-medium line-clamp-2">{ref_.title}</p>
-                {error ? <p className="text-red-300">{error}</p> : <>
+                {error ? <div className="flex items-center gap-3 flex-wrap">
+                    <p className="text-red-300 flex-1">{error}</p>
+                    {streaming?.sources.length === 1 && <Button size="sm" intent="white" className="rounded-full" onClick={onTryAll}>
+                        Try all websites
+                    </Button>}
+                </div> : <>
                     <ProgressBar isIndeterminate size="sm" />
-                    <p className="text-sm text-[--muted]">{!current ? "Starting…" : starting ? `Starting playback from ${current.name}…` : `Looking for the video on ${current.name}…`}</p>
+                    <div className="flex items-center gap-3">
+                        <p className="text-sm text-[--muted] flex-1">
+                            {!current ? "Starting…" : starting ? `Starting playback from ${current.name}…` : `Looking for the video on ${current.name}…`}
+                        </p>
+                        {!!current && !starting && (streaming?.sources.length ?? 0) > 1 && current !== streaming?.sources.at(-1) && <Button
+                            size="sm"
+                            intent="gray-subtle"
+                            className="rounded-full"
+                            onClick={() => skipRef.current?.()}
+                            data-movie-online-stream-skip
+                        >
+                            Next website
+                        </Button>}
+                    </div>
                 </>}
                 {!!failed.length && <div className="space-y-1">
                     {failed.map((f, i) => <p key={i} className="text-xs text-[--muted]">✕ {f.error}</p>)}
