@@ -387,9 +387,20 @@
             "status": "reachable",
             "reason": "Homepage reachable; media playback/download was not tested.",
             "title": "TamilMV - Latest Tamil Telugu Hindi Malayalam Kannada Movies in HD Quality 4K 1080p 720p Download Torrents"
+          },
+          {
+            "url": "https://www.1tamilmv.style/",
+            "checkedAt": "2026-10-29T15:30:58.197418+00:00",
+            "level": "reachable-page",
+            "httpStatus": 200,
+            "finalUrl": "https://www.1tamilmv.style/",
+            "bytesRead": 498673,
+            "status": "reachable",
+            "reason": "Homepage reachable; media playback/download was not tested.",
+            "title": "TamilMV - Latest Tamil Telugu Hindi Malayalam Kannada Movies in HD Quality 4K 1080p 720p Download Torrents"
           }
         ],
-        "checkedAt": "2026-10-29T07:39:56.879766+00:00",
+        "checkedAt": "2026-10-29T15:30:58.197418+00:00",
         "selectedUrl": "https://1tamilmv.fi/"
       },
       "reason": "Homepage reachable; media playback/download was not tested.",
@@ -438,9 +449,20 @@
             "status": "reachable",
             "reason": "Homepage reachable; media playback/download was not tested.",
             "title": "Vegamovies - Latest Movies, Web Series & HD Updates"
+          },
+          {
+            "url": "https://1vegamovies.shop/",
+            "checkedAt": "2026-10-29T15:30:59.050495+00:00",
+            "level": "reachable-page",
+            "httpStatus": 200,
+            "finalUrl": "https://1vegamovies.shop/",
+            "bytesRead": 18842,
+            "status": "reachable",
+            "reason": "Homepage reachable; media playback/download was not tested.",
+            "title": "Vegamovies - Latest Movies, Web Series & HD Updates"
           }
         ],
-        "checkedAt": "2026-10-29T07:39:57.101736+00:00",
+        "checkedAt": "2026-10-29T15:30:59.050495+00:00",
         "selectedUrl": "https://1vegamovies.cc/"
       },
       "reason": "Homepage reachable; media playback/download was not tested.",
@@ -899,9 +921,20 @@
             "status": "reachable",
             "reason": "Homepage reachable; media playback/download was not tested.",
             "title": "Download Asian Dramas, Movies &amp; Shows in HD | MkvDrama.net"
+          },
+          {
+            "url": "https://mkvdrama.net/",
+            "checkedAt": "2026-10-29T15:30:59.381241+00:00",
+            "level": "reachable-page",
+            "httpStatus": 200,
+            "finalUrl": "https://mkvdrama.net/",
+            "bytesRead": 114397,
+            "status": "reachable",
+            "reason": "Homepage reachable; media playback/download was not tested.",
+            "title": "Download Asian Dramas, Movies &amp; Shows in HD | MkvDrama.net"
           }
         ],
-        "checkedAt": "2026-10-29T07:39:58.518832+00:00",
+        "checkedAt": "2026-10-29T15:30:59.381241+00:00",
         "selectedUrl": "https://mkvdrama.org/"
       },
       "reason": "Homepage reachable; media playback/download was not tested.",
@@ -999,9 +1032,20 @@
             "status": "reachable",
             "reason": "Homepage reachable; media playback/download was not tested.",
             "title": "67movies.st — Watch Movies &amp; TV Shows in HD Online"
+          },
+          {
+            "url": "https://67movies.st/",
+            "checkedAt": "2026-10-29T15:30:59.964633+00:00",
+            "level": "reachable-page",
+            "httpStatus": 200,
+            "finalUrl": "https://67movies.st/",
+            "bytesRead": 750000,
+            "status": "reachable",
+            "reason": "Homepage reachable; media playback/download was not tested.",
+            "title": "67movies.st — Watch Movies &amp; TV Shows in HD Online"
           }
         ],
-        "checkedAt": "2026-10-29T07:39:58.711862+00:00",
+        "checkedAt": "2026-10-29T15:30:59.964633+00:00",
         "selectedUrl": "https://67movies.net/"
       },
       "reason": "Homepage reachable; media playback/download was not tested.",
@@ -1481,9 +1525,20 @@
             "status": "reachable",
             "reason": "Homepage reachable; media playback/download was not tested.",
             "title": "bCine"
+          },
+          {
+            "url": "https://freekz.to/",
+            "checkedAt": "2026-10-29T15:31:00.691586+00:00",
+            "level": "reachable-page",
+            "httpStatus": 200,
+            "finalUrl": "https://freekz.to/",
+            "bytesRead": 49461,
+            "status": "reachable",
+            "reason": "Homepage reachable; media playback/download was not tested.",
+            "title": "bCine"
           }
         ],
-        "checkedAt": "2026-10-29T07:40:00.128386+00:00",
+        "checkedAt": "2026-10-29T15:31:00.691586+00:00",
         "selectedUrl": "https://bcine.ru/"
       },
       "reason": "Homepage reachable; media playback/download was not tested.",
@@ -1581,9 +1636,20 @@
             "status": "reachable",
             "reason": "Homepage reachable; media playback/download was not tested.",
             "title": "Cinejoy"
+          },
+          {
+            "url": "https://cinejoy.pk/",
+            "checkedAt": "2026-10-29T15:31:01.195172+00:00",
+            "level": "reachable-page",
+            "httpStatus": 200,
+            "finalUrl": "https://cinejoy.pk/",
+            "bytesRead": 6523,
+            "status": "reachable",
+            "reason": "Homepage reachable; media playback/download was not tested.",
+            "title": "Cinejoy"
           }
         ],
-        "checkedAt": "2026-10-29T07:40:00.309096+00:00",
+        "checkedAt": "2026-10-29T15:31:01.195172+00:00",
         "selectedUrl": "https://cinejoy.to/"
       },
       "reason": "Homepage reachable; media playback/download was not tested.",
@@ -1632,9 +1698,20 @@
             "status": "reachable",
             "reason": "Homepage reachable; media playback/download was not tested.",
             "title": "CINEMA.ARMY"
+          },
+          {
+            "url": "https://cinema.army/",
+            "checkedAt": "2026-10-29T15:31:02.050916+00:00",
+            "level": "reachable-page",
+            "httpStatus": 200,
+            "finalUrl": "https://cinema.army/",
+            "bytesRead": 1689,
+            "status": "reachable",
+            "reason": "Homepage reachable; media playback/download was not tested.",
+            "title": "CINEMA.ARMY"
           }
         ],
-        "checkedAt": "2026-10-29T07:40:00.365221+00:00",
+        "checkedAt": "2026-10-29T15:31:02.050916+00:00",
         "selectedUrl": "https://cinema.bz/"
       },
       "reason": "Homepage reachable; media playback/download was not tested.",
@@ -1732,9 +1809,20 @@
             "status": "reachable",
             "reason": "Homepage reachable; media playback/download was not tested.",
             "title": "Koddo — Free Movies &amp; TV Shows"
+          },
+          {
+            "url": "https://koddo.to/",
+            "checkedAt": "2026-10-29T15:31:03.271611+00:00",
+            "level": "reachable-page",
+            "httpStatus": 200,
+            "finalUrl": "https://koddo.to/en",
+            "bytesRead": 679786,
+            "status": "reachable",
+            "reason": "Homepage reachable; media playback/download was not tested.",
+            "title": "Koddo — Free Movies &amp; TV Shows"
           }
         ],
-        "checkedAt": "2026-10-29T07:40:00.556877+00:00",
+        "checkedAt": "2026-10-29T15:31:03.271611+00:00",
         "selectedUrl": "https://cine.su/"
       },
       "reason": "Homepage reachable; media playback/download was not tested.",
@@ -1783,9 +1871,20 @@
             "status": "reachable",
             "reason": "Homepage reachable; media playback/download was not tested.",
             "title": "Cinezo"
+          },
+          {
+            "url": "https://cinezo.st/",
+            "checkedAt": "2026-10-29T15:31:04.408903+00:00",
+            "level": "reachable-page",
+            "httpStatus": 200,
+            "finalUrl": "https://cinezo.st/",
+            "bytesRead": 738121,
+            "status": "reachable",
+            "reason": "Homepage reachable; media playback/download was not tested.",
+            "title": "Cinezo"
           }
         ],
-        "checkedAt": "2026-10-29T07:40:00.896904+00:00",
+        "checkedAt": "2026-10-29T15:31:04.408903+00:00",
         "selectedUrl": "https://cinezo.net/"
       },
       "reason": "Homepage reachable; media playback/download was not tested.",
@@ -2375,9 +2474,20 @@
             "status": "reachable",
             "reason": "Homepage reachable; media playback/download was not tested.",
             "title": "M-Zone - Movies, Shows, Anime, Watchlists and Reviews"
+          },
+          {
+            "url": "https://m-zone.cc/",
+            "checkedAt": "2026-10-29T15:31:05.292374+00:00",
+            "level": "reachable-page",
+            "httpStatus": 200,
+            "finalUrl": "https://m-zone.cc/",
+            "bytesRead": 9717,
+            "status": "reachable",
+            "reason": "Homepage reachable; media playback/download was not tested.",
+            "title": "M-Zone - Movies, Shows, Anime, Watchlists and Reviews"
           }
         ],
-        "checkedAt": "2026-10-29T07:40:02.369342+00:00",
+        "checkedAt": "2026-10-29T15:31:05.292374+00:00",
         "selectedUrl": "https://m-zone.org/"
       },
       "reason": "Homepage reachable; media playback/download was not tested.",
@@ -2569,9 +2679,20 @@
             "status": "reachable",
             "reason": "Homepage reachable; media playback/download was not tested.",
             "title": "musicbrainz.tech — Stream Movies &amp; TV Shows"
+          },
+          {
+            "url": "https://www.musicbrainz.tech/",
+            "checkedAt": "2026-10-29T15:31:05.708950+00:00",
+            "level": "reachable-page",
+            "httpStatus": 200,
+            "finalUrl": "https://www.musicbrainz.tech/",
+            "bytesRead": 4423,
+            "status": "reachable",
+            "reason": "Homepage reachable; media playback/download was not tested.",
+            "title": "musicbrainz.tech — Stream Movies &amp; TV Shows"
           }
         ],
-        "checkedAt": "2026-10-29T07:40:02.749614+00:00",
+        "checkedAt": "2026-10-29T15:31:05.708950+00:00",
         "selectedUrl": "https://musicbrainz.tech"
       },
       "reason": "Homepage reachable; media playback/download was not tested.",
@@ -3132,9 +3253,20 @@
             "status": "reachable",
             "reason": "Homepage reachable; media playback/download was not tested.",
             "title": "YesMovies.to | Watch FREE Movies Online & TV shows"
+          },
+          {
+            "url": "https://ww2.yesmovies.ag/",
+            "checkedAt": "2026-10-29T15:31:06.147150+00:00",
+            "level": "reachable-page",
+            "httpStatus": 200,
+            "finalUrl": "https://ww2.yesmovies.ag/",
+            "bytesRead": 12498,
+            "status": "reachable",
+            "reason": "Homepage reachable; media playback/download was not tested.",
+            "title": "YesMovies.to | Watch FREE Movies Online & TV shows"
           }
         ],
-        "checkedAt": "2026-10-29T07:40:05.719434+00:00",
+        "checkedAt": "2026-10-29T15:31:06.147150+00:00",
         "selectedUrl": "https://yesmovies.ag/"
       },
       "reason": "Homepage reachable; media playback/download was not tested.",
@@ -3430,9 +3562,20 @@
             "status": "reachable",
             "reason": "Homepage reachable; media playback/download was not tested.",
             "title": "YTS - The New Official Home of YTS YIFY Movies (Formerly YTS.MX)"
+          },
+          {
+            "url": "https://web.yts.gg/",
+            "checkedAt": "2026-10-29T15:31:07.092469+00:00",
+            "level": "reachable-page",
+            "httpStatus": 200,
+            "finalUrl": "https://web.yts.gg/",
+            "bytesRead": 714240,
+            "status": "reachable",
+            "reason": "Homepage reachable; media playback/download was not tested.",
+            "title": "YTS - The New Official Home of YTS YIFY Movies (Formerly YTS.MX)"
           }
         ],
-        "checkedAt": "2026-10-29T07:40:06.468722+00:00",
+        "checkedAt": "2026-10-29T15:31:07.092469+00:00",
         "selectedUrl": "https://yts.lt/"
       },
       "reason": "Homepage reachable; media playback/download was not tested.",

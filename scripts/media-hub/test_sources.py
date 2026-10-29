@@ -191,7 +191,7 @@ class SourceTests(unittest.TestCase):
                 self.assertEqual(source['mode'], 'unavailable')
             else:
                 self.assertIn(source['mode'], ('site','native'))
-        self.assertEqual(len(urls), 112)
+        self.assertEqual(len(urls), 125)
         hydra = next(s for s in self.catalog['sources'] if s['nativeId'] == 'hydra')
         self.assertIn('https://hydrahd.gd/', hydra['alternateUrls'])
         self.assertEqual({s['nativeId'] for s in self.catalog['sources'] if s['nativeId']},
