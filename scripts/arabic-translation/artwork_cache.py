@@ -13,9 +13,10 @@ import urllib.parse
 import urllib.request
 
 ALLOWED_HOSTS = frozenset(('s4.anilist.co', 's.anilist.co', 'artworks.thetvdb.com',
-                          'image.tmdb.org', 'cdn.myanimelist.net', 'i.ytimg.com', 'yts.gg', 'img.yts.gg', 'yts.lt', 'img.yts.lt', 'anizone.to'))
+                          'image.tmdb.org', 'cdn.myanimelist.net', 'i.ytimg.com', 'yts.gg', 'img.yts.gg', 'yts.lt', 'img.yts.lt', 'anizone.to',
+                          'images.metahub.space', 'live.metahub.space', 'episodes.metahub.space'))
 MAX_IMAGE = 8 * 1024 * 1024
-MAX_CACHE = 512 * 1024 * 1024
+MAX_CACHE = 4 * 1024 * 1024 * 1024
 
 
 def validate_url(url):

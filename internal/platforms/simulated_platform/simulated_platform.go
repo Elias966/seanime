@@ -298,6 +298,14 @@ func (sp *SimulatedPlatform) GetAnime(ctx context.Context, mediaID int) (*anilis
 	// Get anime from anilist
 	resp, err := sp.client.BaseAnimeByID(ctx, &mediaID)
 	if err != nil {
+		// Without internet, fall back to the media data saved in the local collection
+		sp.mu.RLock()
+		entry, findErr := sp.GetAnimeCollectionWrapper().FindEntry(mediaID)
+		sp.mu.RUnlock()
+		if e, ok := entry.(*anilist.AnimeCollection_MediaListCollection_Lists_Entries); findErr == nil && ok && e.GetMedia() != nil {
+			sp.logger.Debug().Int("mediaID", mediaID).Msg("simulated platform: Using anime from the local collection")
+			return sp.helper.TriggerGetAnimeEvent(e.GetMedia())
+		}
 		return nil, err
 	}
 	media := resp.GetMedia()
