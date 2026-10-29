@@ -8,7 +8,8 @@ import shutil
 import struct
 import subprocess
 import tempfile
-from patch_media_electron import MAIN_PATH, patch_main
+from patch_media_electron import MAIN_PATH, PRELOAD_PATH, patch_main, patch_preload
+from patch_media_player import NATIVE_PLAYER_PATH, patch_native_player
 from patch_download_navigation import MAGNET_PATH, patch_download_entry, patch_magnet, patch_download_bootstrap
 from patch_entry_navigation import SEARCH_PATH, patch_search, patch_entry, patch_bootstrap
 from patch_subtitle_scheduler import BUNDLE_PATH, patch_player_bundle
@@ -76,6 +77,12 @@ def patch_asar(path):
     search_data=patch_search(raw[search_start:search_start+search_entry['size']])
     search_hash=sha256(search_data)[:8]
     changed[SEARCH_PATH.replace('23d2cc71',search_hash)]=search_data
+    native_entry = tree
+    for part in NATIVE_PLAYER_PATH.split('/'): native_entry = native_entry['files'][part]
+    native_start=base+int(native_entry['offset'])
+    native_data=patch_native_player(raw[native_start:native_start+native_entry['size']])
+    native_hash=sha256(native_data)[:8]
+    changed[NATIVE_PLAYER_PATH.replace('73d63145',native_hash)]=native_data
     bundle_hash = sha256(bundle_data)[:8]
     changed[BUNDLE_PATH.replace('4d10fc5d', bundle_hash)] = bundle_data
     # New content-addressed URLs prevent reuse of a cached pre-fix player chunk.
@@ -88,6 +95,8 @@ def patch_asar(path):
     old_reference = '9195:"4d10fc5d"'
     if bootstrap.count(old_reference) != 1:
         raise ValueError('Unexpected frontend chunk map')
+    if bootstrap.count('559:"73d63145"')!=1:raise ValueError('Unexpected native player chunk map')
+    bootstrap=bootstrap.replace('559:"73d63145"','559:"'+native_hash+'"',1)
     bootstrap = bootstrap.replace(old_reference, '9195:"' + bundle_hash + '"', 1)
     # Resolve the common Image component's final src, including all cover variants.
     image_source = 'L=p||(R?y.src:y),M=R?y.blurDataURL:void 0;'
@@ -118,6 +127,10 @@ def patch_asar(path):
     for part in MAIN_PATH.split('/'): main_entry = main_entry['files'][part]
     main_start = base + int(main_entry['offset'])
     changed[MAIN_PATH] = patch_main(raw[main_start:main_start + main_entry['size']])
+    preload_entry=tree
+    for part in PRELOAD_PATH.split('/'):preload_entry=preload_entry['files'][part]
+    preload_start=base+int(preload_entry['offset'])
+    changed[PRELOAD_PATH]=patch_preload(raw[preload_start:preload_start+preload_entry['size']])
     for name in changed:
         node = tree
         parts = name.split('/')
@@ -194,7 +207,8 @@ def main():
         shutil.copyfile(ROOT / 'scripts/arabic-translation/cover_store.py',
                         app_dir / 'resources/cover_store.py')
         shutil.copyfile(ROOT / 'scripts/arabic-translation/media_hub.py', app_dir / 'resources/media_hub.py')
-        shutil.copytree(ROOT / 'scripts/media-hub', app_dir / 'resources/media-hub', ignore=shutil.ignore_patterns('test-*', '*.log'))
+        shutil.copyfile(ROOT / 'scripts/media-hub/sources.json', app_dir / 'resources/sources.json')
+        shutil.copytree(ROOT / 'scripts/media-hub', app_dir / 'resources/media-hub', ignore=shutil.ignore_patterns('test-*', 'test_*', '*.log', '__pycache__'))
         filesystem = temp / 'patched.squashfs'
         subprocess.run(['mksquashfs', str(app_dir), str(filesystem), '-noappend', '-comp', 'xz', '-processors', str(args.processors), '-quiet'], check=True)
         with output.open('xb') as dest:

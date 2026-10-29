@@ -966,6 +966,9 @@ function createMainWindow() {
         }
     })
 
+    const mediaSourceBrowserModule = path.join(process.resourcesPath, "media-hub", "media-source-browser.cjs")
+    if (fs.existsSync(mediaSourceBrowserModule)) require(mediaSourceBrowserModule).attach(win)
+
     win.webContents.on("will-attach-webview", (event: Electron.Event, webPreferences: Electron.WebPreferences, params: any) => {
         let isAllowed = false
         try {

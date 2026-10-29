@@ -1,0 +1,26 @@
+const {test}=require('node:test'),assert=require('node:assert/strict'),{Readable}=require('node:stream');
+const {publicIP,mediaKind,allowedOrigin,publicAddress,createRelay,attach}=require('./media-source-browser.cjs');
+test('native media relay rejects private networks and non-HTTPS destinations',async()=>{
+ for(const ip of ['127.0.0.1','10.0.0.1','172.16.0.1','192.168.0.1','169.254.169.254','100.64.0.1','::1','fc00::1','::ffff:127.0.0.1'])assert.equal(publicIP(ip),false,ip);
+ for(const ip of ['8.8.8.8','1.1.1.1','2606:4700::1111'])assert.equal(publicIP(ip),true,ip);
+ for(const u of ['http://8.8.8.8/video.mp4','https://127.0.0.1/a','https://user:password@example.com/a','https://example.com:444/a'])await assert.rejects(()=>publicAddress(u));
+});
+test('media detection distinguishes playlists, subtitles, movies and ordinary page assets',()=>{
+ assert.equal(mediaKind('https://cdn.example/master.m3u8'),'hls');assert.equal(mediaKind('https://cdn.example/stream?id=1','application/vnd.apple.mpegurl'),'hls');assert.equal(mediaKind('https://cdn.example/en.srt'),'subtitle');assert.equal(mediaKind('https://cdn.example/movie.mp4'),'video');assert.equal(mediaKind('https://cdn.example/segment.ts','video/mp2t'),null);
+ assert.equal(allowedOrigin('app://-'),true);assert.equal(allowedOrigin('http://127.0.0.1:8767'),true);assert.equal(allowedOrigin('https://evil.example'),false);
+});
+test('relay serves only registered capabilities, rewrites HLS audio/keys, and rejects remote controls',async()=>{
+ const calls=[];const relay=createRelay({port:0,request:async(url,headers)=>{calls.push({url,headers});const text=url.endsWith('master.m3u8')?'#EXTM3U\n#EXT-X-MEDIA:TYPE=AUDIO,URI="audio.m3u8"\n#EXT-X-KEY:METHOD=AES-128,URI="key.bin"\nvideo.m3u8\n':'fixture-bytes';const r=Readable.from([Buffer.from(text)]);r.statusCode=200;r.headers={'content-type':url.endsWith('.m3u8')?'application/vnd.apple.mpegurl':'video/mp4'};r.resume=()=>{};return r;}});
+ relay.server.listen(0,'127.0.0.1');await new Promise(r=>relay.server.once('listening',r));const base='http://127.0.0.1:'+relay.server.address().port,c=relay.context('test');c.headers.set('https://cdn.example',{Cookie:'private-source-cookie',Referer:'https://site.example/'});const local=relay.register(c,'https://cdn.example/master.m3u8','hls').replace('http://127.0.0.1:0',base);
+ try{const r=await fetch(local,{headers:{Origin:'app://-'}});assert.equal(r.status,200);assert.equal(r.headers.get('Access-Control-Allow-Origin'),'app://-');const text=await r.text();assert.equal((text.match(/\/source\//g)||[]).length,3);assert.ok(!text.includes('cdn.example'));assert.equal(calls[0].headers.Cookie,'private-source-cookie');assert.equal((await fetch(base+'/source/not-a-key/stream.mp4')).status,404);assert.equal((await fetch(local,{headers:{Origin:'https://evil.example'}})).status,403)}finally{await new Promise(r=>relay.server.close(r))}
+});
+test('HLS redirects resolve relative children correctly without leaking credentials across hosts',async()=>{
+ const calls=[];const relay=createRelay({port:0,request:async(url,headers)=>{calls.push({url,headers});const r=Readable.from([Buffer.from(calls.length===1?'#EXTM3U\nsegment.ts\nhttps://other.example/audio.m3u8\n':'fixture')]);r.statusCode=200;r.headers={'content-type':calls.length===1?'application/vnd.apple.mpegurl':'video/mp4'};if(calls.length===1)r.sourceURL='https://cdn.example/redirected/master.m3u8';return r;}});
+ relay.server.listen(0,'127.0.0.1');await new Promise(r=>relay.server.once('listening',r));const c=relay.context('fixture'),url=relay.register(c,'https://cdn.example/master.m3u8','hls',{Cookie:'source-secret',Authorization:'source-token',Referer:'https://site.example/'});
+ try{const text=await(await fetch(url)).text(),links=text.split('\n').filter(x=>x.startsWith('http'));await fetch(links[0]);await fetch(links[1]);assert.equal(calls[1].url,'https://cdn.example/redirected/segment.ts');assert.equal(calls[1].headers.Cookie,'source-secret');assert.equal(calls[2].url,'https://other.example/audio.m3u8');assert.equal(calls[2].headers.Cookie,undefined);assert.equal(calls[2].headers.Authorization,undefined)}finally{await new Promise(r=>relay.server.close(r))}
+});
+test('relay streams delayed range bodies completely and preserves seek response metadata',async()=>{
+ const expected=Buffer.from('range-body-arrives-in-chunks');let observed;
+ const relay=createRelay({port:0,request:async(url,headers)=>{observed=headers.Range;const r=Readable.from((async function*(){yield expected.subarray(0,5);await new Promise(r=>setTimeout(r,25));yield expected.subarray(5)})());r.statusCode=206;r.headers={'content-type':'video/mp4','content-length':String(expected.length),'content-range':'bytes 10-36/100'};return r;}});
+ relay.server.listen(0,'127.0.0.1');await new Promise(r=>relay.server.once('listening',r));const url=relay.register(relay.context('fixture'),'https://cdn.example/video.mp4','video');try{const r=await fetch(url,{headers:{Range:'bytes=10-36'}});assert.equal(r.status,206);assert.equal(r.headers.get('content-range'),'bytes 10-36/100');assert.deepEqual(Buffer.from(await r.arrayBuffer()),expected);assert.equal(observed,'bytes=10-36')}finally{await new Promise(r=>relay.server.close(r))}
+});

@@ -12,4 +12,16 @@ GUARD='''        // Embedded players cannot open advertising tabs in the browser
 def patch_main(raw):
     text=raw.decode();needle='setWindowOpenHandler(({ frameName, url }) => {\n'
     if text.count(needle)!=1:raise ValueError('Unexpected Electron popup handler')
-    return text.replace('win.webContents.'+needle,NAVIGATION+'win.webContents.'+needle+GUARD,1).encode() if ('win.webContents.'+needle) in text else text.replace(needle,needle+GUARD,1).encode()
+    text = text.replace('win.webContents.'+needle,NAVIGATION+'win.webContents.'+needle+GUARD,1) if ('win.webContents.'+needle) in text else text.replace(needle,needle+GUARD,1)
+    attach='win.webContents.on("will-attach-webview", (event, webPreferences, params) => {'
+    if attach in text:
+        hook='require(require("node:path").join(process.resourcesPath,"media-hub","media-source-browser.cjs")).attach(win);\n    '
+        if text.count(attach)!=1:raise ValueError('Unexpected webview attachment handler')
+        text=text.replace(attach,hook+attach,1)
+    return text.encode()
+
+PRELOAD_PATH = 'src/preload.js'
+def patch_preload(raw):
+    text=raw.decode();needle='"cast:error",'
+    if text.count(needle)!=1:raise ValueError('Unexpected preload event channel whitelist')
+    return text.replace(needle,needle+'\n                "media-source:event",',1).encode()

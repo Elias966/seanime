@@ -8,6 +8,7 @@ on:
       - 'scripts/patch_download_navigation.py'
       - 'scripts/repack-arabic-appimage.py'
       - 'scripts/patch_media_electron.py'
+      - 'scripts/patch_media_player.py'
       - 'scripts/media-hub/**'
       - 'seanime-denshi/src/main/index.ts'
       - 'seanime-web/public/**'
@@ -22,6 +23,7 @@ on:
       - 'scripts/patch_download_navigation.py'
       - 'scripts/repack-arabic-appimage.py'
       - 'scripts/patch_media_electron.py'
+      - 'scripts/patch_media_player.py'
       - 'scripts/media-hub/**'
       - 'seanime-denshi/src/main/index.ts'
       - 'seanime-web/public/**'
@@ -48,4 +50,6 @@ jobs:
       - name: Install the pinned media engine dependencies
         run: npm ci --omit=optional --no-fund --prefix scripts/media-hub
       - name: Verify torrent streaming and seekable local-peer playback
-        run: node --test scripts/media-hub/test-engine.mjs
+        run: node --test scripts/media-hub/test-engine.mjs scripts/media-hub/test-source-browser.cjs
+      - name: Verify complete source registry coverage
+        run: python3 -m unittest discover -s scripts/media-hub -p 'test_*.py'

@@ -1,1 +1,1 @@
-{"name":"seanime-media-torrents","private":true,"version":"1.0.0","type":"module","dependencies":{"webtorrent":"3.0.21","hls.js":"1.6.16"}}
+{"name":"seanime-media-torrents","private":true,"version":"1.0.0","type":"module","dependencies":{"hls.js":"1.6.16","parse-torrent":"11.0.24","webtorrent":"3.0.21"}}

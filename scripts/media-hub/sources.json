@@ -1,0 +1,5375 @@
+{
+  "schemaVersion": 1,
+  "description": "Every brand and heading URL listed in the requested source categories. Homepage checks do not prove playback; site mode opens an isolated source browser. Blocked sources remain accounted for.",
+  "inputSnapshots": [
+    {
+      "url": "https://rentry.org/megathread-movies-and-tv",
+      "snapshot": "movies-and-tv.html",
+      "sha256": "702be00f50a93b0e9e3e2033bfee65aa9e67806ee072c51d4863f9fb91797724"
+    },
+    {
+      "url": "https://rentry.org/megathread-anime",
+      "snapshot": "anime.html",
+      "sha256": "721ee1b942f909dc04d053f3982ca9e3a160b04a3b876dbc7d06b25c65063b11"
+    }
+  ],
+  "sources": [
+    {
+      "id": "cinema-of-the-world",
+      "name": "Cinema of the World",
+      "url": "https://worldscinema.org/",
+      "alternateUrls": [],
+      "kinds": [
+        "movies"
+      ],
+      "categories": [
+        "direct-download"
+      ],
+      "provenance": [
+        {
+          "page": "https://rentry.org/megathread-movies-and-tv",
+          "section": "Direct Downloads",
+          "anchor": "cinema-of-the-world",
+          "listedUrls": [
+            "https://worldscinema.org/"
+          ],
+          "heading": "🐐 Cinema of the World"
+        }
+      ],
+      "nativeId": null,
+      "status": "verification-wall",
+      "mode": "unavailable",
+      "accountRequired": false,
+      "audit": {
+        "level": "reachable-page",
+        "playbackTested": false,
+        "probes": [
+          {
+            "url": "https://worldscinema.org/",
+            "checkedAt": "2026-10-29T07:39:56.876692+00:00",
+            "level": "reachable-page",
+            "httpStatus": 403,
+            "finalUrl": "https://worldscinema.org/",
+            "bytesRead": 5575,
+            "status": "verification-wall",
+            "reason": "Explicit browser/human verification wall; excluded without bypass.",
+            "title": "Just a moment..."
+          }
+        ],
+        "checkedAt": "2026-10-29T07:39:56.876692+00:00",
+        "selectedUrl": "https://worldscinema.org/"
+      },
+      "reason": "Explicit browser/human verification wall; excluded without bypass.",
+      "browseUrl": "https://worldscinema.org/",
+      "excluded": true
+    },
+    {
+      "id": "rarefilmm",
+      "name": "rarefilmm",
+      "url": "https://rarefilmm.com/",
+      "alternateUrls": [],
+      "kinds": [
+        "movies"
+      ],
+      "categories": [
+        "direct-download"
+      ],
+      "provenance": [
+        {
+          "page": "https://rentry.org/megathread-movies-and-tv",
+          "section": "Direct Downloads",
+          "anchor": "rarefilmm",
+          "listedUrls": [
+            "https://rarefilmm.com/"
+          ],
+          "heading": "🐐 rarefilmm"
+        }
+      ],
+      "nativeId": null,
+      "status": "reachable",
+      "mode": "site",
+      "accountRequired": false,
+      "audit": {
+        "level": "reachable-page",
+        "playbackTested": false,
+        "probes": [
+          {
+            "url": "https://rarefilmm.com/",
+            "checkedAt": "2026-10-29T07:39:56.877321+00:00",
+            "level": "reachable-page",
+            "httpStatus": 200,
+            "finalUrl": "https://rarefilmm.com/",
+            "bytesRead": 55314,
+            "status": "reachable",
+            "reason": "Homepage reachable; media playback/download was not tested.",
+            "title": "rarefilmm | The Cave of Forgotten Films &#8211; The Cave of Forgotten Films"
+          }
+        ],
+        "checkedAt": "2026-10-29T07:39:56.877321+00:00",
+        "selectedUrl": "https://rarefilmm.com/"
+      },
+      "reason": "Homepage reachable; media playback/download was not tested.",
+      "browseUrl": "https://rarefilmm.com/",
+      "excluded": false
+    },
+    {
+      "id": "acermovies",
+      "name": "AcerMovies",
+      "url": "https://acermovies.fun/",
+      "alternateUrls": [],
+      "kinds": [
+        "movies"
+      ],
+      "categories": [
+        "direct-download"
+      ],
+      "provenance": [
+        {
+          "page": "https://rentry.org/megathread-movies-and-tv",
+          "section": "Direct Downloads",
+          "anchor": "acermovies",
+          "listedUrls": [
+            "https://acermovies.fun/"
+          ],
+          "heading": "🔗 AcerMovies"
+        }
+      ],
+      "nativeId": null,
+      "status": "unavailable",
+      "mode": "unavailable",
+      "accountRequired": false,
+      "audit": {
+        "level": "reachable-page",
+        "playbackTested": false,
+        "probes": [
+          {
+            "url": "https://acermovies.fun/",
+            "checkedAt": "2026-10-29T07:39:56.877847+00:00",
+            "level": "reachable-page",
+            "status": "unavailable",
+            "reason": "URLError: <urlopen error [Errno -2] Name or service not known>"
+          }
+        ],
+        "checkedAt": "2026-10-29T07:39:56.877847+00:00",
+        "selectedUrl": "https://acermovies.fun/"
+      },
+      "reason": "URLError: <urlopen error [Errno -2] Name or service not known>",
+      "browseUrl": "https://acermovies.fun/",
+      "excluded": true
+    },
+    {
+      "id": "light-downloads",
+      "name": "LIGHT DOWNLOADS",
+      "url": "https://lightdl.xyz/",
+      "alternateUrls": [],
+      "kinds": [
+        "movies"
+      ],
+      "categories": [
+        "direct-download"
+      ],
+      "provenance": [
+        {
+          "page": "https://rentry.org/megathread-movies-and-tv",
+          "section": "Direct Downloads",
+          "anchor": "light-downloads",
+          "listedUrls": [
+            "https://lightdl.xyz/"
+          ],
+          "heading": "🔗 LIGHT DOWNLOADS"
+        }
+      ],
+      "nativeId": null,
+      "status": "unavailable",
+      "mode": "unavailable",
+      "accountRequired": false,
+      "audit": {
+        "level": "reachable-page",
+        "playbackTested": false,
+        "probes": [
+          {
+            "url": "https://lightdl.xyz/",
+            "checkedAt": "2026-10-29T07:39:56.878296+00:00",
+            "level": "reachable-page",
+            "status": "unavailable",
+            "reason": "URLError: <urlopen error [Errno -2] Name or service not known>"
+          }
+        ],
+        "checkedAt": "2026-10-29T07:39:56.878296+00:00",
+        "selectedUrl": "https://lightdl.xyz/"
+      },
+      "reason": "URLError: <urlopen error [Errno -2] Name or service not known>",
+      "browseUrl": "https://lightdl.xyz/",
+      "excluded": true
+    },
+    {
+      "id": "pahe",
+      "name": "Pahe",
+      "url": "https://pahe.ink/",
+      "alternateUrls": [],
+      "kinds": [
+        "movies"
+      ],
+      "categories": [
+        "direct-download"
+      ],
+      "provenance": [
+        {
+          "page": "https://rentry.org/megathread-movies-and-tv",
+          "section": "Direct Downloads",
+          "anchor": "pahe",
+          "listedUrls": [
+            "https://pahe.ink/"
+          ],
+          "heading": "🔗 Pahe"
+        }
+      ],
+      "nativeId": null,
+      "status": "reachable",
+      "mode": "site",
+      "accountRequired": false,
+      "audit": {
+        "level": "reachable-page",
+        "playbackTested": false,
+        "probes": [
+          {
+            "url": "https://pahe.ink/",
+            "checkedAt": "2026-10-29T07:39:56.878566+00:00",
+            "level": "reachable-page",
+            "httpStatus": 200,
+            "finalUrl": "https://pahe.ink/",
+            "bytesRead": 117380,
+            "status": "reachable",
+            "reason": "Homepage reachable; media playback/download was not tested.",
+            "title": "Pahe.in &#8211; HQ Movies at Affordable Size"
+          }
+        ],
+        "checkedAt": "2026-10-29T07:39:56.878566+00:00",
+        "selectedUrl": "https://pahe.ink/"
+      },
+      "reason": "Homepage reachable; media playback/download was not tested.",
+      "browseUrl": "https://pahe.ink/",
+      "excluded": false
+    },
+    {
+      "id": "psarips",
+      "name": "PSArips",
+      "url": "https://psa.wf/",
+      "alternateUrls": [],
+      "kinds": [
+        "movies"
+      ],
+      "categories": [
+        "direct-download"
+      ],
+      "provenance": [
+        {
+          "page": "https://rentry.org/megathread-movies-and-tv",
+          "section": "Direct Downloads",
+          "anchor": "psarips",
+          "listedUrls": [
+            "https://psa.wf/"
+          ],
+          "heading": "🔗 PSArips"
+        }
+      ],
+      "nativeId": null,
+      "status": "unavailable",
+      "mode": "unavailable",
+      "accountRequired": false,
+      "audit": {
+        "level": "reachable-page",
+        "playbackTested": false,
+        "probes": [
+          {
+            "url": "https://psa.wf/",
+            "checkedAt": "2026-10-29T07:39:56.878973+00:00",
+            "level": "reachable-page",
+            "status": "unavailable",
+            "reason": "URLError: <urlopen error [Errno -2] Name or service not known>"
+          }
+        ],
+        "checkedAt": "2026-10-29T07:39:56.878973+00:00",
+        "selectedUrl": "https://psa.wf/"
+      },
+      "reason": "URLError: <urlopen error [Errno -2] Name or service not known>",
+      "browseUrl": "https://psa.wf/",
+      "excluded": true
+    },
+    {
+      "id": "the-movie-channel",
+      "name": "the movie channel",
+      "url": "https://free-movies.to/",
+      "alternateUrls": [],
+      "kinds": [
+        "movies"
+      ],
+      "categories": [
+        "direct-download"
+      ],
+      "provenance": [
+        {
+          "page": "https://rentry.org/megathread-movies-and-tv",
+          "section": "Direct Downloads",
+          "anchor": "the-movie-channel",
+          "listedUrls": [
+            "https://free-movies.to/"
+          ],
+          "heading": "🔗 the movie channel"
+        }
+      ],
+      "nativeId": null,
+      "status": "verification-wall",
+      "mode": "unavailable",
+      "accountRequired": false,
+      "audit": {
+        "level": "reachable-page",
+        "playbackTested": false,
+        "probes": [
+          {
+            "url": "https://free-movies.to/",
+            "checkedAt": "2026-10-29T07:39:56.879291+00:00",
+            "level": "reachable-page",
+            "httpStatus": 403,
+            "finalUrl": "https://free-movies.to/",
+            "bytesRead": 5573,
+            "status": "verification-wall",
+            "reason": "Explicit browser/human verification wall; excluded without bypass.",
+            "title": "Just a moment..."
+          }
+        ],
+        "checkedAt": "2026-10-29T07:39:56.879291+00:00",
+        "selectedUrl": "https://free-movies.to/"
+      },
+      "reason": "Explicit browser/human verification wall; excluded without bypass.",
+      "browseUrl": "https://free-movies.to/",
+      "excluded": true
+    },
+    {
+      "id": "tamilmv",
+      "name": "TamilMV",
+      "url": "https://1tamilmv.fi/",
+      "alternateUrls": [],
+      "kinds": [
+        "movies"
+      ],
+      "categories": [
+        "direct-download"
+      ],
+      "provenance": [
+        {
+          "page": "https://rentry.org/megathread-movies-and-tv",
+          "section": "Direct Downloads",
+          "anchor": "tamilmv",
+          "listedUrls": [
+            "https://1tamilmv.fi/"
+          ],
+          "heading": "🔗 TamilMV"
+        }
+      ],
+      "nativeId": null,
+      "status": "reachable",
+      "mode": "site",
+      "accountRequired": false,
+      "audit": {
+        "level": "reachable-page",
+        "playbackTested": false,
+        "probes": [
+          {
+            "url": "https://1tamilmv.fi/",
+            "checkedAt": "2026-10-29T07:39:56.879766+00:00",
+            "level": "reachable-page",
+            "httpStatus": 200,
+            "finalUrl": "https://www.1tamilmv.style/",
+            "bytesRead": 497918,
+            "status": "reachable",
+            "reason": "Homepage reachable; media playback/download was not tested.",
+            "title": "TamilMV - Latest Tamil Telugu Hindi Malayalam Kannada Movies in HD Quality 4K 1080p 720p Download Torrents"
+          }
+        ],
+        "checkedAt": "2026-10-29T07:39:56.879766+00:00",
+        "selectedUrl": "https://1tamilmv.fi/"
+      },
+      "reason": "Homepage reachable; media playback/download was not tested.",
+      "browseUrl": "https://1tamilmv.fi/",
+      "excluded": false
+    },
+    {
+      "id": "vegamovies",
+      "name": "Vegamovies",
+      "url": "https://1vegamovies.cc/",
+      "alternateUrls": [],
+      "kinds": [
+        "movies"
+      ],
+      "categories": [
+        "direct-download"
+      ],
+      "provenance": [
+        {
+          "page": "https://rentry.org/megathread-movies-and-tv",
+          "section": "Direct Downloads",
+          "anchor": "vegamovies",
+          "listedUrls": [
+            "https://1vegamovies.cc/"
+          ],
+          "heading": "🔗 Vegamovies"
+        }
+      ],
+      "nativeId": null,
+      "status": "reachable",
+      "mode": "site",
+      "accountRequired": false,
+      "audit": {
+        "level": "reachable-page",
+        "playbackTested": false,
+        "probes": [
+          {
+            "url": "https://1vegamovies.cc/",
+            "checkedAt": "2026-10-29T07:39:57.101736+00:00",
+            "level": "reachable-page",
+            "httpStatus": 200,
+            "finalUrl": "https://1vegamovies.shop/",
+            "bytesRead": 18842,
+            "status": "reachable",
+            "reason": "Homepage reachable; media playback/download was not tested.",
+            "title": "Vegamovies - Latest Movies, Web Series & HD Updates"
+          }
+        ],
+        "checkedAt": "2026-10-29T07:39:57.101736+00:00",
+        "selectedUrl": "https://1vegamovies.cc/"
+      },
+      "reason": "Homepage reachable; media playback/download was not tested.",
+      "browseUrl": "https://1vegamovies.cc/",
+      "excluded": false
+    },
+    {
+      "id": "animeout",
+      "name": "AnimeOut",
+      "url": "https://www.animeout.xyz/",
+      "alternateUrls": [],
+      "kinds": [
+        "anime"
+      ],
+      "categories": [
+        "direct-download"
+      ],
+      "provenance": [
+        {
+          "page": "https://rentry.org/megathread-movies-and-tv",
+          "section": "Direct Downloads",
+          "anchor": "animeout",
+          "listedUrls": [
+            "https://www.animeout.xyz/"
+          ],
+          "heading": "🔗 AnimeOut"
+        },
+        {
+          "page": "https://rentry.org/megathread-anime",
+          "section": "Direct Downloads",
+          "anchor": "animeout",
+          "listedUrls": [
+            "https://www.animeout.xyz/"
+          ],
+          "heading": "🔗 AnimeOut"
+        }
+      ],
+      "nativeId": null,
+      "status": "verification-wall",
+      "mode": "unavailable",
+      "accountRequired": false,
+      "audit": {
+        "level": "reachable-page",
+        "playbackTested": false,
+        "probes": [
+          {
+            "url": "https://www.animeout.xyz/",
+            "checkedAt": "2026-10-29T07:39:57.117124+00:00",
+            "level": "reachable-page",
+            "httpStatus": 403,
+            "finalUrl": "https://www.animeout.xyz/",
+            "bytesRead": 5460,
+            "status": "verification-wall",
+            "reason": "Explicit browser/human verification wall; excluded without bypass.",
+            "title": "Just a moment..."
+          }
+        ],
+        "checkedAt": "2026-10-29T07:39:57.117124+00:00",
+        "selectedUrl": "https://www.animeout.xyz/"
+      },
+      "reason": "Explicit browser/human verification wall; excluded without bypass.",
+      "browseUrl": "https://www.animeout.xyz/",
+      "excluded": true
+    },
+    {
+      "id": "hi10-anime",
+      "name": "Hi10 Anime",
+      "url": "https://hi10anime.com/",
+      "alternateUrls": [],
+      "kinds": [
+        "anime"
+      ],
+      "categories": [
+        "direct-download"
+      ],
+      "provenance": [
+        {
+          "page": "https://rentry.org/megathread-movies-and-tv",
+          "section": "Direct Downloads",
+          "anchor": "hi10-anime-sign-up-required",
+          "listedUrls": [
+            "https://hi10anime.com/"
+          ],
+          "heading": "🔗 Hi10 Anime • Sign Up Required"
+        },
+        {
+          "page": "https://rentry.org/megathread-anime",
+          "section": "Direct Downloads",
+          "anchor": "hi10-anime-sign-up-required",
+          "listedUrls": [
+            "https://hi10anime.com/"
+          ],
+          "heading": "🔗 Hi10 Anime • Sign Up Required"
+        }
+      ],
+      "nativeId": null,
+      "status": "account-required",
+      "mode": "site",
+      "accountRequired": true,
+      "audit": {
+        "level": "reachable-page",
+        "playbackTested": false,
+        "probes": [
+          {
+            "url": "https://hi10anime.com/",
+            "checkedAt": "2026-10-29T07:39:57.231378+00:00",
+            "level": "reachable-page",
+            "httpStatus": 200,
+            "finalUrl": "https://hi10anime.com/",
+            "bytesRead": 280248,
+            "status": "reachable",
+            "reason": "Homepage reachable; media playback/download was not tested.",
+            "title": "Hi10 Anime | High Quality 10-bit Anime Encodes"
+          }
+        ],
+        "checkedAt": "2026-10-29T07:39:57.231378+00:00",
+        "selectedUrl": "https://hi10anime.com/"
+      },
+      "reason": "Source list explicitly documents required sign-up; homepage reachable.",
+      "browseUrl": "https://hi10anime.com/",
+      "excluded": false
+    },
+    {
+      "id": "noobsubs",
+      "name": "NoobSubs",
+      "url": "https://www.noobsubs.com/",
+      "alternateUrls": [],
+      "kinds": [
+        "anime"
+      ],
+      "categories": [
+        "direct-download"
+      ],
+      "provenance": [
+        {
+          "page": "https://rentry.org/megathread-movies-and-tv",
+          "section": "Direct Downloads",
+          "anchor": "noobsubs",
+          "listedUrls": [
+            "https://www.noobsubs.com/"
+          ],
+          "heading": "🔗 NoobSubs"
+        },
+        {
+          "page": "https://rentry.org/megathread-anime",
+          "section": "Direct Downloads",
+          "anchor": "noobsubs",
+          "listedUrls": [
+            "https://www.noobsubs.com/"
+          ],
+          "heading": "🔗 NoobSubs"
+        }
+      ],
+      "nativeId": null,
+      "status": "unavailable",
+      "mode": "unavailable",
+      "accountRequired": false,
+      "audit": {
+        "level": "reachable-page",
+        "playbackTested": false,
+        "probes": [
+          {
+            "url": "https://www.noobsubs.com/",
+            "checkedAt": "2026-10-29T07:39:57.328677+00:00",
+            "level": "reachable-page",
+            "httpStatus": 521,
+            "finalUrl": "https://www.noobsubs.com/",
+            "bytesRead": 7020,
+            "status": "unavailable",
+            "reason": "HTTP 521; page access failed.",
+            "title": "noobsubs.com | 521: Web server is down"
+          }
+        ],
+        "checkedAt": "2026-10-29T07:39:57.328677+00:00",
+        "selectedUrl": "https://www.noobsubs.com/"
+      },
+      "reason": "HTTP 521; page access failed.",
+      "browseUrl": "https://www.noobsubs.com/",
+      "excluded": true
+    },
+    {
+      "id": "asiaflix",
+      "name": "Asiaflix",
+      "url": "https://asiaflix.in/",
+      "alternateUrls": [
+        "https://asiaflix.net/",
+        "https://asiaflix.one/",
+        "https://asiaflix.xyz/"
+      ],
+      "kinds": [
+        "movies"
+      ],
+      "categories": [
+        "drama"
+      ],
+      "provenance": [
+        {
+          "page": "https://rentry.org/megathread-movies-and-tv",
+          "section": "East / South Asian Drama",
+          "anchor": "asiaflix-2-3-4",
+          "listedUrls": [
+            "https://asiaflix.in/",
+            "https://asiaflix.net/",
+            "https://asiaflix.one/",
+            "https://asiaflix.xyz/"
+          ],
+          "heading": "🐐 Asiaflix / 2 / 3 / 4"
+        }
+      ],
+      "nativeId": null,
+      "status": "reachable",
+      "mode": "site",
+      "accountRequired": false,
+      "audit": {
+        "level": "reachable-page",
+        "playbackTested": false,
+        "probes": [
+          {
+            "url": "https://asiaflix.in/",
+            "checkedAt": "2026-10-29T07:39:57.534500+00:00",
+            "level": "reachable-page",
+            "httpStatus": 200,
+            "finalUrl": "https://asiaflix.in/",
+            "bytesRead": 168115,
+            "status": "reachable",
+            "reason": "Homepage reachable; media playback/download was not tested.",
+            "title": "Asiaflix | Dramacool | Watch Free Kdramas, Cdramas &amp; Asian Dramas"
+          },
+          {
+            "url": "https://asiaflix.net/",
+            "checkedAt": "2026-10-29T07:39:57.636494+00:00",
+            "level": "reachable-page",
+            "httpStatus": 200,
+            "finalUrl": "https://asiaflix.net/",
+            "bytesRead": 166958,
+            "status": "reachable",
+            "reason": "Homepage reachable; media playback/download was not tested.",
+            "title": "Asiaflix Official | Watch Free Kdramas &amp; Asian Dramas (Eng Subs)"
+          },
+          {
+            "url": "https://asiaflix.one/",
+            "checkedAt": "2026-10-29T07:39:57.794873+00:00",
+            "level": "reachable-page",
+            "httpStatus": 200,
+            "finalUrl": "https://asiaflix.one/",
+            "bytesRead": 166670,
+            "status": "reachable",
+            "reason": "Homepage reachable; media playback/download was not tested.",
+            "title": "Asiaflix | Watch Asian Dramas &amp; Kdramas Online Eng Sub"
+          },
+          {
+            "url": "https://asiaflix.xyz/",
+            "checkedAt": "2026-10-29T07:39:58.149972+00:00",
+            "level": "reachable-page",
+            "httpStatus": 200,
+            "finalUrl": "https://asiaflix.xyz/",
+            "bytesRead": 17081,
+            "status": "reachable",
+            "reason": "Homepage reachable; media playback/download was not tested.",
+            "title": "Asiaflix - Watch Kdrama, Cdrama, Thai Drama & Asian Movies Free"
+          }
+        ],
+        "checkedAt": "2026-10-29T07:39:58.149972+00:00",
+        "selectedUrl": "https://asiaflix.in/"
+      },
+      "reason": "Homepage reachable; media playback/download was not tested.",
+      "browseUrl": "https://asiaflix.in/",
+      "excluded": false
+    },
+    {
+      "id": "kisskh",
+      "name": "kisskh",
+      "url": "https://kisskh.co/",
+      "alternateUrls": [],
+      "kinds": [
+        "movies"
+      ],
+      "categories": [
+        "drama"
+      ],
+      "provenance": [
+        {
+          "page": "https://rentry.org/megathread-movies-and-tv",
+          "section": "East / South Asian Drama",
+          "anchor": "kisskh",
+          "listedUrls": [
+            "https://kisskh.co/"
+          ],
+          "heading": "🐐 kisskh"
+        }
+      ],
+      "nativeId": null,
+      "status": "reachable",
+      "mode": "site",
+      "accountRequired": false,
+      "audit": {
+        "level": "reachable-page",
+        "playbackTested": false,
+        "probes": [
+          {
+            "url": "https://kisskh.co/",
+            "checkedAt": "2026-10-29T07:39:58.150255+00:00",
+            "level": "reachable-page",
+            "httpStatus": 200,
+            "finalUrl": "https://kisskh.co/",
+            "bytesRead": 22867,
+            "status": "reachable",
+            "reason": "Homepage reachable; media playback/download was not tested.",
+            "title": "kisskh | Asian Dramas &amp; Movies"
+          }
+        ],
+        "checkedAt": "2026-10-29T07:39:58.150255+00:00",
+        "selectedUrl": "https://kisskh.co/"
+      },
+      "reason": "Homepage reachable; media playback/download was not tested.",
+      "browseUrl": "https://kisskh.co/",
+      "excluded": false
+    },
+    {
+      "id": "dramaday",
+      "name": "Dramaday",
+      "url": "https://dramaday.me/",
+      "alternateUrls": [],
+      "kinds": [
+        "movies"
+      ],
+      "categories": [
+        "drama"
+      ],
+      "provenance": [
+        {
+          "page": "https://rentry.org/megathread-movies-and-tv",
+          "section": "East / South Asian Drama",
+          "anchor": "dramaday",
+          "listedUrls": [
+            "https://dramaday.me/"
+          ],
+          "heading": "🔗 Dramaday"
+        }
+      ],
+      "nativeId": null,
+      "status": "reachable",
+      "mode": "site",
+      "accountRequired": false,
+      "audit": {
+        "level": "reachable-page",
+        "playbackTested": false,
+        "probes": [
+          {
+            "url": "https://dramaday.me/",
+            "checkedAt": "2026-10-29T07:39:58.267388+00:00",
+            "level": "reachable-page",
+            "httpStatus": 200,
+            "finalUrl": "https://dramaday.me/",
+            "bytesRead": 111033,
+            "status": "reachable",
+            "reason": "Homepage reachable; media playback/download was not tested.",
+            "title": "Dramaday.me &#8211; New Korean Drama &amp; OST Everyday"
+          }
+        ],
+        "checkedAt": "2026-10-29T07:39:58.267388+00:00",
+        "selectedUrl": "https://dramaday.me/"
+      },
+      "reason": "Homepage reachable; media playback/download was not tested.",
+      "browseUrl": "https://dramaday.me/",
+      "excluded": false
+    },
+    {
+      "id": "einthusan",
+      "name": "Einthusan",
+      "url": "https://einthusan.tv/",
+      "alternateUrls": [],
+      "kinds": [
+        "movies"
+      ],
+      "categories": [
+        "drama"
+      ],
+      "provenance": [
+        {
+          "page": "https://rentry.org/megathread-movies-and-tv",
+          "section": "East / South Asian Drama",
+          "anchor": "einthusan",
+          "listedUrls": [
+            "https://einthusan.tv/"
+          ],
+          "heading": "🔗 Einthusan"
+        }
+      ],
+      "nativeId": null,
+      "status": "reachable",
+      "mode": "site",
+      "accountRequired": false,
+      "audit": {
+        "level": "reachable-page",
+        "playbackTested": false,
+        "probes": [
+          {
+            "url": "https://einthusan.tv/",
+            "checkedAt": "2026-10-29T07:41:14.632409+00:00",
+            "level": "reachable-page",
+            "httpStatus": 200,
+            "finalUrl": "https://einthusan.tv/intro/",
+            "bytesRead": 5528,
+            "status": "reachable",
+            "reason": "Homepage reachable; media playback/download was not tested.",
+            "title": "Welcome - Einthusan"
+          }
+        ],
+        "checkedAt": "2026-10-29T07:41:14.632409+00:00",
+        "selectedUrl": "https://einthusan.tv/"
+      },
+      "reason": "Homepage reachable; media playback/download was not tested.",
+      "browseUrl": "https://einthusan.tv/",
+      "excluded": false
+    },
+    {
+      "id": "mkvdrama",
+      "name": "MkvDrama",
+      "url": "https://mkvdrama.org/",
+      "alternateUrls": [],
+      "kinds": [
+        "movies"
+      ],
+      "categories": [
+        "drama"
+      ],
+      "provenance": [
+        {
+          "page": "https://rentry.org/megathread-movies-and-tv",
+          "section": "East / South Asian Drama",
+          "anchor": "mkvdrama",
+          "listedUrls": [
+            "https://mkvdrama.org/"
+          ],
+          "heading": "🔗 MkvDrama"
+        }
+      ],
+      "nativeId": null,
+      "status": "reachable",
+      "mode": "site",
+      "accountRequired": false,
+      "audit": {
+        "level": "reachable-page",
+        "playbackTested": false,
+        "probes": [
+          {
+            "url": "https://mkvdrama.org/",
+            "checkedAt": "2026-10-29T07:39:58.518832+00:00",
+            "level": "reachable-page",
+            "httpStatus": 200,
+            "finalUrl": "https://mkvdrama.net/",
+            "bytesRead": 113797,
+            "status": "reachable",
+            "reason": "Homepage reachable; media playback/download was not tested.",
+            "title": "Download Asian Dramas, Movies &amp; Shows in HD | MkvDrama.net"
+          }
+        ],
+        "checkedAt": "2026-10-29T07:39:58.518832+00:00",
+        "selectedUrl": "https://mkvdrama.org/"
+      },
+      "reason": "Homepage reachable; media playback/download was not tested.",
+      "browseUrl": "https://mkvdrama.org/",
+      "excluded": false
+    },
+    {
+      "id": "1shows",
+      "name": "1Shows",
+      "url": "https://www.1shows.org/",
+      "alternateUrls": [],
+      "kinds": [
+        "movies"
+      ],
+      "categories": [
+        "streaming"
+      ],
+      "provenance": [
+        {
+          "page": "https://rentry.org/megathread-movies-and-tv",
+          "section": "Streaming Sites",
+          "anchor": "1shows",
+          "listedUrls": [
+            "https://www.1shows.org/"
+          ],
+          "heading": "🐐 1Shows"
+        }
+      ],
+      "nativeId": null,
+      "status": "reachable",
+      "mode": "site",
+      "accountRequired": false,
+      "audit": {
+        "level": "reachable-page",
+        "playbackTested": false,
+        "probes": [
+          {
+            "url": "https://www.1shows.org/",
+            "checkedAt": "2026-10-29T07:39:58.543936+00:00",
+            "level": "reachable-page",
+            "httpStatus": 200,
+            "finalUrl": "https://www.1shows.org/",
+            "bytesRead": 597040,
+            "status": "reachable",
+            "reason": "Homepage reachable; media playback/download was not tested.",
+            "title": "1Shows — Watch Movies, TV Shows &amp; Anime Free in HD"
+          }
+        ],
+        "checkedAt": "2026-10-29T07:39:58.543936+00:00",
+        "selectedUrl": "https://www.1shows.org/"
+      },
+      "reason": "Homepage reachable; media playback/download was not tested.",
+      "browseUrl": "https://www.1shows.org/",
+      "excluded": false
+    },
+    {
+      "id": "67movies",
+      "name": "67movies",
+      "url": "https://67movies.net/",
+      "alternateUrls": [],
+      "kinds": [
+        "movies"
+      ],
+      "categories": [
+        "streaming"
+      ],
+      "provenance": [
+        {
+          "page": "https://rentry.org/megathread-movies-and-tv",
+          "section": "Streaming Sites",
+          "anchor": "67movies",
+          "listedUrls": [
+            "https://67movies.net/"
+          ],
+          "heading": "🐐 67movies"
+        }
+      ],
+      "nativeId": null,
+      "status": "reachable",
+      "mode": "site",
+      "accountRequired": false,
+      "audit": {
+        "level": "reachable-page",
+        "playbackTested": false,
+        "probes": [
+          {
+            "url": "https://67movies.net/",
+            "checkedAt": "2026-10-29T07:39:58.711862+00:00",
+            "level": "reachable-page",
+            "httpStatus": 200,
+            "finalUrl": "https://67movies.st/",
+            "bytesRead": 750000,
+            "status": "reachable",
+            "reason": "Homepage reachable; media playback/download was not tested.",
+            "title": "67movies.st — Watch Movies &amp; TV Shows in HD Online"
+          }
+        ],
+        "checkedAt": "2026-10-29T07:39:58.711862+00:00",
+        "selectedUrl": "https://67movies.net/"
+      },
+      "reason": "Homepage reachable; media playback/download was not tested.",
+      "browseUrl": "https://67movies.net/",
+      "excluded": false
+    },
+    {
+      "id": "hydrahd",
+      "name": "HydraHD",
+      "url": "https://hydrahd.io/",
+      "alternateUrls": [
+        "https://hydrahd.info/",
+        "https://hydrahd.gd/"
+      ],
+      "kinds": [
+        "movies"
+      ],
+      "categories": [
+        "streaming"
+      ],
+      "provenance": [
+        {
+          "page": "https://rentry.org/megathread-movies-and-tv",
+          "section": "Streaming Sites",
+          "anchor": "hydrahd-alt",
+          "listedUrls": [
+            "https://hydrahd.io/",
+            "https://hydrahd.info/"
+          ],
+          "heading": "🐐 HydraHD / Alt"
+        }
+      ],
+      "nativeId": "hydra",
+      "status": "reachable",
+      "mode": "native",
+      "accountRequired": false,
+      "userProvidedUrls": [
+        "https://hydrahd.gd/"
+      ],
+      "audit": {
+        "level": "reachable-page",
+        "playbackTested": false,
+        "probes": [
+          {
+            "url": "https://hydrahd.io/",
+            "checkedAt": "2026-10-29T07:39:58.863348+00:00",
+            "level": "reachable-page",
+            "httpStatus": 200,
+            "finalUrl": "https://hydrahd.gd/",
+            "bytesRead": 231632,
+            "status": "reachable",
+            "reason": "Homepage reachable; media playback/download was not tested.",
+            "title": "HydraHD - Watch Movies and Series in High Definition"
+          },
+          {
+            "url": "https://hydrahd.info/",
+            "checkedAt": "2026-10-29T07:39:58.879538+00:00",
+            "level": "reachable-page",
+            "httpStatus": 200,
+            "finalUrl": "https://hydrahd.info/",
+            "bytesRead": 39494,
+            "status": "directory",
+            "reason": "Listed mirror/status directory; homepage only.",
+            "title": "HydraHD - (Status-Info) - The Official HydraHD Status Page"
+          },
+          {
+            "url": "https://hydrahd.gd/",
+            "checkedAt": "2026-10-29T07:39:59.108437+00:00",
+            "level": "reachable-page",
+            "httpStatus": 200,
+            "finalUrl": "https://hydrahd.gd/",
+            "bytesRead": 231632,
+            "status": "reachable",
+            "reason": "Homepage reachable; media playback/download was not tested.",
+            "title": "HydraHD - Watch Movies and Series in High Definition"
+          }
+        ],
+        "checkedAt": "2026-10-29T07:39:59.108437+00:00",
+        "selectedUrl": "https://hydrahd.io/"
+      },
+      "reason": "Homepage reachable; media playback/download was not tested.",
+      "browseUrl": "https://hydrahd.io/",
+      "excluded": false
+    },
+    {
+      "id": "shiopa",
+      "name": "Shiopa",
+      "url": "https://shiopa.com/",
+      "alternateUrls": [],
+      "kinds": [
+        "movies"
+      ],
+      "categories": [
+        "streaming"
+      ],
+      "provenance": [
+        {
+          "page": "https://rentry.org/megathread-movies-and-tv",
+          "section": "Streaming Sites",
+          "anchor": "shiopa",
+          "listedUrls": [
+            "https://shiopa.com/"
+          ],
+          "heading": "🐐 Shiopa"
+        }
+      ],
+      "nativeId": null,
+      "status": "reachable",
+      "mode": "site",
+      "accountRequired": false,
+      "audit": {
+        "level": "reachable-page",
+        "playbackTested": false,
+        "probes": [
+          {
+            "url": "https://shiopa.com/",
+            "checkedAt": "2026-10-29T07:39:59.194278+00:00",
+            "level": "reachable-page",
+            "httpStatus": 200,
+            "finalUrl": "https://shiopa.com/",
+            "bytesRead": 99935,
+            "status": "reachable",
+            "reason": "Homepage reachable; media playback/download was not tested.",
+            "title": "Shiopa"
+          }
+        ],
+        "checkedAt": "2026-10-29T07:39:59.194278+00:00",
+        "selectedUrl": "https://shiopa.com/"
+      },
+      "reason": "Homepage reachable; media playback/download was not tested.",
+      "browseUrl": "https://shiopa.com/",
+      "excluded": false
+    },
+    {
+      "id": "spenflix",
+      "name": "SpenFlix",
+      "url": "https://watch.spencerdevs.xyz/",
+      "alternateUrls": [],
+      "kinds": [
+        "movies"
+      ],
+      "categories": [
+        "streaming"
+      ],
+      "provenance": [
+        {
+          "page": "https://rentry.org/megathread-movies-and-tv",
+          "section": "Streaming Sites",
+          "anchor": "spenflix",
+          "listedUrls": [
+            "https://watch.spencerdevs.xyz/"
+          ],
+          "heading": "🐐 SpenFlix"
+        }
+      ],
+      "nativeId": null,
+      "status": "unavailable",
+      "mode": "unavailable",
+      "accountRequired": false,
+      "audit": {
+        "level": "reachable-page",
+        "playbackTested": false,
+        "probes": [
+          {
+            "url": "https://watch.spencerdevs.xyz/",
+            "checkedAt": "2026-10-29T07:39:59.231864+00:00",
+            "level": "reachable-page",
+            "status": "unavailable",
+            "reason": "URLError: <urlopen error [Errno -2] Name or service not known>"
+          }
+        ],
+        "checkedAt": "2026-10-29T07:39:59.231864+00:00",
+        "selectedUrl": "https://watch.spencerdevs.xyz/"
+      },
+      "reason": "URLError: <urlopen error [Errno -2] Name or service not known>",
+      "browseUrl": "https://watch.spencerdevs.xyz/",
+      "excluded": true
+    },
+    {
+      "id": "stellar",
+      "name": "Stellar",
+      "url": "https://stellar.gdn/",
+      "alternateUrls": [],
+      "kinds": [
+        "movies"
+      ],
+      "categories": [
+        "streaming"
+      ],
+      "provenance": [
+        {
+          "page": "https://rentry.org/megathread-movies-and-tv",
+          "section": "Streaming Sites",
+          "anchor": "stellar",
+          "listedUrls": [
+            "https://stellar.gdn/"
+          ],
+          "heading": "🐐 Stellar"
+        }
+      ],
+      "nativeId": null,
+      "status": "unavailable",
+      "mode": "unavailable",
+      "accountRequired": false,
+      "audit": {
+        "level": "reachable-page",
+        "playbackTested": false,
+        "probes": [
+          {
+            "url": "https://stellar.gdn/",
+            "checkedAt": "2026-10-29T07:39:59.326929+00:00",
+            "level": "reachable-page",
+            "httpStatus": 200,
+            "finalUrl": "https://stellar.gdn/",
+            "bytesRead": 2698,
+            "status": "unavailable",
+            "reason": "Homepage announces closure or discontinued operations.",
+            "title": "Service Notice"
+          }
+        ],
+        "checkedAt": "2026-10-29T07:39:59.326929+00:00",
+        "selectedUrl": "https://stellar.gdn/"
+      },
+      "reason": "Homepage announces closure or discontinued operations.",
+      "browseUrl": "https://stellar.gdn/",
+      "excluded": true
+    },
+    {
+      "id": "321movies",
+      "name": "321Movies",
+      "url": "https://321movies.co.uk/",
+      "alternateUrls": [
+        "https://321movies.xyz"
+      ],
+      "kinds": [
+        "movies"
+      ],
+      "categories": [
+        "streaming"
+      ],
+      "provenance": [
+        {
+          "page": "https://rentry.org/megathread-movies-and-tv",
+          "section": "Streaming Sites",
+          "anchor": "321movies-alt",
+          "listedUrls": [
+            "https://321movies.co.uk/",
+            "https://321movies.xyz"
+          ],
+          "heading": "▶️ 321Movies / Alt"
+        }
+      ],
+      "nativeId": null,
+      "status": "reachable",
+      "mode": "site",
+      "accountRequired": false,
+      "audit": {
+        "level": "reachable-page",
+        "playbackTested": false,
+        "probes": [
+          {
+            "url": "https://321movies.co.uk/",
+            "checkedAt": "2026-10-29T07:39:59.446096+00:00",
+            "level": "reachable-page",
+            "httpStatus": 200,
+            "finalUrl": "https://321movies.co.uk/",
+            "bytesRead": 46944,
+            "status": "reachable",
+            "reason": "Homepage reachable; media playback/download was not tested.",
+            "title": "321movies"
+          },
+          {
+            "url": "https://321movies.xyz",
+            "checkedAt": "2026-10-29T07:39:59.703423+00:00",
+            "level": "reachable-page",
+            "httpStatus": 200,
+            "finalUrl": "https://fedsr.us/",
+            "bytesRead": 46944,
+            "status": "reachable",
+            "reason": "Homepage reachable; media playback/download was not tested.",
+            "title": "321movies"
+          }
+        ],
+        "checkedAt": "2026-10-29T07:39:59.703423+00:00",
+        "selectedUrl": "https://321movies.co.uk/"
+      },
+      "reason": "Homepage reachable; media playback/download was not tested.",
+      "browseUrl": "https://321movies.co.uk/",
+      "excluded": false
+    },
+    {
+      "id": "7reels",
+      "name": "7reels",
+      "url": "https://7reels.cc/",
+      "alternateUrls": [],
+      "kinds": [
+        "movies"
+      ],
+      "categories": [
+        "streaming"
+      ],
+      "provenance": [
+        {
+          "page": "https://rentry.org/megathread-movies-and-tv",
+          "section": "Streaming Sites",
+          "anchor": "7reels",
+          "listedUrls": [
+            "https://7reels.cc/"
+          ],
+          "heading": "▶️ 7reels"
+        }
+      ],
+      "nativeId": null,
+      "status": "reachable",
+      "mode": "site",
+      "accountRequired": false,
+      "audit": {
+        "level": "reachable-page",
+        "playbackTested": false,
+        "probes": [
+          {
+            "url": "https://7reels.cc/",
+            "checkedAt": "2026-10-29T07:39:59.727348+00:00",
+            "level": "reachable-page",
+            "httpStatus": 200,
+            "finalUrl": "https://7reels.cc/",
+            "bytesRead": 81545,
+            "status": "reachable",
+            "reason": "Homepage reachable; media playback/download was not tested.",
+            "title": "7REELS | Stream Free Movies, TV Shows & Anime"
+          }
+        ],
+        "checkedAt": "2026-10-29T07:39:59.727348+00:00",
+        "selectedUrl": "https://7reels.cc/"
+      },
+      "reason": "Homepage reachable; media playback/download was not tested.",
+      "browseUrl": "https://7reels.cc/",
+      "excluded": false
+    },
+    {
+      "id": "aether",
+      "name": "Aether",
+      "url": "https://aether.cx",
+      "alternateUrls": [],
+      "kinds": [
+        "movies"
+      ],
+      "categories": [
+        "streaming"
+      ],
+      "provenance": [
+        {
+          "page": "https://rentry.org/megathread-movies-and-tv",
+          "section": "Streaming Sites",
+          "anchor": "aether",
+          "listedUrls": [
+            "https://aether.cx"
+          ],
+          "heading": "▶️ Aether"
+        }
+      ],
+      "nativeId": null,
+      "status": "reachable",
+      "mode": "site",
+      "accountRequired": false,
+      "audit": {
+        "level": "reachable-page",
+        "playbackTested": false,
+        "probes": [
+          {
+            "url": "https://aether.cx",
+            "checkedAt": "2026-10-29T07:39:59.867619+00:00",
+            "level": "reachable-page",
+            "httpStatus": 200,
+            "finalUrl": "https://aether.cx",
+            "bytesRead": 13014,
+            "status": "reachable",
+            "reason": "Homepage reachable; media playback/download was not tested.",
+            "title": "Aether"
+          }
+        ],
+        "checkedAt": "2026-10-29T07:39:59.867619+00:00",
+        "selectedUrl": "https://aether.cx"
+      },
+      "reason": "Homepage reachable; media playback/download was not tested.",
+      "browseUrl": "https://aether.cx",
+      "excluded": false
+    },
+    {
+      "id": "apexmovies",
+      "name": "ApexMovies",
+      "url": "https://apexmovies.net",
+      "alternateUrls": [],
+      "kinds": [
+        "movies"
+      ],
+      "categories": [
+        "streaming"
+      ],
+      "provenance": [
+        {
+          "page": "https://rentry.org/megathread-movies-and-tv",
+          "section": "Streaming Sites",
+          "anchor": "apexmovies",
+          "listedUrls": [
+            "https://apexmovies.net"
+          ],
+          "heading": "▶️ ApexMovies"
+        }
+      ],
+      "nativeId": null,
+      "status": "reachable",
+      "mode": "site",
+      "accountRequired": false,
+      "audit": {
+        "level": "reachable-page",
+        "playbackTested": false,
+        "probes": [
+          {
+            "url": "https://apexmovies.net",
+            "checkedAt": "2026-10-29T07:39:59.954856+00:00",
+            "level": "reachable-page",
+            "httpStatus": 200,
+            "finalUrl": "https://apexmovies.net",
+            "bytesRead": 229860,
+            "status": "reachable",
+            "reason": "Homepage reachable; media playback/download was not tested.",
+            "title": "ApexMovies - Watch Movies &amp; TV Series Online"
+          }
+        ],
+        "checkedAt": "2026-10-29T07:39:59.954856+00:00",
+        "selectedUrl": "https://apexmovies.net"
+      },
+      "reason": "Homepage reachable; media playback/download was not tested.",
+      "browseUrl": "https://apexmovies.net",
+      "excluded": false
+    },
+    {
+      "id": "bcine",
+      "name": "Bcine",
+      "url": "https://bcine.ru/",
+      "alternateUrls": [],
+      "kinds": [
+        "movies"
+      ],
+      "categories": [
+        "streaming"
+      ],
+      "provenance": [
+        {
+          "page": "https://rentry.org/megathread-movies-and-tv",
+          "section": "Streaming Sites",
+          "anchor": "bcine",
+          "listedUrls": [
+            "https://bcine.ru/"
+          ],
+          "heading": "▶️ Bcine"
+        }
+      ],
+      "nativeId": null,
+      "status": "reachable",
+      "mode": "site",
+      "accountRequired": false,
+      "audit": {
+        "level": "reachable-page",
+        "playbackTested": false,
+        "probes": [
+          {
+            "url": "https://bcine.ru/",
+            "checkedAt": "2026-10-29T07:40:00.128386+00:00",
+            "level": "reachable-page",
+            "httpStatus": 200,
+            "finalUrl": "https://freekz.to/",
+            "bytesRead": 49461,
+            "status": "reachable",
+            "reason": "Homepage reachable; media playback/download was not tested.",
+            "title": "bCine"
+          }
+        ],
+        "checkedAt": "2026-10-29T07:40:00.128386+00:00",
+        "selectedUrl": "https://bcine.ru/"
+      },
+      "reason": "Homepage reachable; media playback/download was not tested.",
+      "browseUrl": "https://bcine.ru/",
+      "excluded": false
+    },
+    {
+      "id": "bingeflix",
+      "name": "Bingeflix",
+      "url": "https://bingeflix.tv/",
+      "alternateUrls": [],
+      "kinds": [
+        "movies"
+      ],
+      "categories": [
+        "streaming"
+      ],
+      "provenance": [
+        {
+          "page": "https://rentry.org/megathread-movies-and-tv",
+          "section": "Streaming Sites",
+          "anchor": "bingeflix",
+          "listedUrls": [
+            "https://bingeflix.tv/"
+          ],
+          "heading": "▶️ Bingeflix"
+        }
+      ],
+      "nativeId": null,
+      "status": "reachable",
+      "mode": "site",
+      "accountRequired": false,
+      "audit": {
+        "level": "reachable-page",
+        "playbackTested": false,
+        "probes": [
+          {
+            "url": "https://bingeflix.tv/",
+            "checkedAt": "2026-10-29T07:40:00.228996+00:00",
+            "level": "reachable-page",
+            "httpStatus": 200,
+            "finalUrl": "https://bingeflix.tv/",
+            "bytesRead": 337179,
+            "status": "reachable",
+            "reason": "Homepage reachable; media playback/download was not tested.",
+            "title": "Bingeflix - Watch Movies Online"
+          }
+        ],
+        "checkedAt": "2026-10-29T07:40:00.228996+00:00",
+        "selectedUrl": "https://bingeflix.tv/"
+      },
+      "reason": "Homepage reachable; media playback/download was not tested.",
+      "browseUrl": "https://bingeflix.tv/",
+      "excluded": false
+    },
+    {
+      "id": "cinejoy",
+      "name": "Cinejoy",
+      "url": "https://cinejoy.to/",
+      "alternateUrls": [],
+      "kinds": [
+        "movies"
+      ],
+      "categories": [
+        "streaming"
+      ],
+      "provenance": [
+        {
+          "page": "https://rentry.org/megathread-movies-and-tv",
+          "section": "Streaming Sites",
+          "anchor": "cinejoy",
+          "listedUrls": [
+            "https://cinejoy.to/"
+          ],
+          "heading": "▶️ Cinejoy"
+        }
+      ],
+      "nativeId": null,
+      "status": "reachable",
+      "mode": "site",
+      "accountRequired": false,
+      "audit": {
+        "level": "reachable-page",
+        "playbackTested": false,
+        "probes": [
+          {
+            "url": "https://cinejoy.to/",
+            "checkedAt": "2026-10-29T07:40:00.309096+00:00",
+            "level": "reachable-page",
+            "httpStatus": 200,
+            "finalUrl": "https://cinejoy.pk/",
+            "bytesRead": 6523,
+            "status": "reachable",
+            "reason": "Homepage reachable; media playback/download was not tested.",
+            "title": "Cinejoy"
+          }
+        ],
+        "checkedAt": "2026-10-29T07:40:00.309096+00:00",
+        "selectedUrl": "https://cinejoy.to/"
+      },
+      "reason": "Homepage reachable; media playback/download was not tested.",
+      "browseUrl": "https://cinejoy.to/",
+      "excluded": false
+    },
+    {
+      "id": "cinema-bz",
+      "name": "Cinema.bz",
+      "url": "https://cinema.bz/",
+      "alternateUrls": [],
+      "kinds": [
+        "movies"
+      ],
+      "categories": [
+        "streaming"
+      ],
+      "provenance": [
+        {
+          "page": "https://rentry.org/megathread-movies-and-tv",
+          "section": "Streaming Sites",
+          "anchor": "cinemabz",
+          "listedUrls": [
+            "https://cinema.bz/"
+          ],
+          "heading": "▶️ Cinema.bz"
+        }
+      ],
+      "nativeId": null,
+      "status": "reachable",
+      "mode": "site",
+      "accountRequired": false,
+      "audit": {
+        "level": "reachable-page",
+        "playbackTested": false,
+        "probes": [
+          {
+            "url": "https://cinema.bz/",
+            "checkedAt": "2026-10-29T07:40:00.365221+00:00",
+            "level": "reachable-page",
+            "httpStatus": 200,
+            "finalUrl": "https://cinema.army/",
+            "bytesRead": 1689,
+            "status": "reachable",
+            "reason": "Homepage reachable; media playback/download was not tested.",
+            "title": "CINEMA.ARMY"
+          }
+        ],
+        "checkedAt": "2026-10-29T07:40:00.365221+00:00",
+        "selectedUrl": "https://cinema.bz/"
+      },
+      "reason": "Homepage reachable; media playback/download was not tested.",
+      "browseUrl": "https://cinema.bz/",
+      "excluded": false
+    },
+    {
+      "id": "cinewave",
+      "name": "CineWave",
+      "url": "https://watch.cinewave.qzz.io/",
+      "alternateUrls": [],
+      "kinds": [
+        "movies"
+      ],
+      "categories": [
+        "streaming"
+      ],
+      "provenance": [
+        {
+          "page": "https://rentry.org/megathread-movies-and-tv",
+          "section": "Streaming Sites",
+          "anchor": "cinewave",
+          "listedUrls": [
+            "https://watch.cinewave.qzz.io/"
+          ],
+          "heading": "▶️ CineWave"
+        }
+      ],
+      "nativeId": null,
+      "status": "reachable",
+      "mode": "site",
+      "accountRequired": false,
+      "audit": {
+        "level": "reachable-page",
+        "playbackTested": false,
+        "probes": [
+          {
+            "url": "https://watch.cinewave.qzz.io/",
+            "checkedAt": "2026-10-29T07:40:00.374294+00:00",
+            "level": "reachable-page",
+            "httpStatus": 200,
+            "finalUrl": "https://watch.cinewave.qzz.io/",
+            "bytesRead": 4355,
+            "status": "reachable",
+            "reason": "Homepage reachable; media playback/download was not tested.",
+            "title": "CineWave | Premium HD Streaming"
+          }
+        ],
+        "checkedAt": "2026-10-29T07:40:00.374294+00:00",
+        "selectedUrl": "https://watch.cinewave.qzz.io/"
+      },
+      "reason": "Homepage reachable; media playback/download was not tested.",
+      "browseUrl": "https://watch.cinewave.qzz.io/",
+      "excluded": false
+    },
+    {
+      "id": "cinesu",
+      "name": "Cinesu",
+      "url": "https://cine.su/",
+      "alternateUrls": [],
+      "kinds": [
+        "movies"
+      ],
+      "categories": [
+        "streaming"
+      ],
+      "provenance": [
+        {
+          "page": "https://rentry.org/megathread-movies-and-tv",
+          "section": "Streaming Sites",
+          "anchor": "cinesu",
+          "listedUrls": [
+            "https://cine.su/"
+          ],
+          "heading": "▶️ Cinesu"
+        }
+      ],
+      "nativeId": null,
+      "status": "reachable",
+      "mode": "site",
+      "accountRequired": false,
+      "audit": {
+        "level": "reachable-page",
+        "playbackTested": false,
+        "probes": [
+          {
+            "url": "https://cine.su/",
+            "checkedAt": "2026-10-29T07:40:00.556877+00:00",
+            "level": "reachable-page",
+            "httpStatus": 200,
+            "finalUrl": "https://koddo.to/en",
+            "bytesRead": 665430,
+            "status": "reachable",
+            "reason": "Homepage reachable; media playback/download was not tested.",
+            "title": "Koddo — Free Movies &amp; TV Shows"
+          }
+        ],
+        "checkedAt": "2026-10-29T07:40:00.556877+00:00",
+        "selectedUrl": "https://cine.su/"
+      },
+      "reason": "Homepage reachable; media playback/download was not tested.",
+      "browseUrl": "https://cine.su/",
+      "excluded": false
+    },
+    {
+      "id": "cinezo",
+      "name": "Cinezo",
+      "url": "https://cinezo.net/",
+      "alternateUrls": [],
+      "kinds": [
+        "movies"
+      ],
+      "categories": [
+        "streaming"
+      ],
+      "provenance": [
+        {
+          "page": "https://rentry.org/megathread-movies-and-tv",
+          "section": "Streaming Sites",
+          "anchor": "cinezo",
+          "listedUrls": [
+            "https://cinezo.net/"
+          ],
+          "heading": "▶️ Cinezo"
+        }
+      ],
+      "nativeId": null,
+      "status": "reachable",
+      "mode": "site",
+      "accountRequired": false,
+      "audit": {
+        "level": "reachable-page",
+        "playbackTested": false,
+        "probes": [
+          {
+            "url": "https://cinezo.net/",
+            "checkedAt": "2026-10-29T07:40:00.896904+00:00",
+            "level": "reachable-page",
+            "httpStatus": 200,
+            "finalUrl": "https://cinezo.st/",
+            "bytesRead": 738404,
+            "status": "reachable",
+            "reason": "Homepage reachable; media playback/download was not tested.",
+            "title": "Cinezo"
+          }
+        ],
+        "checkedAt": "2026-10-29T07:40:00.896904+00:00",
+        "selectedUrl": "https://cinezo.net/"
+      },
+      "reason": "Homepage reachable; media playback/download was not tested.",
+      "browseUrl": "https://cinezo.net/",
+      "excluded": false
+    },
+    {
+      "id": "cornclick",
+      "name": "CornClick",
+      "url": "https://cornclick.com/",
+      "alternateUrls": [],
+      "kinds": [
+        "movies"
+      ],
+      "categories": [
+        "streaming"
+      ],
+      "provenance": [
+        {
+          "page": "https://rentry.org/megathread-movies-and-tv",
+          "section": "Streaming Sites",
+          "anchor": "cornclick",
+          "listedUrls": [
+            "https://cornclick.com/"
+          ],
+          "heading": "▶️ CornClick"
+        }
+      ],
+      "nativeId": null,
+      "status": "reachable",
+      "mode": "site",
+      "accountRequired": false,
+      "audit": {
+        "level": "reachable-page",
+        "playbackTested": false,
+        "probes": [
+          {
+            "url": "https://cornclick.com/",
+            "checkedAt": "2026-10-29T07:40:01.062577+00:00",
+            "level": "reachable-page",
+            "httpStatus": 200,
+            "finalUrl": "https://cornclick.com/",
+            "bytesRead": 360219,
+            "status": "reachable",
+            "reason": "Homepage reachable; media playback/download was not tested.",
+            "title": "CornClick"
+          }
+        ],
+        "checkedAt": "2026-10-29T07:40:01.062577+00:00",
+        "selectedUrl": "https://cornclick.com/"
+      },
+      "reason": "Homepage reachable; media playback/download was not tested.",
+      "browseUrl": "https://cornclick.com/",
+      "excluded": false
+    },
+    {
+      "id": "dashflix",
+      "name": "Dashflix",
+      "url": "https://dashflix.top/",
+      "alternateUrls": [],
+      "kinds": [
+        "movies"
+      ],
+      "categories": [
+        "streaming"
+      ],
+      "provenance": [
+        {
+          "page": "https://rentry.org/megathread-movies-and-tv",
+          "section": "Streaming Sites",
+          "anchor": "dashflix",
+          "listedUrls": [
+            "https://dashflix.top/"
+          ],
+          "heading": "▶️ Dashflix"
+        }
+      ],
+      "nativeId": null,
+      "status": "reachable",
+      "mode": "site",
+      "accountRequired": false,
+      "audit": {
+        "level": "reachable-page",
+        "playbackTested": false,
+        "probes": [
+          {
+            "url": "https://dashflix.top/",
+            "checkedAt": "2026-10-29T07:40:01.311487+00:00",
+            "level": "reachable-page",
+            "httpStatus": 200,
+            "finalUrl": "https://dashflix.top/",
+            "bytesRead": 20092,
+            "status": "reachable",
+            "reason": "Homepage reachable; media playback/download was not tested.",
+            "title": "Dashflix — Watch Free Movies &amp; TV Shows Online | No Sign-Up"
+          }
+        ],
+        "checkedAt": "2026-10-29T07:40:01.311487+00:00",
+        "selectedUrl": "https://dashflix.top/"
+      },
+      "reason": "Homepage reachable; media playback/download was not tested.",
+      "browseUrl": "https://dashflix.top/",
+      "excluded": false
+    },
+    {
+      "id": "donkey",
+      "name": "Donkey",
+      "url": "https://donkey.to/",
+      "alternateUrls": [],
+      "kinds": [
+        "movies"
+      ],
+      "categories": [
+        "streaming"
+      ],
+      "provenance": [
+        {
+          "page": "https://rentry.org/megathread-movies-and-tv",
+          "section": "Streaming Sites",
+          "anchor": "donkey",
+          "listedUrls": [
+            "https://donkey.to/"
+          ],
+          "heading": "▶️ Donkey"
+        }
+      ],
+      "nativeId": null,
+      "status": "reachable",
+      "mode": "site",
+      "accountRequired": false,
+      "audit": {
+        "level": "reachable-page",
+        "playbackTested": false,
+        "probes": [
+          {
+            "url": "https://donkey.to/",
+            "checkedAt": "2026-10-29T07:40:01.454622+00:00",
+            "level": "reachable-page",
+            "httpStatus": 200,
+            "finalUrl": "https://donkey.to/",
+            "bytesRead": 26791,
+            "status": "reachable",
+            "reason": "Homepage reachable; media playback/download was not tested.",
+            "title": "Donkey | Watch Free Movies Online"
+          }
+        ],
+        "checkedAt": "2026-10-29T07:40:01.454622+00:00",
+        "selectedUrl": "https://donkey.to/"
+      },
+      "reason": "Homepage reachable; media playback/download was not tested.",
+      "browseUrl": "https://donkey.to/",
+      "excluded": false
+    },
+    {
+      "id": "duafile",
+      "name": "Duafile",
+      "url": "https://duafile.com/",
+      "alternateUrls": [],
+      "kinds": [
+        "movies"
+      ],
+      "categories": [
+        "streaming"
+      ],
+      "provenance": [
+        {
+          "page": "https://rentry.org/megathread-movies-and-tv",
+          "section": "Streaming Sites",
+          "anchor": "duafile",
+          "listedUrls": [
+            "https://duafile.com/"
+          ],
+          "heading": "▶️ Duafile"
+        }
+      ],
+      "nativeId": null,
+      "status": "verification-wall",
+      "mode": "unavailable",
+      "accountRequired": false,
+      "audit": {
+        "level": "reachable-page",
+        "playbackTested": false,
+        "probes": [
+          {
+            "url": "https://duafile.com/",
+            "checkedAt": "2026-10-29T07:40:01.473432+00:00",
+            "level": "reachable-page",
+            "httpStatus": 403,
+            "finalUrl": "https://download.duafile.com/",
+            "bytesRead": 5464,
+            "status": "verification-wall",
+            "reason": "Explicit browser/human verification wall; excluded without bypass.",
+            "title": "Just a moment..."
+          }
+        ],
+        "checkedAt": "2026-10-29T07:40:01.473432+00:00",
+        "selectedUrl": "https://duafile.com/"
+      },
+      "reason": "Explicit browser/human verification wall; excluded without bypass.",
+      "browseUrl": "https://duafile.com/",
+      "excluded": true
+    },
+    {
+      "id": "filmex",
+      "name": "Filmex",
+      "url": "https://filmex.to/",
+      "alternateUrls": [],
+      "kinds": [
+        "movies"
+      ],
+      "categories": [
+        "streaming"
+      ],
+      "provenance": [
+        {
+          "page": "https://rentry.org/megathread-movies-and-tv",
+          "section": "Streaming Sites",
+          "anchor": "filmex",
+          "listedUrls": [
+            "https://filmex.to/"
+          ],
+          "heading": "▶️ Filmex"
+        }
+      ],
+      "nativeId": null,
+      "status": "reachable",
+      "mode": "site",
+      "accountRequired": false,
+      "audit": {
+        "level": "reachable-page",
+        "playbackTested": false,
+        "probes": [
+          {
+            "url": "https://filmex.to/",
+            "checkedAt": "2026-10-29T07:40:01.912690+00:00",
+            "level": "reachable-page",
+            "httpStatus": 200,
+            "finalUrl": "https://filmex.to/",
+            "bytesRead": 73777,
+            "status": "reachable",
+            "reason": "Homepage reachable; media playback/download was not tested.",
+            "title": "Filmex - Watch Free Movies &amp; TV Shows Online | Stream Latest Releases"
+          }
+        ],
+        "checkedAt": "2026-10-29T07:40:01.912690+00:00",
+        "selectedUrl": "https://filmex.to/"
+      },
+      "reason": "Homepage reachable; media playback/download was not tested.",
+      "browseUrl": "https://filmex.to/",
+      "excluded": false
+    },
+    {
+      "id": "fsharetv",
+      "name": "FshareTV",
+      "url": "https://fsharetv.co/",
+      "alternateUrls": [],
+      "kinds": [
+        "movies"
+      ],
+      "categories": [
+        "streaming"
+      ],
+      "provenance": [
+        {
+          "page": "https://rentry.org/megathread-movies-and-tv",
+          "section": "Streaming Sites",
+          "anchor": "fsharetv",
+          "listedUrls": [
+            "https://fsharetv.co/"
+          ],
+          "heading": "▶️ FshareTV"
+        }
+      ],
+      "nativeId": null,
+      "status": "unavailable",
+      "mode": "unavailable",
+      "accountRequired": false,
+      "audit": {
+        "level": "reachable-page",
+        "playbackTested": false,
+        "probes": [
+          {
+            "url": "https://fsharetv.co/",
+            "checkedAt": "2026-10-29T07:40:01.943787+00:00",
+            "level": "reachable-page",
+            "status": "unavailable",
+            "reason": "URLError: <urlopen error [Errno -2] Name or service not known>"
+          }
+        ],
+        "checkedAt": "2026-10-29T07:40:01.943787+00:00",
+        "selectedUrl": "https://fsharetv.co/"
+      },
+      "reason": "URLError: <urlopen error [Errno -2] Name or service not known>",
+      "browseUrl": "https://fsharetv.co/",
+      "excluded": true
+    },
+    {
+      "id": "heartive",
+      "name": "Heartive",
+      "url": "https://heartive.pages.dev/",
+      "alternateUrls": [],
+      "kinds": [
+        "movies"
+      ],
+      "categories": [
+        "streaming"
+      ],
+      "provenance": [
+        {
+          "page": "https://rentry.org/megathread-movies-and-tv",
+          "section": "Streaming Sites",
+          "anchor": "heartive",
+          "listedUrls": [
+            "https://heartive.pages.dev/"
+          ],
+          "heading": "▶️ Heartive"
+        }
+      ],
+      "nativeId": null,
+      "status": "unavailable",
+      "mode": "unavailable",
+      "accountRequired": false,
+      "audit": {
+        "level": "reachable-page",
+        "playbackTested": false,
+        "probes": [
+          {
+            "url": "https://heartive.pages.dev/",
+            "checkedAt": "2026-10-29T07:40:01.943898+00:00",
+            "level": "reachable-page",
+            "status": "unavailable",
+            "reason": "URLError: <urlopen error [Errno -2] Name or service not known>"
+          }
+        ],
+        "checkedAt": "2026-10-29T07:40:01.943898+00:00",
+        "selectedUrl": "https://heartive.pages.dev/"
+      },
+      "reason": "URLError: <urlopen error [Errno -2] Name or service not known>",
+      "browseUrl": "https://heartive.pages.dev/",
+      "excluded": true
+    },
+    {
+      "id": "huzske",
+      "name": "Huzske",
+      "url": "https://huzske.com/",
+      "alternateUrls": [],
+      "kinds": [
+        "movies"
+      ],
+      "categories": [
+        "streaming"
+      ],
+      "provenance": [
+        {
+          "page": "https://rentry.org/megathread-movies-and-tv",
+          "section": "Streaming Sites",
+          "anchor": "huzske",
+          "listedUrls": [
+            "https://huzske.com/"
+          ],
+          "heading": "▶️ Huzske"
+        }
+      ],
+      "nativeId": null,
+      "status": "reachable",
+      "mode": "site",
+      "accountRequired": false,
+      "audit": {
+        "level": "reachable-page",
+        "playbackTested": false,
+        "probes": [
+          {
+            "url": "https://huzske.com/",
+            "checkedAt": "2026-10-29T07:40:01.950281+00:00",
+            "level": "reachable-page",
+            "httpStatus": 200,
+            "finalUrl": "https://huzske.com/",
+            "bytesRead": 2379,
+            "status": "reachable",
+            "reason": "Homepage reachable; media playback/download was not tested.",
+            "title": "Huzske Cinema | Discover Movies, TV Shows &amp; Streaming Guides"
+          }
+        ],
+        "checkedAt": "2026-10-29T07:40:01.950281+00:00",
+        "selectedUrl": "https://huzske.com/"
+      },
+      "reason": "Homepage reachable; media playback/download was not tested.",
+      "browseUrl": "https://huzske.com/",
+      "excluded": false
+    },
+    {
+      "id": "icefy",
+      "name": "Icefy",
+      "url": "https://icefy.top/",
+      "alternateUrls": [],
+      "kinds": [
+        "movies"
+      ],
+      "categories": [
+        "streaming"
+      ],
+      "provenance": [
+        {
+          "page": "https://rentry.org/megathread-movies-and-tv",
+          "section": "Streaming Sites",
+          "anchor": "icefy",
+          "listedUrls": [
+            "https://icefy.top/"
+          ],
+          "heading": "▶️ Icefy"
+        }
+      ],
+      "nativeId": null,
+      "status": "unavailable",
+      "mode": "unavailable",
+      "accountRequired": false,
+      "audit": {
+        "level": "reachable-page",
+        "playbackTested": false,
+        "probes": [
+          {
+            "url": "https://icefy.top/",
+            "checkedAt": "2026-10-29T07:40:02.058160+00:00",
+            "level": "reachable-page",
+            "httpStatus": 451,
+            "finalUrl": "https://icefy.top/",
+            "bytesRead": 6386,
+            "status": "unavailable",
+            "reason": "HTTP 451; page access failed.",
+            "title": "Unavailable For Legal Reasons"
+          }
+        ],
+        "checkedAt": "2026-10-29T07:40:02.058160+00:00",
+        "selectedUrl": "https://icefy.top/"
+      },
+      "reason": "HTTP 451; page access failed.",
+      "browseUrl": "https://icefy.top/",
+      "excluded": true
+    },
+    {
+      "id": "latestmovies",
+      "name": "LatestMovies",
+      "url": "https://latestmovies.net/",
+      "alternateUrls": [],
+      "kinds": [
+        "movies"
+      ],
+      "categories": [
+        "streaming"
+      ],
+      "provenance": [
+        {
+          "page": "https://rentry.org/megathread-movies-and-tv",
+          "section": "Streaming Sites",
+          "anchor": "latestmovies",
+          "listedUrls": [
+            "https://latestmovies.net/"
+          ],
+          "heading": "▶️ LatestMovies"
+        }
+      ],
+      "nativeId": null,
+      "status": "reachable",
+      "mode": "site",
+      "accountRequired": false,
+      "audit": {
+        "level": "reachable-page",
+        "playbackTested": false,
+        "probes": [
+          {
+            "url": "https://latestmovies.net/",
+            "checkedAt": "2026-10-29T07:40:02.070212+00:00",
+            "level": "reachable-page",
+            "httpStatus": 200,
+            "finalUrl": "https://latestmovies.net/",
+            "bytesRead": 750000,
+            "status": "reachable",
+            "reason": "Homepage reachable; media playback/download was not tested.",
+            "title": "LatestMovies - Discover Movies &amp; TV Shows"
+          }
+        ],
+        "checkedAt": "2026-10-29T07:40:02.070212+00:00",
+        "selectedUrl": "https://latestmovies.net/"
+      },
+      "reason": "Homepage reachable; media playback/download was not tested.",
+      "browseUrl": "https://latestmovies.net/",
+      "excluded": false
+    },
+    {
+      "id": "lookmovie",
+      "name": "LookMovie",
+      "url": "https://lookmovie2.to/",
+      "alternateUrls": [
+        "https://proxymirrorlookmovie.github.io/"
+      ],
+      "kinds": [
+        "movies"
+      ],
+      "categories": [
+        "streaming"
+      ],
+      "provenance": [
+        {
+          "page": "https://rentry.org/megathread-movies-and-tv",
+          "section": "Streaming Sites",
+          "anchor": "lookmovie-mirrorlist",
+          "listedUrls": [
+            "https://lookmovie2.to/",
+            "https://proxymirrorlookmovie.github.io/"
+          ],
+          "heading": "▶️ LookMovie / MirrorList"
+        }
+      ],
+      "nativeId": null,
+      "status": "directory",
+      "mode": "site",
+      "accountRequired": false,
+      "audit": {
+        "level": "reachable-page",
+        "playbackTested": false,
+        "probes": [
+          {
+            "url": "https://lookmovie2.to/",
+            "checkedAt": "2026-10-29T07:40:02.318685+00:00",
+            "level": "reachable-page",
+            "status": "unavailable",
+            "reason": "URLError: <urlopen error [Errno 104] Connection reset by peer>"
+          },
+          {
+            "url": "https://proxymirrorlookmovie.github.io/",
+            "checkedAt": "2026-10-29T07:40:02.318991+00:00",
+            "level": "reachable-page",
+            "httpStatus": 200,
+            "finalUrl": "https://proxymirrorlookmovie.github.io/",
+            "bytesRead": 5647,
+            "status": "directory",
+            "reason": "Listed mirror/status directory; homepage only.",
+            "title": "Lookmovie official proxy mirror list"
+          }
+        ],
+        "checkedAt": "2026-10-29T07:40:02.318991+00:00",
+        "selectedUrl": "https://proxymirrorlookmovie.github.io/"
+      },
+      "reason": "Listed mirror/status directory; homepage only.",
+      "browseUrl": "https://proxymirrorlookmovie.github.io/",
+      "excluded": false
+    },
+    {
+      "id": "m-zone",
+      "name": "M-Zone",
+      "url": "https://m-zone.org/",
+      "alternateUrls": [],
+      "kinds": [
+        "movies"
+      ],
+      "categories": [
+        "streaming"
+      ],
+      "provenance": [
+        {
+          "page": "https://rentry.org/megathread-movies-and-tv",
+          "section": "Streaming Sites",
+          "anchor": "m-zone",
+          "listedUrls": [
+            "https://m-zone.org/"
+          ],
+          "heading": "▶️ M-Zone"
+        }
+      ],
+      "nativeId": null,
+      "status": "reachable",
+      "mode": "site",
+      "accountRequired": false,
+      "audit": {
+        "level": "reachable-page",
+        "playbackTested": false,
+        "probes": [
+          {
+            "url": "https://m-zone.org/",
+            "checkedAt": "2026-10-29T07:40:02.369342+00:00",
+            "level": "reachable-page",
+            "httpStatus": 200,
+            "finalUrl": "https://m-zone.cc/",
+            "bytesRead": 9717,
+            "status": "reachable",
+            "reason": "Homepage reachable; media playback/download was not tested.",
+            "title": "M-Zone - Movies, Shows, Anime, Watchlists and Reviews"
+          }
+        ],
+        "checkedAt": "2026-10-29T07:40:02.369342+00:00",
+        "selectedUrl": "https://m-zone.org/"
+      },
+      "reason": "Homepage reachable; media playback/download was not tested.",
+      "browseUrl": "https://m-zone.org/",
+      "excluded": false
+    },
+    {
+      "id": "mapple",
+      "name": "Mapple",
+      "url": "https://mapple.tv/",
+      "alternateUrls": [],
+      "kinds": [
+        "movies"
+      ],
+      "categories": [
+        "streaming"
+      ],
+      "provenance": [
+        {
+          "page": "https://rentry.org/megathread-movies-and-tv",
+          "section": "Streaming Sites",
+          "anchor": "mapple",
+          "listedUrls": [
+            "https://mapple.tv/"
+          ],
+          "heading": "▶️ Mapple"
+        }
+      ],
+      "nativeId": null,
+      "status": "verification-wall",
+      "mode": "unavailable",
+      "accountRequired": false,
+      "audit": {
+        "level": "reachable-page",
+        "playbackTested": false,
+        "probes": [
+          {
+            "url": "https://mapple.tv/",
+            "checkedAt": "2026-10-29T07:40:02.510925+00:00",
+            "level": "reachable-page",
+            "httpStatus": 403,
+            "finalUrl": "https://mapple.fun/",
+            "bytesRead": 5582,
+            "status": "verification-wall",
+            "reason": "Explicit browser/human verification wall; excluded without bypass.",
+            "title": "Just a moment..."
+          }
+        ],
+        "checkedAt": "2026-10-29T07:40:02.510925+00:00",
+        "selectedUrl": "https://mapple.tv/"
+      },
+      "reason": "Explicit browser/human verification wall; excluded without bypass.",
+      "browseUrl": "https://mapple.tv/",
+      "excluded": true
+    },
+    {
+      "id": "beech-watch",
+      "name": "Beech.Watch",
+      "url": "https://beech.watch/",
+      "alternateUrls": [],
+      "kinds": [
+        "movies"
+      ],
+      "categories": [
+        "streaming"
+      ],
+      "provenance": [
+        {
+          "page": "https://rentry.org/megathread-movies-and-tv",
+          "section": "Streaming Sites",
+          "anchor": "beechwatch",
+          "listedUrls": [
+            "https://beech.watch/"
+          ],
+          "heading": "▶️ Beech.Watch"
+        }
+      ],
+      "nativeId": null,
+      "status": "unavailable",
+      "mode": "unavailable",
+      "accountRequired": false,
+      "audit": {
+        "level": "reachable-page",
+        "playbackTested": false,
+        "probes": [
+          {
+            "url": "https://beech.watch/",
+            "checkedAt": "2026-10-29T07:40:02.686691+00:00",
+            "level": "reachable-page",
+            "status": "unavailable",
+            "reason": "URLError: <urlopen error [Errno 104] Connection reset by peer>"
+          }
+        ],
+        "checkedAt": "2026-10-29T07:40:02.686691+00:00",
+        "selectedUrl": "https://beech.watch/"
+      },
+      "reason": "URLError: <urlopen error [Errno 104] Connection reset by peer>",
+      "browseUrl": "https://beech.watch/",
+      "excluded": true
+    },
+    {
+      "id": "movish",
+      "name": "Movish",
+      "url": "https://movish.to/",
+      "alternateUrls": [],
+      "kinds": [
+        "movies"
+      ],
+      "categories": [
+        "streaming"
+      ],
+      "provenance": [
+        {
+          "page": "https://rentry.org/megathread-movies-and-tv",
+          "section": "Streaming Sites",
+          "anchor": "movish",
+          "listedUrls": [
+            "https://movish.to/"
+          ],
+          "heading": "▶️ Movish"
+        }
+      ],
+      "nativeId": null,
+      "status": "reachable",
+      "mode": "site",
+      "accountRequired": false,
+      "audit": {
+        "level": "reachable-page",
+        "playbackTested": false,
+        "probes": [
+          {
+            "url": "https://movish.to/",
+            "checkedAt": "2026-10-29T07:40:02.728530+00:00",
+            "level": "reachable-page",
+            "httpStatus": 200,
+            "finalUrl": "https://movish.to/",
+            "bytesRead": 172026,
+            "status": "reachable",
+            "reason": "Homepage reachable; media playback/download was not tested.",
+            "title": "Watch Movies &amp; TV Shows Online Free HD — Movish"
+          }
+        ],
+        "checkedAt": "2026-10-29T07:40:02.728530+00:00",
+        "selectedUrl": "https://movish.to/"
+      },
+      "reason": "Homepage reachable; media playback/download was not tested.",
+      "browseUrl": "https://movish.to/",
+      "excluded": false
+    },
+    {
+      "id": "musicbrainz-tech",
+      "name": "MusicBrainz.Tech",
+      "url": "https://musicbrainz.tech",
+      "alternateUrls": [],
+      "kinds": [
+        "movies"
+      ],
+      "categories": [
+        "streaming"
+      ],
+      "provenance": [
+        {
+          "page": "https://rentry.org/megathread-movies-and-tv",
+          "section": "Streaming Sites",
+          "anchor": "musicbrainztech",
+          "listedUrls": [
+            "https://musicbrainz.tech"
+          ],
+          "heading": "▶️ MusicBrainz.Tech"
+        }
+      ],
+      "nativeId": null,
+      "status": "reachable",
+      "mode": "site",
+      "accountRequired": false,
+      "audit": {
+        "level": "reachable-page",
+        "playbackTested": false,
+        "probes": [
+          {
+            "url": "https://musicbrainz.tech",
+            "checkedAt": "2026-10-29T07:40:02.749614+00:00",
+            "level": "reachable-page",
+            "httpStatus": 200,
+            "finalUrl": "https://www.musicbrainz.tech/",
+            "bytesRead": 4423,
+            "status": "reachable",
+            "reason": "Homepage reachable; media playback/download was not tested.",
+            "title": "musicbrainz.tech — Stream Movies &amp; TV Shows"
+          }
+        ],
+        "checkedAt": "2026-10-29T07:40:02.749614+00:00",
+        "selectedUrl": "https://musicbrainz.tech"
+      },
+      "reason": "Homepage reachable; media playback/download was not tested.",
+      "browseUrl": "https://musicbrainz.tech",
+      "excluded": false
+    },
+    {
+      "id": "pressplay",
+      "name": "PressPlay",
+      "url": "https://www.pressplay.top/",
+      "alternateUrls": [],
+      "kinds": [
+        "movies"
+      ],
+      "categories": [
+        "streaming"
+      ],
+      "provenance": [
+        {
+          "page": "https://rentry.org/megathread-movies-and-tv",
+          "section": "Streaming Sites",
+          "anchor": "pressplay",
+          "listedUrls": [
+            "https://www.pressplay.top/"
+          ],
+          "heading": "▶️ PressPlay"
+        }
+      ],
+      "nativeId": null,
+      "status": "unavailable",
+      "mode": "unavailable",
+      "accountRequired": false,
+      "audit": {
+        "level": "reachable-page",
+        "playbackTested": false,
+        "probes": [
+          {
+            "url": "https://www.pressplay.top/",
+            "checkedAt": "2026-10-29T07:40:02.763715+00:00",
+            "level": "reachable-page",
+            "status": "unavailable",
+            "reason": "URLError: <urlopen error [Errno -2] Name or service not known>"
+          }
+        ],
+        "checkedAt": "2026-10-29T07:40:02.763715+00:00",
+        "selectedUrl": "https://www.pressplay.top/"
+      },
+      "reason": "URLError: <urlopen error [Errno -2] Name or service not known>",
+      "browseUrl": "https://www.pressplay.top/",
+      "excluded": true
+    },
+    {
+      "id": "reelstream",
+      "name": "ReelStream",
+      "url": "https://rreelstream.live/",
+      "alternateUrls": [
+        "https://streamvaultsrc.click/"
+      ],
+      "kinds": [
+        "movies"
+      ],
+      "categories": [
+        "streaming"
+      ],
+      "provenance": [
+        {
+          "page": "https://rentry.org/megathread-movies-and-tv",
+          "section": "Streaming Sites",
+          "anchor": "reelstream-alt",
+          "listedUrls": [
+            "https://rreelstream.live/",
+            "https://streamvaultsrc.click/"
+          ],
+          "heading": "▶️ ReelStream / Alt"
+        }
+      ],
+      "nativeId": null,
+      "status": "unavailable",
+      "mode": "unavailable",
+      "accountRequired": false,
+      "audit": {
+        "level": "reachable-page",
+        "playbackTested": false,
+        "probes": [
+          {
+            "url": "https://rreelstream.live/",
+            "checkedAt": "2026-10-29T07:40:02.876977+00:00",
+            "level": "reachable-page",
+            "httpStatus": 521,
+            "finalUrl": "https://rreelstream.live/",
+            "bytesRead": 7024,
+            "status": "unavailable",
+            "reason": "HTTP 521; page access failed.",
+            "title": "rreelstream.live | 521: Web server is down"
+          },
+          {
+            "url": "https://streamvaultsrc.click/",
+            "checkedAt": "2026-10-29T07:40:02.997840+00:00",
+            "level": "reachable-page",
+            "status": "unavailable",
+            "reason": "TimeoutError: The read operation timed out"
+          }
+        ],
+        "checkedAt": "2026-10-29T07:40:02.997840+00:00",
+        "selectedUrl": "https://rreelstream.live/"
+      },
+      "reason": "HTTP 521; page access failed.",
+      "browseUrl": "https://rreelstream.live/",
+      "excluded": true
+    },
+    {
+      "id": "reelix",
+      "name": "Reelix",
+      "url": "https://reelix.ac",
+      "alternateUrls": [],
+      "kinds": [
+        "movies"
+      ],
+      "categories": [
+        "streaming"
+      ],
+      "provenance": [
+        {
+          "page": "https://rentry.org/megathread-movies-and-tv",
+          "section": "Streaming Sites",
+          "anchor": "reelix",
+          "listedUrls": [
+            "https://reelix.ac"
+          ],
+          "heading": "▶️ Reelix"
+        }
+      ],
+      "nativeId": null,
+      "status": "unavailable",
+      "mode": "unavailable",
+      "accountRequired": false,
+      "audit": {
+        "level": "reachable-page",
+        "playbackTested": false,
+        "probes": [
+          {
+            "url": "https://reelix.ac",
+            "checkedAt": "2026-10-29T07:40:02.998029+00:00",
+            "level": "reachable-page",
+            "status": "unavailable",
+            "reason": "TimeoutError: The read operation timed out"
+          }
+        ],
+        "checkedAt": "2026-10-29T07:40:02.998029+00:00",
+        "selectedUrl": "https://reelix.ac"
+      },
+      "reason": "TimeoutError: The read operation timed out",
+      "browseUrl": "https://reelix.ac",
+      "excluded": true
+    },
+    {
+      "id": "redflix",
+      "name": "Redflix",
+      "url": "https://redflix.one/",
+      "alternateUrls": [],
+      "kinds": [
+        "movies"
+      ],
+      "categories": [
+        "streaming"
+      ],
+      "provenance": [
+        {
+          "page": "https://rentry.org/megathread-movies-and-tv",
+          "section": "Streaming Sites",
+          "anchor": "redflix",
+          "listedUrls": [
+            "https://redflix.one/"
+          ],
+          "heading": "▶️ Redflix"
+        }
+      ],
+      "nativeId": null,
+      "status": "reachable",
+      "mode": "site",
+      "accountRequired": false,
+      "audit": {
+        "level": "reachable-page",
+        "playbackTested": false,
+        "probes": [
+          {
+            "url": "https://redflix.one/",
+            "checkedAt": "2026-10-29T07:40:03.203276+00:00",
+            "level": "reachable-page",
+            "httpStatus": 200,
+            "finalUrl": "https://redflix.one/",
+            "bytesRead": 237210,
+            "status": "reachable",
+            "reason": "Homepage reachable; media playback/download was not tested.",
+            "title": "Redflix - Watch Free Movies &amp; TV Shows Online | No Login Required"
+          }
+        ],
+        "checkedAt": "2026-10-29T07:40:03.203276+00:00",
+        "selectedUrl": "https://redflix.one/"
+      },
+      "reason": "Homepage reachable; media playback/download was not tested.",
+      "browseUrl": "https://redflix.one/",
+      "excluded": false
+    },
+    {
+      "id": "rive",
+      "name": "Rive",
+      "url": "https://www.rivestream.app/",
+      "alternateUrls": [
+        "https://rivestream.ru/"
+      ],
+      "kinds": [
+        "movies"
+      ],
+      "categories": [
+        "streaming"
+      ],
+      "provenance": [
+        {
+          "page": "https://rentry.org/megathread-movies-and-tv",
+          "section": "Streaming Sites",
+          "anchor": "rive-alt",
+          "listedUrls": [
+            "https://www.rivestream.app/",
+            "https://rivestream.ru/"
+          ],
+          "heading": "▶️ Rive / Alt"
+        }
+      ],
+      "nativeId": null,
+      "status": "reachable",
+      "mode": "site",
+      "accountRequired": false,
+      "audit": {
+        "level": "reachable-page",
+        "playbackTested": false,
+        "probes": [
+          {
+            "url": "https://www.rivestream.app/",
+            "checkedAt": "2026-10-29T07:40:03.397071+00:00",
+            "level": "reachable-page",
+            "httpStatus": 200,
+            "finalUrl": "https://www.rivestream.app/",
+            "bytesRead": 54282,
+            "status": "reachable",
+            "reason": "Homepage reachable; media playback/download was not tested.",
+            "title": "Rive"
+          },
+          {
+            "url": "https://rivestream.ru/",
+            "checkedAt": "2026-10-29T07:40:03.443658+00:00",
+            "level": "reachable-page",
+            "httpStatus": 200,
+            "finalUrl": "https://rivestream.ru/",
+            "bytesRead": 54282,
+            "status": "reachable",
+            "reason": "Homepage reachable; media playback/download was not tested.",
+            "title": "Rive"
+          }
+        ],
+        "checkedAt": "2026-10-29T07:40:03.443658+00:00",
+        "selectedUrl": "https://www.rivestream.app/"
+      },
+      "reason": "Homepage reachable; media playback/download was not tested.",
+      "browseUrl": "https://www.rivestream.app/",
+      "excluded": false
+    },
+    {
+      "id": "screenopps",
+      "name": "Screenopps",
+      "url": "https://screenopps.com/",
+      "alternateUrls": [],
+      "kinds": [
+        "movies"
+      ],
+      "categories": [
+        "streaming"
+      ],
+      "provenance": [
+        {
+          "page": "https://rentry.org/megathread-movies-and-tv",
+          "section": "Streaming Sites",
+          "anchor": "screenopps",
+          "listedUrls": [
+            "https://screenopps.com/"
+          ],
+          "heading": "▶️ Screenopps"
+        }
+      ],
+      "nativeId": null,
+      "status": "reachable",
+      "mode": "site",
+      "accountRequired": false,
+      "audit": {
+        "level": "reachable-page",
+        "playbackTested": false,
+        "probes": [
+          {
+            "url": "https://screenopps.com/",
+            "checkedAt": "2026-10-29T07:40:03.464916+00:00",
+            "level": "reachable-page",
+            "httpStatus": 200,
+            "finalUrl": "https://screenopps.com/",
+            "bytesRead": 16654,
+            "status": "reachable",
+            "reason": "Homepage reachable; media playback/download was not tested.",
+            "title": "Screenopps || Movie and Entertainment"
+          }
+        ],
+        "checkedAt": "2026-10-29T07:40:03.464916+00:00",
+        "selectedUrl": "https://screenopps.com/"
+      },
+      "reason": "Homepage reachable; media playback/download was not tested.",
+      "browseUrl": "https://screenopps.com/",
+      "excluded": false
+    },
+    {
+      "id": "smashystream",
+      "name": "Smashystream",
+      "url": "https://smashystream.xyz/",
+      "alternateUrls": [
+        "https://flix.smashystream.xyz/"
+      ],
+      "kinds": [
+        "movies"
+      ],
+      "categories": [
+        "streaming"
+      ],
+      "provenance": [
+        {
+          "page": "https://rentry.org/megathread-movies-and-tv",
+          "section": "Streaming Sites",
+          "anchor": "smashystream-alt",
+          "listedUrls": [
+            "https://smashystream.xyz/",
+            "https://flix.smashystream.xyz/"
+          ],
+          "heading": "▶️ Smashystream / Alt"
+        }
+      ],
+      "nativeId": null,
+      "status": "unavailable",
+      "mode": "unavailable",
+      "accountRequired": false,
+      "audit": {
+        "level": "reachable-page",
+        "playbackTested": false,
+        "probes": [
+          {
+            "url": "https://smashystream.xyz/",
+            "checkedAt": "2026-10-29T07:40:03.610399+00:00",
+            "level": "reachable-page",
+            "status": "unavailable",
+            "reason": "URLError: <urlopen error [Errno -2] Name or service not known>"
+          },
+          {
+            "url": "https://flix.smashystream.xyz/",
+            "checkedAt": "2026-10-29T07:40:03.651672+00:00",
+            "level": "reachable-page",
+            "status": "unavailable",
+            "reason": "URLError: <urlopen error [Errno 104] Connection reset by peer>"
+          }
+        ],
+        "checkedAt": "2026-10-29T07:40:03.651672+00:00",
+        "selectedUrl": "https://smashystream.xyz/"
+      },
+      "reason": "URLError: <urlopen error [Errno -2] Name or service not known>",
+      "browseUrl": "https://smashystream.xyz/",
+      "excluded": true
+    },
+    {
+      "id": "uniquestream",
+      "name": "UniqueStream",
+      "url": "https://uniquestream.net/",
+      "alternateUrls": [],
+      "kinds": [
+        "movies"
+      ],
+      "categories": [
+        "streaming"
+      ],
+      "provenance": [
+        {
+          "page": "https://rentry.org/megathread-movies-and-tv",
+          "section": "Streaming Sites",
+          "anchor": "uniquestream",
+          "listedUrls": [
+            "https://uniquestream.net/"
+          ],
+          "heading": "▶️ UniqueStream"
+        }
+      ],
+      "nativeId": null,
+      "status": "reachable",
+      "mode": "site",
+      "accountRequired": false,
+      "audit": {
+        "level": "reachable-page",
+        "playbackTested": false,
+        "probes": [
+          {
+            "url": "https://uniquestream.net/",
+            "checkedAt": "2026-10-29T07:40:03.951782+00:00",
+            "level": "reachable-page",
+            "httpStatus": 200,
+            "finalUrl": "https://uniquestream.net/",
+            "bytesRead": 193559,
+            "status": "reachable",
+            "reason": "Homepage reachable; media playback/download was not tested.",
+            "title": "UniqueStream &#8211; Your #1 Streaming Source"
+          }
+        ],
+        "checkedAt": "2026-10-29T07:40:03.951782+00:00",
+        "selectedUrl": "https://uniquestream.net/"
+      },
+      "reason": "Homepage reachable; media playback/download was not tested.",
+      "browseUrl": "https://uniquestream.net/",
+      "excluded": false
+    },
+    {
+      "id": "vivarium",
+      "name": "Vivarium",
+      "url": "https://vivarium.su/",
+      "alternateUrls": [],
+      "kinds": [
+        "movies"
+      ],
+      "categories": [
+        "streaming"
+      ],
+      "provenance": [
+        {
+          "page": "https://rentry.org/megathread-movies-and-tv",
+          "section": "Streaming Sites",
+          "anchor": "vivarium",
+          "listedUrls": [
+            "https://vivarium.su/"
+          ],
+          "heading": "▶️ Vivarium"
+        }
+      ],
+      "nativeId": null,
+      "status": "reachable",
+      "mode": "site",
+      "accountRequired": false,
+      "audit": {
+        "level": "reachable-page",
+        "playbackTested": false,
+        "probes": [
+          {
+            "url": "https://vivarium.su/",
+            "checkedAt": "2026-10-29T07:40:03.984552+00:00",
+            "level": "reachable-page",
+            "httpStatus": 200,
+            "finalUrl": "https://vivarium.su/",
+            "bytesRead": 1229,
+            "status": "reachable",
+            "reason": "Homepage reachable; media playback/download was not tested.",
+            "title": "vivarium"
+          }
+        ],
+        "checkedAt": "2026-10-29T07:40:03.984552+00:00",
+        "selectedUrl": "https://vivarium.su/"
+      },
+      "reason": "Homepage reachable; media playback/download was not tested.",
+      "browseUrl": "https://vivarium.su/",
+      "excluded": false
+    },
+    {
+      "id": "vidplay",
+      "name": "VidPlay",
+      "url": "https://vidplay.top/",
+      "alternateUrls": [],
+      "kinds": [
+        "movies"
+      ],
+      "categories": [
+        "streaming"
+      ],
+      "provenance": [
+        {
+          "page": "https://rentry.org/megathread-movies-and-tv",
+          "section": "Streaming Sites",
+          "anchor": "vidplay",
+          "listedUrls": [
+            "https://vidplay.top/"
+          ],
+          "heading": "▶️ VidPlay"
+        }
+      ],
+      "nativeId": null,
+      "status": "reachable",
+      "mode": "site",
+      "accountRequired": false,
+      "audit": {
+        "level": "reachable-page",
+        "playbackTested": false,
+        "probes": [
+          {
+            "url": "https://vidplay.top/",
+            "checkedAt": "2026-10-29T07:40:04.060433+00:00",
+            "level": "reachable-page",
+            "httpStatus": 200,
+            "finalUrl": "https://vidplay.top/",
+            "bytesRead": 72342,
+            "status": "reachable",
+            "reason": "Homepage reachable; media playback/download was not tested.",
+            "title": "VidPlay - Stream Movies and Series Online Free in HD"
+          }
+        ],
+        "checkedAt": "2026-10-29T07:40:04.060433+00:00",
+        "selectedUrl": "https://vidplay.top/"
+      },
+      "reason": "Homepage reachable; media playback/download was not tested.",
+      "browseUrl": "https://vidplay.top/",
+      "excluded": false
+    },
+    {
+      "id": "yesmovies",
+      "name": "YesMovies",
+      "url": "https://yesmovies.ag/",
+      "alternateUrls": [],
+      "kinds": [
+        "movies"
+      ],
+      "categories": [
+        "streaming"
+      ],
+      "provenance": [
+        {
+          "page": "https://rentry.org/megathread-movies-and-tv",
+          "section": "Streaming Sites",
+          "anchor": "yesmovies",
+          "listedUrls": [
+            "https://yesmovies.ag/"
+          ],
+          "heading": "▶️ YesMovies"
+        }
+      ],
+      "nativeId": null,
+      "status": "reachable",
+      "mode": "site",
+      "accountRequired": false,
+      "audit": {
+        "level": "reachable-page",
+        "playbackTested": false,
+        "probes": [
+          {
+            "url": "https://yesmovies.ag/",
+            "checkedAt": "2026-10-29T07:40:05.719434+00:00",
+            "level": "reachable-page",
+            "httpStatus": 200,
+            "finalUrl": "https://ww2.yesmovies.ag/",
+            "bytesRead": 12498,
+            "status": "reachable",
+            "reason": "Homepage reachable; media playback/download was not tested.",
+            "title": "YesMovies.to | Watch FREE Movies Online & TV shows"
+          }
+        ],
+        "checkedAt": "2026-10-29T07:40:05.719434+00:00",
+        "selectedUrl": "https://yesmovies.ag/"
+      },
+      "reason": "Homepage reachable; media playback/download was not tested.",
+      "browseUrl": "https://yesmovies.ag/",
+      "excluded": false
+    },
+    {
+      "id": "yoyomovies",
+      "name": "YoYoMovies",
+      "url": "https://yoyomovies.net/",
+      "alternateUrls": [],
+      "kinds": [
+        "movies"
+      ],
+      "categories": [
+        "streaming"
+      ],
+      "provenance": [
+        {
+          "page": "https://rentry.org/megathread-movies-and-tv",
+          "section": "Streaming Sites",
+          "anchor": "yoyomovies",
+          "listedUrls": [
+            "https://yoyomovies.net/"
+          ],
+          "heading": "▶️ YoYoMovies"
+        }
+      ],
+      "nativeId": null,
+      "status": "unavailable",
+      "mode": "unavailable",
+      "accountRequired": false,
+      "audit": {
+        "level": "reachable-page",
+        "playbackTested": false,
+        "probes": [
+          {
+            "url": "https://yoyomovies.net/",
+            "checkedAt": "2026-10-29T07:40:05.808601+00:00",
+            "level": "reachable-page",
+            "status": "unavailable",
+            "reason": "URLError: <urlopen error [Errno -2] Name or service not known>"
+          }
+        ],
+        "checkedAt": "2026-10-29T07:40:05.808601+00:00",
+        "selectedUrl": "https://yoyomovies.net/"
+      },
+      "reason": "URLError: <urlopen error [Errno -2] Name or service not known>",
+      "browseUrl": "https://yoyomovies.net/",
+      "excluded": true
+    },
+    {
+      "id": "zstream",
+      "name": "Zstream",
+      "url": "https://zstream.mov/",
+      "alternateUrls": [],
+      "kinds": [
+        "movies"
+      ],
+      "categories": [
+        "streaming"
+      ],
+      "provenance": [
+        {
+          "page": "https://rentry.org/megathread-movies-and-tv",
+          "section": "Streaming Sites",
+          "anchor": "zstream",
+          "listedUrls": [
+            "https://zstream.mov/"
+          ],
+          "heading": "▶️ Zstream"
+        }
+      ],
+      "nativeId": null,
+      "status": "unavailable",
+      "mode": "unavailable",
+      "accountRequired": false,
+      "audit": {
+        "level": "reachable-page",
+        "playbackTested": false,
+        "probes": [
+          {
+            "url": "https://zstream.mov/",
+            "checkedAt": "2026-10-29T07:40:05.902491+00:00",
+            "level": "reachable-page",
+            "status": "unavailable",
+            "reason": "URLError: <urlopen error [Errno -2] Name or service not known>"
+          }
+        ],
+        "checkedAt": "2026-10-29T07:40:05.902491+00:00",
+        "selectedUrl": "https://zstream.mov/"
+      },
+      "reason": "URLError: <urlopen error [Errno -2] Name or service not known>",
+      "browseUrl": "https://zstream.mov/",
+      "excluded": true
+    },
+    {
+      "id": "eztv",
+      "name": "EZTV",
+      "url": "https://eztvx.to/",
+      "alternateUrls": [
+        "https://eztvstatus.org/"
+      ],
+      "kinds": [
+        "movies"
+      ],
+      "categories": [
+        "torrent"
+      ],
+      "provenance": [
+        {
+          "page": "https://rentry.org/megathread-movies-and-tv",
+          "section": "Torrent Sites",
+          "anchor": "eztv-alt",
+          "listedUrls": [
+            "https://eztvx.to/",
+            "https://eztvstatus.org/"
+          ],
+          "heading": "🐐 EZTV / Alt"
+        }
+      ],
+      "nativeId": null,
+      "status": "directory",
+      "mode": "site",
+      "accountRequired": false,
+      "audit": {
+        "level": "reachable-page",
+        "playbackTested": false,
+        "probes": [
+          {
+            "url": "https://eztvx.to/",
+            "checkedAt": "2026-10-29T07:40:05.979356+00:00",
+            "level": "reachable-page",
+            "status": "unavailable",
+            "reason": "URLError: <urlopen error [Errno -2] Name or service not known>"
+          },
+          {
+            "url": "https://eztvstatus.org/",
+            "checkedAt": "2026-10-29T07:40:06.096633+00:00",
+            "level": "reachable-page",
+            "httpStatus": 200,
+            "finalUrl": "https://eztvstatus.org/",
+            "bytesRead": 5282,
+            "status": "directory",
+            "reason": "Listed mirror/status directory; homepage only.",
+            "title": "EZTV Torrents Official Site Proxies up/down - Availability Status"
+          }
+        ],
+        "checkedAt": "2026-10-29T07:40:06.096633+00:00",
+        "selectedUrl": "https://eztvstatus.org/"
+      },
+      "reason": "Listed mirror/status directory; homepage only.",
+      "browseUrl": "https://eztvstatus.org/",
+      "excluded": false
+    },
+    {
+      "id": "msearch",
+      "name": "MSearch",
+      "url": "https://msearch.vercel.app/",
+      "alternateUrls": [],
+      "kinds": [
+        "movies"
+      ],
+      "categories": [
+        "torrent"
+      ],
+      "provenance": [
+        {
+          "page": "https://rentry.org/megathread-movies-and-tv",
+          "section": "Torrent Sites",
+          "anchor": "msearch",
+          "listedUrls": [
+            "https://msearch.vercel.app/"
+          ],
+          "heading": "🧲 MSearch"
+        }
+      ],
+      "nativeId": null,
+      "status": "reachable",
+      "mode": "site",
+      "accountRequired": false,
+      "audit": {
+        "level": "reachable-page",
+        "playbackTested": false,
+        "probes": [
+          {
+            "url": "https://msearch.vercel.app/",
+            "checkedAt": "2026-10-29T07:40:06.241783+00:00",
+            "level": "reachable-page",
+            "httpStatus": 200,
+            "finalUrl": "https://msearch.vercel.app/",
+            "bytesRead": 9621,
+            "status": "reachable",
+            "reason": "Homepage reachable; media playback/download was not tested.",
+            "title": "MSearch"
+          }
+        ],
+        "checkedAt": "2026-10-29T07:40:06.241783+00:00",
+        "selectedUrl": "https://msearch.vercel.app/"
+      },
+      "reason": "Homepage reachable; media playback/download was not tested.",
+      "browseUrl": "https://msearch.vercel.app/",
+      "excluded": false
+    },
+    {
+      "id": "1337x-movies",
+      "name": "1337x Movies",
+      "url": "https://1337x.to/movie-library/1/",
+      "alternateUrls": [],
+      "kinds": [
+        "movies"
+      ],
+      "categories": [
+        "torrent"
+      ],
+      "provenance": [
+        {
+          "page": "https://rentry.org/megathread-movies-and-tv",
+          "section": "Torrent Sites",
+          "anchor": "1337x-movies",
+          "listedUrls": [
+            "https://1337x.to/movie-library/1/"
+          ],
+          "heading": "🧲 1337x Movies"
+        }
+      ],
+      "nativeId": null,
+      "status": "verification-wall",
+      "mode": "unavailable",
+      "accountRequired": false,
+      "audit": {
+        "level": "reachable-page",
+        "playbackTested": false,
+        "probes": [
+          {
+            "url": "https://1337x.to/movie-library/1/",
+            "checkedAt": "2026-10-29T07:40:06.242053+00:00",
+            "level": "reachable-page",
+            "httpStatus": 403,
+            "finalUrl": "https://1337x.to/movie-library/1/",
+            "bytesRead": 5611,
+            "status": "verification-wall",
+            "reason": "Explicit browser/human verification wall; excluded without bypass.",
+            "title": "Just a moment..."
+          }
+        ],
+        "checkedAt": "2026-10-29T07:40:06.242053+00:00",
+        "selectedUrl": "https://1337x.to/movie-library/1/"
+      },
+      "reason": "Explicit browser/human verification wall; excluded without bypass.",
+      "browseUrl": "https://1337x.to/movie-library/1/",
+      "excluded": true
+    },
+    {
+      "id": "yts",
+      "name": "YTS",
+      "url": "https://yts.lt/",
+      "alternateUrls": [],
+      "kinds": [
+        "movies"
+      ],
+      "categories": [
+        "torrent"
+      ],
+      "provenance": [
+        {
+          "page": "https://rentry.org/megathread-movies-and-tv",
+          "section": "Torrent Sites",
+          "anchor": "yts",
+          "listedUrls": [
+            "https://yts.lt/"
+          ],
+          "heading": "🧲 YTS"
+        }
+      ],
+      "nativeId": "yts",
+      "status": "reachable",
+      "mode": "native",
+      "accountRequired": false,
+      "audit": {
+        "level": "reachable-page",
+        "playbackTested": false,
+        "probes": [
+          {
+            "url": "https://yts.lt/",
+            "checkedAt": "2026-10-29T07:40:06.468722+00:00",
+            "level": "reachable-page",
+            "httpStatus": 200,
+            "finalUrl": "https://web.yts.gg/",
+            "bytesRead": 714236,
+            "status": "reachable",
+            "reason": "Homepage reachable; media playback/download was not tested.",
+            "title": "YTS - The New Official Home of YTS YIFY Movies (Formerly YTS.MX)"
+          }
+        ],
+        "checkedAt": "2026-10-29T07:40:06.468722+00:00",
+        "selectedUrl": "https://yts.lt/"
+      },
+      "reason": "Homepage reachable; media playback/download was not tested.",
+      "browseUrl": "https://yts.lt/",
+      "excluded": false
+    },
+    {
+      "id": "limetorrents",
+      "name": "LimeTorrents",
+      "url": "https://www.limetorrents.lol/",
+      "alternateUrls": [],
+      "kinds": [
+        "movies"
+      ],
+      "categories": [
+        "torrent"
+      ],
+      "provenance": [
+        {
+          "page": "https://rentry.org/megathread-movies-and-tv",
+          "section": "Torrent Sites",
+          "anchor": "limetorrents",
+          "listedUrls": [
+            "https://www.limetorrents.lol/"
+          ],
+          "heading": "🧲 LimeTorrents"
+        }
+      ],
+      "nativeId": null,
+      "status": "reachable",
+      "mode": "site",
+      "accountRequired": false,
+      "audit": {
+        "level": "reachable-page",
+        "playbackTested": false,
+        "probes": [
+          {
+            "url": "https://www.limetorrents.lol/",
+            "checkedAt": "2026-10-29T07:40:06.577499+00:00",
+            "level": "reachable-page",
+            "httpStatus": 200,
+            "finalUrl": "https://www.limetorrents.fun/",
+            "bytesRead": 8362,
+            "status": "reachable",
+            "reason": "Homepage reachable; media playback/download was not tested.",
+            "title": "LimeTorrents - Download Verified Torrents"
+          }
+        ],
+        "checkedAt": "2026-10-29T07:40:06.577499+00:00",
+        "selectedUrl": "https://www.limetorrents.lol/"
+      },
+      "reason": "Homepage reachable; media playback/download was not tested.",
+      "browseUrl": "https://www.limetorrents.lol/",
+      "excluded": false
+    },
+    {
+      "id": "anime-tosho",
+      "name": "Anime Tosho",
+      "url": "https://animetosho.org/",
+      "alternateUrls": [],
+      "kinds": [
+        "anime"
+      ],
+      "categories": [
+        "direct-download"
+      ],
+      "provenance": [
+        {
+          "page": "https://rentry.org/megathread-anime",
+          "section": "Direct Downloads",
+          "anchor": "anime-tosho",
+          "listedUrls": [
+            "https://animetosho.org/"
+          ],
+          "heading": "🐐 Anime Tosho"
+        }
+      ],
+      "nativeId": "animetosho",
+      "status": "reachable",
+      "mode": "native",
+      "accountRequired": false,
+      "audit": {
+        "level": "reachable-page",
+        "playbackTested": false,
+        "probes": [
+          {
+            "url": "https://animetosho.org/",
+            "checkedAt": "2026-10-29T07:40:06.593311+00:00",
+            "level": "reachable-page",
+            "httpStatus": 200,
+            "finalUrl": "https://animetosho.org/",
+            "bytesRead": 179592,
+            "status": "reachable",
+            "reason": "Homepage reachable; media playback/download was not tested.",
+            "title": "Anime Tosho | Anime Tosho"
+          }
+        ],
+        "checkedAt": "2026-10-29T07:40:06.593311+00:00",
+        "selectedUrl": "https://animetosho.org/"
+      },
+      "reason": "Homepage reachable; media playback/download was not tested.",
+      "browseUrl": "https://animetosho.org/",
+      "excluded": false
+    },
+    {
+      "id": "tokyo-insider",
+      "name": "Tokyo Insider",
+      "url": "https://www.tokyoinsider.com/",
+      "alternateUrls": [],
+      "kinds": [
+        "anime"
+      ],
+      "categories": [
+        "direct-download"
+      ],
+      "provenance": [
+        {
+          "page": "https://rentry.org/megathread-anime",
+          "section": "Direct Downloads",
+          "anchor": "tokyo-insider",
+          "listedUrls": [
+            "https://www.tokyoinsider.com/"
+          ],
+          "heading": "🔗 Tokyo Insider"
+        }
+      ],
+      "nativeId": null,
+      "status": "reachable",
+      "mode": "site",
+      "accountRequired": false,
+      "audit": {
+        "level": "reachable-page",
+        "playbackTested": false,
+        "probes": [
+          {
+            "url": "https://www.tokyoinsider.com/",
+            "checkedAt": "2026-10-29T07:40:06.628752+00:00",
+            "level": "reachable-page",
+            "httpStatus": 200,
+            "finalUrl": "https://www.tokyoinsider.com/",
+            "bytesRead": 131965,
+            "status": "reachable",
+            "reason": "Homepage reachable; media playback/download was not tested.",
+            "title": "Home @ Tokyo Insider"
+          }
+        ],
+        "checkedAt": "2026-10-29T07:40:06.628752+00:00",
+        "selectedUrl": "https://www.tokyoinsider.com/"
+      },
+      "reason": "Homepage reachable; media playback/download was not tested.",
+      "browseUrl": "https://www.tokyoinsider.com/",
+      "excluded": false
+    },
+    {
+      "id": "kayoanime",
+      "name": "Kayoanime",
+      "url": "https://kayoanime.com/",
+      "alternateUrls": [],
+      "kinds": [
+        "anime"
+      ],
+      "categories": [
+        "direct-download"
+      ],
+      "provenance": [
+        {
+          "page": "https://rentry.org/megathread-anime",
+          "section": "Direct Downloads",
+          "anchor": "kayoanime-google-group",
+          "listedUrls": [
+            "https://kayoanime.com/"
+          ],
+          "heading": "🔗 Kayoanime • Google Group"
+        }
+      ],
+      "nativeId": null,
+      "status": "reachable",
+      "mode": "site",
+      "accountRequired": false,
+      "audit": {
+        "level": "reachable-page",
+        "playbackTested": false,
+        "probes": [
+          {
+            "url": "https://kayoanime.com/",
+            "checkedAt": "2026-10-29T07:40:06.630483+00:00",
+            "level": "reachable-page",
+            "httpStatus": 200,
+            "finalUrl": "https://kayoanime.com/",
+            "bytesRead": 178579,
+            "status": "reachable",
+            "reason": "Homepage reachable; media playback/download was not tested.",
+            "title": "Kayoanime » News, Reviews &amp; Updates of Anime"
+          }
+        ],
+        "checkedAt": "2026-10-29T07:40:06.630483+00:00",
+        "selectedUrl": "https://kayoanime.com/"
+      },
+      "reason": "Homepage reachable; media playback/download was not tested.",
+      "browseUrl": "https://kayoanime.com/",
+      "excluded": false
+    },
+    {
+      "id": "chauthanh",
+      "name": "ChauThanh",
+      "url": "https://chauthanh.info/",
+      "alternateUrls": [],
+      "kinds": [
+        "anime"
+      ],
+      "categories": [
+        "direct-download"
+      ],
+      "provenance": [
+        {
+          "page": "https://rentry.org/megathread-anime",
+          "section": "Direct Downloads",
+          "anchor": "chauthanh",
+          "listedUrls": [
+            "https://chauthanh.info/"
+          ],
+          "heading": "🔗 ChauThanh"
+        }
+      ],
+      "nativeId": null,
+      "status": "reachable",
+      "mode": "site",
+      "accountRequired": false,
+      "audit": {
+        "level": "reachable-page",
+        "playbackTested": false,
+        "probes": [
+          {
+            "url": "https://chauthanh.info/",
+            "checkedAt": "2026-10-29T07:40:06.643331+00:00",
+            "level": "reachable-page",
+            "httpStatus": 200,
+            "finalUrl": "https://chauthanh.info/",
+            "bytesRead": 40797,
+            "status": "reachable",
+            "reason": "Homepage reachable; media playback/download was not tested.",
+            "title": "Download anime and drama free"
+          }
+        ],
+        "checkedAt": "2026-10-29T07:40:06.643331+00:00",
+        "selectedUrl": "https://chauthanh.info/"
+      },
+      "reason": "Homepage reachable; media playback/download was not tested.",
+      "browseUrl": "https://chauthanh.info/",
+      "excluded": false
+    },
+    {
+      "id": "animepahe",
+      "name": "AnimePahe",
+      "url": "https://animepahe.pw/",
+      "alternateUrls": [],
+      "kinds": [
+        "anime"
+      ],
+      "categories": [
+        "streaming"
+      ],
+      "provenance": [
+        {
+          "page": "https://rentry.org/megathread-anime",
+          "section": "Streaming Sites",
+          "anchor": "animepahe",
+          "listedUrls": [
+            "https://animepahe.pw/"
+          ],
+          "heading": "🐐 AnimePahe"
+        }
+      ],
+      "nativeId": null,
+      "status": "unavailable",
+      "mode": "unavailable",
+      "accountRequired": false,
+      "audit": {
+        "level": "reachable-page",
+        "playbackTested": false,
+        "probes": [
+          {
+            "url": "https://animepahe.pw/",
+            "checkedAt": "2026-10-29T07:40:07.224855+00:00",
+            "level": "reachable-page",
+            "httpStatus": 403,
+            "finalUrl": "https://animepahe.pw/",
+            "bytesRead": 5411,
+            "status": "unavailable",
+            "reason": "HTTP 403; page access failed.",
+            "title": "Attention Required! | Cloudflare"
+          }
+        ],
+        "checkedAt": "2026-10-29T07:40:07.224855+00:00",
+        "selectedUrl": "https://animepahe.pw/"
+      },
+      "reason": "HTTP 403; page access failed.",
+      "browseUrl": "https://animepahe.pw/",
+      "excluded": true
+    },
+    {
+      "id": "miruro",
+      "name": "Miruro",
+      "url": "https://www.miruro.tv/",
+      "alternateUrls": [],
+      "kinds": [
+        "anime"
+      ],
+      "categories": [
+        "streaming"
+      ],
+      "provenance": [
+        {
+          "page": "https://rentry.org/megathread-anime",
+          "section": "Streaming Sites",
+          "anchor": "miruro",
+          "listedUrls": [
+            "https://www.miruro.tv/"
+          ],
+          "heading": "🐐 Miruro"
+        }
+      ],
+      "nativeId": null,
+      "status": "reachable",
+      "mode": "site",
+      "accountRequired": false,
+      "audit": {
+        "level": "reachable-page",
+        "playbackTested": false,
+        "probes": [
+          {
+            "url": "https://www.miruro.tv/",
+            "checkedAt": "2026-10-29T07:40:07.285371+00:00",
+            "level": "reachable-page",
+            "httpStatus": 200,
+            "finalUrl": "https://www.miruro.tv/",
+            "bytesRead": 44664,
+            "status": "reachable",
+            "reason": "Homepage reachable; media playback/download was not tested.",
+            "title": "Miruro · Watch Anime Online Free · Stream Sub &amp; Dub in HD"
+          }
+        ],
+        "checkedAt": "2026-10-29T07:40:07.285371+00:00",
+        "selectedUrl": "https://www.miruro.tv/"
+      },
+      "reason": "Homepage reachable; media playback/download was not tested.",
+      "browseUrl": "https://www.miruro.tv/",
+      "excluded": false
+    },
+    {
+      "id": "anidap",
+      "name": "Anidap",
+      "url": "https://anidap.se/",
+      "alternateUrls": [],
+      "kinds": [
+        "anime"
+      ],
+      "categories": [
+        "streaming"
+      ],
+      "provenance": [
+        {
+          "page": "https://rentry.org/megathread-anime",
+          "section": "Streaming Sites",
+          "anchor": "anidap",
+          "listedUrls": [
+            "https://anidap.se/"
+          ],
+          "heading": "▶️ Anidap"
+        }
+      ],
+      "nativeId": null,
+      "status": "unavailable",
+      "mode": "unavailable",
+      "accountRequired": false,
+      "audit": {
+        "level": "reachable-page",
+        "playbackTested": false,
+        "probes": [
+          {
+            "url": "https://anidap.se/",
+            "checkedAt": "2026-10-29T07:40:07.500049+00:00",
+            "level": "reachable-page",
+            "status": "unavailable",
+            "reason": "URLError: <urlopen error [Errno -2] Name or service not known>"
+          }
+        ],
+        "checkedAt": "2026-10-29T07:40:07.500049+00:00",
+        "selectedUrl": "https://anidap.se/"
+      },
+      "reason": "URLError: <urlopen error [Errno -2] Name or service not known>",
+      "browseUrl": "https://anidap.se/",
+      "excluded": true
+    },
+    {
+      "id": "anihq",
+      "name": "AniHQ",
+      "url": "https://anihq.cc/",
+      "alternateUrls": [],
+      "kinds": [
+        "anime"
+      ],
+      "categories": [
+        "streaming"
+      ],
+      "provenance": [
+        {
+          "page": "https://rentry.org/megathread-anime",
+          "section": "Streaming Sites",
+          "anchor": "anihq",
+          "listedUrls": [
+            "https://anihq.cc/"
+          ],
+          "heading": "▶️ AniHQ"
+        }
+      ],
+      "nativeId": null,
+      "status": "verification-wall",
+      "mode": "unavailable",
+      "accountRequired": false,
+      "audit": {
+        "level": "reachable-page",
+        "playbackTested": false,
+        "probes": [
+          {
+            "url": "https://anihq.cc/",
+            "checkedAt": "2026-10-29T07:40:07.549559+00:00",
+            "level": "reachable-page",
+            "httpStatus": 403,
+            "finalUrl": "https://anihq.cc/",
+            "bytesRead": 5452,
+            "status": "verification-wall",
+            "reason": "Explicit browser/human verification wall; excluded without bypass.",
+            "title": "Just a moment..."
+          }
+        ],
+        "checkedAt": "2026-10-29T07:40:07.549559+00:00",
+        "selectedUrl": "https://anihq.cc/"
+      },
+      "reason": "Explicit browser/human verification wall; excluded without bypass.",
+      "browseUrl": "https://anihq.cc/",
+      "excluded": true
+    },
+    {
+      "id": "anikuro",
+      "name": "Anikuro",
+      "url": "https://anikuro.to/",
+      "alternateUrls": [],
+      "kinds": [
+        "anime"
+      ],
+      "categories": [
+        "streaming"
+      ],
+      "provenance": [
+        {
+          "page": "https://rentry.org/megathread-anime",
+          "section": "Streaming Sites",
+          "anchor": "anikuro",
+          "listedUrls": [
+            "https://anikuro.to/"
+          ],
+          "heading": "▶️ Anikuro"
+        }
+      ],
+      "nativeId": null,
+      "status": "unavailable",
+      "mode": "unavailable",
+      "accountRequired": false,
+      "audit": {
+        "level": "reachable-page",
+        "playbackTested": false,
+        "probes": [
+          {
+            "url": "https://anikuro.to/",
+            "checkedAt": "2026-10-29T07:40:07.572070+00:00",
+            "level": "reachable-page",
+            "status": "unavailable",
+            "reason": "TimeoutError: The read operation timed out"
+          }
+        ],
+        "checkedAt": "2026-10-29T07:40:07.572070+00:00",
+        "selectedUrl": "https://anikuro.to/"
+      },
+      "reason": "TimeoutError: The read operation timed out",
+      "browseUrl": "https://anikuro.to/",
+      "excluded": true
+    },
+    {
+      "id": "animenana",
+      "name": "AnimeNana",
+      "url": "https://animenana.com/",
+      "alternateUrls": [],
+      "kinds": [
+        "anime"
+      ],
+      "categories": [
+        "streaming"
+      ],
+      "provenance": [
+        {
+          "page": "https://rentry.org/megathread-anime",
+          "section": "Streaming Sites",
+          "anchor": "animenana",
+          "listedUrls": [
+            "https://animenana.com/"
+          ],
+          "heading": "▶️ AnimeNana"
+        }
+      ],
+      "nativeId": null,
+      "status": "reachable",
+      "mode": "site",
+      "accountRequired": false,
+      "audit": {
+        "level": "reachable-page",
+        "playbackTested": false,
+        "probes": [
+          {
+            "url": "https://animenana.com/",
+            "checkedAt": "2026-10-29T07:40:07.610201+00:00",
+            "level": "reachable-page",
+            "httpStatus": 200,
+            "finalUrl": "https://animenana.com/",
+            "bytesRead": 129640,
+            "status": "reachable",
+            "reason": "Homepage reachable; media playback/download was not tested.",
+            "title": "AnimeNana"
+          }
+        ],
+        "checkedAt": "2026-10-29T07:40:07.610201+00:00",
+        "selectedUrl": "https://animenana.com/"
+      },
+      "reason": "Homepage reachable; media playback/download was not tested.",
+      "browseUrl": "https://animenana.com/",
+      "excluded": false
+    },
+    {
+      "id": "animeparadise",
+      "name": "AnimeParadise",
+      "url": "https://www.animeparadise.moe/",
+      "alternateUrls": [],
+      "kinds": [
+        "anime"
+      ],
+      "categories": [
+        "streaming"
+      ],
+      "provenance": [
+        {
+          "page": "https://rentry.org/megathread-anime",
+          "section": "Streaming Sites",
+          "anchor": "animeparadise",
+          "listedUrls": [
+            "https://www.animeparadise.moe/"
+          ],
+          "heading": "▶️ AnimeParadise"
+        }
+      ],
+      "nativeId": null,
+      "status": "reachable",
+      "mode": "site",
+      "accountRequired": false,
+      "audit": {
+        "level": "reachable-page",
+        "playbackTested": false,
+        "probes": [
+          {
+            "url": "https://www.animeparadise.moe/",
+            "checkedAt": "2026-10-29T07:40:07.697885+00:00",
+            "level": "reachable-page",
+            "httpStatus": 200,
+            "finalUrl": "https://www.animeparadise.moe/",
+            "bytesRead": 73349,
+            "status": "reachable",
+            "reason": "Homepage reachable; media playback/download was not tested.",
+            "title": "Watch Free Anime Online in HD · AnimeParadise.moe"
+          }
+        ],
+        "checkedAt": "2026-10-29T07:40:07.697885+00:00",
+        "selectedUrl": "https://www.animeparadise.moe/"
+      },
+      "reason": "Homepage reachable; media playback/download was not tested.",
+      "browseUrl": "https://www.animeparadise.moe/",
+      "excluded": false
+    },
+    {
+      "id": "animesilo",
+      "name": "AnimeSilo",
+      "url": "https://animesilo.cc/",
+      "alternateUrls": [],
+      "kinds": [
+        "anime"
+      ],
+      "categories": [
+        "streaming"
+      ],
+      "provenance": [
+        {
+          "page": "https://rentry.org/megathread-anime",
+          "section": "Streaming Sites",
+          "anchor": "animesilo",
+          "listedUrls": [
+            "https://animesilo.cc/"
+          ],
+          "heading": "▶️ AnimeSilo"
+        }
+      ],
+      "nativeId": null,
+      "status": "unavailable",
+      "mode": "unavailable",
+      "accountRequired": false,
+      "audit": {
+        "level": "reachable-page",
+        "playbackTested": false,
+        "probes": [
+          {
+            "url": "https://animesilo.cc/",
+            "checkedAt": "2026-10-29T07:40:07.831512+00:00",
+            "level": "reachable-page",
+            "httpStatus": 403,
+            "finalUrl": "https://animesilo.cc/",
+            "bytesRead": 5876,
+            "status": "unavailable",
+            "reason": "HTTP 403; page access failed.",
+            "title": "Attention Required! | Cloudflare"
+          }
+        ],
+        "checkedAt": "2026-10-29T07:40:07.831512+00:00",
+        "selectedUrl": "https://animesilo.cc/"
+      },
+      "reason": "HTTP 403; page access failed.",
+      "browseUrl": "https://animesilo.cc/",
+      "excluded": true
+    },
+    {
+      "id": "animenosub",
+      "name": "AnimeNoSub",
+      "url": "https://animenosub.to/",
+      "alternateUrls": [],
+      "kinds": [
+        "anime"
+      ],
+      "categories": [
+        "streaming"
+      ],
+      "provenance": [
+        {
+          "page": "https://rentry.org/megathread-anime",
+          "section": "Streaming Sites",
+          "anchor": "animenosub",
+          "listedUrls": [
+            "https://animenosub.to/"
+          ],
+          "heading": "▶️ AnimeNoSub"
+        }
+      ],
+      "nativeId": null,
+      "status": "reachable",
+      "mode": "site",
+      "accountRequired": false,
+      "audit": {
+        "level": "reachable-page",
+        "playbackTested": false,
+        "probes": [
+          {
+            "url": "https://animenosub.to/",
+            "checkedAt": "2026-10-29T07:40:08.103246+00:00",
+            "level": "reachable-page",
+            "httpStatus": 200,
+            "finalUrl": "https://animenosub.to/",
+            "bytesRead": 326318,
+            "status": "reachable",
+            "reason": "Homepage reachable; media playback/download was not tested.",
+            "title": "Animenosub – Watch Anime Online Free In English Sub &amp; Dub"
+          }
+        ],
+        "checkedAt": "2026-10-29T07:40:08.103246+00:00",
+        "selectedUrl": "https://animenosub.to/"
+      },
+      "reason": "Homepage reachable; media playback/download was not tested.",
+      "browseUrl": "https://animenosub.to/",
+      "excluded": false
+    },
+    {
+      "id": "anizone",
+      "name": "AniZone",
+      "url": "https://anizone.to/",
+      "alternateUrls": [],
+      "kinds": [
+        "anime"
+      ],
+      "categories": [
+        "streaming"
+      ],
+      "provenance": [
+        {
+          "page": "https://rentry.org/megathread-anime",
+          "section": "Streaming Sites",
+          "anchor": "anizone",
+          "listedUrls": [
+            "https://anizone.to/"
+          ],
+          "heading": "▶️ AniZone"
+        }
+      ],
+      "nativeId": "anizone",
+      "status": "reachable",
+      "mode": "native",
+      "accountRequired": false,
+      "audit": {
+        "level": "reachable-page",
+        "playbackTested": false,
+        "probes": [
+          {
+            "url": "https://anizone.to/",
+            "checkedAt": "2026-10-29T07:40:08.243501+00:00",
+            "level": "reachable-page",
+            "httpStatus": 200,
+            "finalUrl": "https://anizone.to/",
+            "bytesRead": 71325,
+            "status": "reachable",
+            "reason": "Homepage reachable; media playback/download was not tested.",
+            "title": "Home — AniZone"
+          }
+        ],
+        "checkedAt": "2026-10-29T07:40:08.243501+00:00",
+        "selectedUrl": "https://anizone.to/"
+      },
+      "reason": "Homepage reachable; media playback/download was not tested.",
+      "browseUrl": "https://anizone.to/",
+      "excluded": false
+    },
+    {
+      "id": "re-anime",
+      "name": "Re:Anime",
+      "url": "https://reanime.to/",
+      "alternateUrls": [
+        "https://reindex.to/",
+        "https://reanime.wtf/"
+      ],
+      "kinds": [
+        "anime"
+      ],
+      "categories": [
+        "streaming"
+      ],
+      "provenance": [
+        {
+          "page": "https://rentry.org/megathread-anime",
+          "section": "Streaming Sites",
+          "anchor": "reanime-alt-alt",
+          "listedUrls": [
+            "https://reanime.to/",
+            "https://reindex.to/",
+            "https://reanime.wtf/"
+          ],
+          "heading": "▶️ Re:Anime / Alt / Alt"
+        }
+      ],
+      "nativeId": null,
+      "status": "reachable",
+      "mode": "site",
+      "accountRequired": false,
+      "audit": {
+        "level": "reachable-page",
+        "playbackTested": false,
+        "probes": [
+          {
+            "url": "https://reanime.to/",
+            "checkedAt": "2026-10-29T07:40:08.428462+00:00",
+            "level": "reachable-page",
+            "httpStatus": 200,
+            "finalUrl": "https://reanime.to/",
+            "bytesRead": 75848,
+            "status": "reachable",
+            "reason": "Homepage reachable; media playback/download was not tested.",
+            "title": "Re:ANIME — Stream Anime Free Online"
+          },
+          {
+            "url": "https://reindex.to/",
+            "checkedAt": "2026-10-29T07:40:08.564935+00:00",
+            "level": "reachable-page",
+            "httpStatus": 200,
+            "finalUrl": "https://reindex.to/",
+            "bytesRead": 11780,
+            "status": "directory",
+            "reason": "Listed mirror/status directory; homepage only.",
+            "title": "Re:ANIME · Official Domains"
+          },
+          {
+            "url": "https://reanime.wtf/",
+            "checkedAt": "2026-10-29T07:40:08.700266+00:00",
+            "level": "reachable-page",
+            "httpStatus": 200,
+            "finalUrl": "https://reanime.wtf/",
+            "bytesRead": 74911,
+            "status": "reachable",
+            "reason": "Homepage reachable; media playback/download was not tested.",
+            "title": "Re:ANIME — Stream Anime Free Online"
+          }
+        ],
+        "checkedAt": "2026-10-29T07:40:08.700266+00:00",
+        "selectedUrl": "https://reanime.to/"
+      },
+      "reason": "Homepage reachable; media playback/download was not tested.",
+      "browseUrl": "https://reanime.to/",
+      "excluded": false
+    },
+    {
+      "id": "flixer",
+      "name": "Flixer",
+      "url": "https://flixer.su/",
+      "alternateUrls": [],
+      "kinds": [
+        "anime"
+      ],
+      "categories": [
+        "streaming"
+      ],
+      "provenance": [
+        {
+          "page": "https://rentry.org/megathread-anime",
+          "section": "Streaming Sites",
+          "anchor": "flixer",
+          "listedUrls": [
+            "https://flixer.su/"
+          ],
+          "heading": "▶️ Flixer"
+        }
+      ],
+      "nativeId": null,
+      "status": "reachable",
+      "mode": "site",
+      "accountRequired": false,
+      "audit": {
+        "level": "reachable-page",
+        "playbackTested": false,
+        "probes": [
+          {
+            "url": "https://flixer.su/",
+            "checkedAt": "2026-10-29T07:40:08.769489+00:00",
+            "level": "reachable-page",
+            "httpStatus": 200,
+            "finalUrl": "https://flixer.su/",
+            "bytesRead": 44160,
+            "status": "reachable",
+            "reason": "Homepage reachable; media playback/download was not tested.",
+            "title": "FLIXER - Stream Movies & TV Shows Free Online | Free Entertainment Platform"
+          }
+        ],
+        "checkedAt": "2026-10-29T07:40:08.769489+00:00",
+        "selectedUrl": "https://flixer.su/"
+      },
+      "reason": "Homepage reachable; media playback/download was not tested.",
+      "browseUrl": "https://flixer.su/",
+      "excluded": false
+    },
+    {
+      "id": "wcofun",
+      "name": "WcoFun",
+      "url": "https://wcofun.org/",
+      "alternateUrls": [
+        "https://www.wco.tv/"
+      ],
+      "kinds": [
+        "anime"
+      ],
+      "categories": [
+        "streaming"
+      ],
+      "provenance": [
+        {
+          "page": "https://rentry.org/megathread-anime",
+          "section": "Streaming Sites",
+          "anchor": "wcofun-alt",
+          "listedUrls": [
+            "https://wcofun.org/",
+            "https://www.wco.tv/"
+          ],
+          "heading": "▶️ WcoFun / Alt"
+        }
+      ],
+      "nativeId": null,
+      "status": "reachable",
+      "mode": "site",
+      "accountRequired": false,
+      "audit": {
+        "level": "reachable-page",
+        "playbackTested": false,
+        "probes": [
+          {
+            "url": "https://wcofun.org/",
+            "checkedAt": "2026-10-29T07:40:08.880294+00:00",
+            "level": "reachable-page",
+            "httpStatus": 200,
+            "finalUrl": "https://www.wcoflix.tv/",
+            "bytesRead": 228155,
+            "status": "reachable",
+            "reason": "Homepage reachable; media playback/download was not tested.",
+            "title": "Watch Cartoons and Anime Online in HD for Free"
+          },
+          {
+            "url": "https://www.wco.tv/",
+            "checkedAt": "2026-10-29T07:40:08.880589+00:00",
+            "level": "reachable-page",
+            "httpStatus": 200,
+            "finalUrl": "https://www.wco.tv/",
+            "bytesRead": 166564,
+            "status": "reachable",
+            "reason": "Homepage reachable; media playback/download was not tested.",
+            "title": "Watch Cartoons Online Videos for Kids in HD for Free"
+          }
+        ],
+        "checkedAt": "2026-10-29T07:40:08.880589+00:00",
+        "selectedUrl": "https://wcofun.org/"
+      },
+      "reason": "Homepage reachable; media playback/download was not tested.",
+      "browseUrl": "https://wcofun.org/",
+      "excluded": false
+    },
+    {
+      "id": "123anime",
+      "name": "123anime",
+      "url": "https://123anime.info/",
+      "alternateUrls": [],
+      "kinds": [
+        "anime"
+      ],
+      "categories": [
+        "streaming"
+      ],
+      "provenance": [
+        {
+          "page": "https://rentry.org/megathread-anime",
+          "section": "Streaming Sites",
+          "anchor": "123anime",
+          "listedUrls": [
+            "https://123anime.info/"
+          ],
+          "heading": "▶️ 123anime"
+        }
+      ],
+      "nativeId": null,
+      "status": "unrelated",
+      "mode": "unavailable",
+      "accountRequired": false,
+      "audit": {
+        "level": "reachable-page",
+        "playbackTested": false,
+        "probes": [
+          {
+            "url": "https://123anime.info/",
+            "checkedAt": "2026-10-29T07:40:09.003727+00:00",
+            "level": "reachable-page",
+            "httpStatus": 200,
+            "finalUrl": "https://123anime.info/",
+            "bytesRead": 114,
+            "status": "unrelated",
+            "reason": "Only a redirect to a domain lander remains; no media page was found."
+          }
+        ],
+        "checkedAt": "2026-10-29T07:40:09.003727+00:00",
+        "selectedUrl": "https://123anime.info/"
+      },
+      "reason": "Only a redirect to a domain lander remains; no media page was found.",
+      "browseUrl": "https://123anime.info/",
+      "excluded": true
+    },
+    {
+      "id": "allwish",
+      "name": "Allwish",
+      "url": "https://all-wish.me/",
+      "alternateUrls": [],
+      "kinds": [
+        "anime"
+      ],
+      "categories": [
+        "streaming"
+      ],
+      "provenance": [
+        {
+          "page": "https://rentry.org/megathread-anime",
+          "section": "Streaming Sites",
+          "anchor": "allwish",
+          "listedUrls": [
+            "https://all-wish.me/"
+          ],
+          "heading": "▶️ Allwish"
+        }
+      ],
+      "nativeId": null,
+      "status": "reachable",
+      "mode": "site",
+      "accountRequired": false,
+      "audit": {
+        "level": "reachable-page",
+        "playbackTested": false,
+        "probes": [
+          {
+            "url": "https://all-wish.me/",
+            "checkedAt": "2026-10-29T07:40:09.466722+00:00",
+            "level": "reachable-page",
+            "httpStatus": 200,
+            "finalUrl": "https://all-wish.me/",
+            "bytesRead": 46093,
+            "status": "reachable",
+            "reason": "Homepage reachable; media playback/download was not tested.",
+            "title": "Watch Anime Online for Free | Latest Episodes"
+          }
+        ],
+        "checkedAt": "2026-10-29T07:40:09.466722+00:00",
+        "selectedUrl": "https://all-wish.me/"
+      },
+      "reason": "Homepage reachable; media playback/download was not tested.",
+      "browseUrl": "https://all-wish.me/",
+      "excluded": false
+    },
+    {
+      "id": "yenime",
+      "name": "Yenime",
+      "url": "https://yenime.net/",
+      "alternateUrls": [],
+      "kinds": [
+        "anime"
+      ],
+      "categories": [
+        "streaming"
+      ],
+      "provenance": [
+        {
+          "page": "https://rentry.org/megathread-anime",
+          "section": "Streaming Sites",
+          "anchor": "yenime",
+          "listedUrls": [
+            "https://yenime.net/"
+          ],
+          "heading": "▶️ Yenime"
+        }
+      ],
+      "nativeId": null,
+      "status": "reachable",
+      "mode": "site",
+      "accountRequired": false,
+      "audit": {
+        "level": "reachable-page",
+        "playbackTested": false,
+        "probes": [
+          {
+            "url": "https://yenime.net/",
+            "checkedAt": "2026-10-29T07:40:09.511316+00:00",
+            "level": "reachable-page",
+            "httpStatus": 200,
+            "finalUrl": "https://yenime.net/",
+            "bytesRead": 26644,
+            "status": "reachable",
+            "reason": "Homepage reachable; media playback/download was not tested.",
+            "title": "Yenime"
+          }
+        ],
+        "checkedAt": "2026-10-29T07:40:09.511316+00:00",
+        "selectedUrl": "https://yenime.net/"
+      },
+      "reason": "Homepage reachable; media playback/download was not tested.",
+      "browseUrl": "https://yenime.net/",
+      "excluded": false
+    },
+    {
+      "id": "animexin",
+      "name": "AnimeXin",
+      "url": "https://animexin.vip/",
+      "alternateUrls": [],
+      "kinds": [
+        "anime"
+      ],
+      "categories": [
+        "streaming"
+      ],
+      "provenance": [
+        {
+          "page": "https://rentry.org/megathread-anime",
+          "section": "Streaming Sites",
+          "anchor": "animexin-donghua-focus",
+          "listedUrls": [
+            "https://animexin.vip/"
+          ],
+          "heading": "▶️ AnimeXin • Donghua Focus"
+        }
+      ],
+      "nativeId": null,
+      "status": "reachable",
+      "mode": "site",
+      "accountRequired": false,
+      "audit": {
+        "level": "reachable-page",
+        "playbackTested": false,
+        "probes": [
+          {
+            "url": "https://animexin.vip/",
+            "checkedAt": "2026-10-29T07:40:09.574306+00:00",
+            "level": "reachable-page",
+            "httpStatus": 200,
+            "finalUrl": "https://animexin.dev/",
+            "bytesRead": 150082,
+            "status": "reachable",
+            "reason": "Homepage reachable; media playback/download was not tested.",
+            "title": "AnimeXin - AnimeXin - Streaming Download Donghua Subtitle Indonesia English"
+          }
+        ],
+        "checkedAt": "2026-10-29T07:40:09.574306+00:00",
+        "selectedUrl": "https://animexin.vip/"
+      },
+      "reason": "Homepage reachable; media playback/download was not tested.",
+      "browseUrl": "https://animexin.vip/",
+      "excluded": false
+    },
+    {
+      "id": "myanime",
+      "name": "Myanime",
+      "url": "https://myanime.live/",
+      "alternateUrls": [],
+      "kinds": [
+        "anime"
+      ],
+      "categories": [
+        "streaming"
+      ],
+      "provenance": [
+        {
+          "page": "https://rentry.org/megathread-anime",
+          "section": "Streaming Sites",
+          "anchor": "myanime-donghua-focus",
+          "listedUrls": [
+            "https://myanime.live/"
+          ],
+          "heading": "▶️ Myanime • Donghua Focus"
+        }
+      ],
+      "nativeId": null,
+      "status": "unavailable",
+      "mode": "unavailable",
+      "accountRequired": false,
+      "audit": {
+        "level": "reachable-page",
+        "playbackTested": false,
+        "probes": [
+          {
+            "url": "https://myanime.live/",
+            "checkedAt": "2026-10-29T07:40:09.900417+00:00",
+            "level": "reachable-page",
+            "httpStatus": 200,
+            "finalUrl": "https://otakukcom.wordpress.com/",
+            "bytesRead": 62245,
+            "status": "unavailable",
+            "reason": "Homepage announces closure or discontinued operations.",
+            "title": "otaku24h.com"
+          }
+        ],
+        "checkedAt": "2026-10-29T07:40:09.900417+00:00",
+        "selectedUrl": "https://myanime.live/"
+      },
+      "reason": "Homepage announces closure or discontinued operations.",
+      "browseUrl": "https://myanime.live/",
+      "excluded": true
+    },
+    {
+      "id": "nyaa",
+      "name": "Nyaa",
+      "url": "https://nyaa.si/",
+      "alternateUrls": [
+        "https://nyaa.land/"
+      ],
+      "kinds": [
+        "anime"
+      ],
+      "categories": [
+        "torrent"
+      ],
+      "provenance": [
+        {
+          "page": "https://rentry.org/megathread-anime",
+          "section": "Torrent Sites",
+          "anchor": "nyaa-alt",
+          "listedUrls": [
+            "https://nyaa.si/",
+            "https://nyaa.land/"
+          ],
+          "heading": "🐐 Nyaa / Alt"
+        }
+      ],
+      "nativeId": "nyaa",
+      "status": "reachable",
+      "mode": "native",
+      "accountRequired": false,
+      "audit": {
+        "level": "reachable-page",
+        "playbackTested": false,
+        "probes": [
+          {
+            "url": "https://nyaa.si/",
+            "checkedAt": "2026-10-29T07:41:14.632868+00:00",
+            "level": "reachable-page",
+            "httpStatus": 200,
+            "finalUrl": "https://nyaa.si/",
+            "bytesRead": 122544,
+            "status": "reachable",
+            "reason": "Homepage reachable; media playback/download was not tested.",
+            "title": "Browse :: Nyaa"
+          },
+          {
+            "url": "https://nyaa.land/",
+            "checkedAt": "2026-10-29T07:40:10.331008+00:00",
+            "level": "reachable-page",
+            "httpStatus": 200,
+            "finalUrl": "https://nyaa.land/",
+            "bytesRead": 123467,
+            "status": "reachable",
+            "reason": "Homepage reachable; media playback/download was not tested.",
+            "title": "Browse :: Nyaa"
+          }
+        ],
+        "checkedAt": "2026-10-29T07:41:14.632868+00:00",
+        "selectedUrl": "https://nyaa.si/"
+      },
+      "reason": "Homepage reachable; media playback/download was not tested.",
+      "browseUrl": "https://nyaa.si/",
+      "excluded": false
+    },
+    {
+      "id": "subsplease",
+      "name": "SubsPlease",
+      "url": "https://subsplease.org/",
+      "alternateUrls": [],
+      "kinds": [
+        "anime"
+      ],
+      "categories": [
+        "torrent"
+      ],
+      "provenance": [
+        {
+          "page": "https://rentry.org/megathread-anime",
+          "section": "Torrent Sites",
+          "anchor": "subsplease",
+          "listedUrls": [
+            "https://subsplease.org/"
+          ],
+          "heading": "🐐 SubsPlease"
+        }
+      ],
+      "nativeId": null,
+      "status": "reachable",
+      "mode": "site",
+      "accountRequired": false,
+      "audit": {
+        "level": "reachable-page",
+        "playbackTested": false,
+        "probes": [
+          {
+            "url": "https://subsplease.org/",
+            "checkedAt": "2026-10-29T07:40:10.471725+00:00",
+            "level": "reachable-page",
+            "httpStatus": 200,
+            "finalUrl": "https://subsplease.org/",
+            "bytesRead": 29826,
+            "status": "reachable",
+            "reason": "Homepage reachable; media playback/download was not tested.",
+            "title": "SubsPlease &#8211; One stop shop for new anime"
+          }
+        ],
+        "checkedAt": "2026-10-29T07:40:10.471725+00:00",
+        "selectedUrl": "https://subsplease.org/"
+      },
+      "reason": "Homepage reachable; media playback/download was not tested.",
+      "browseUrl": "https://subsplease.org/",
+      "excluded": false
+    },
+    {
+      "id": "beatrice-raws",
+      "name": "Beatrice-Raws",
+      "url": "https://beatrice-raws.org/",
+      "alternateUrls": [],
+      "kinds": [
+        "anime"
+      ],
+      "categories": [
+        "torrent"
+      ],
+      "provenance": [
+        {
+          "page": "https://rentry.org/megathread-anime",
+          "section": "Torrent Sites",
+          "anchor": "beatrice-raws",
+          "listedUrls": [
+            "https://beatrice-raws.org/"
+          ],
+          "heading": "🧲 Beatrice-Raws"
+        }
+      ],
+      "nativeId": null,
+      "status": "reachable",
+      "mode": "site",
+      "accountRequired": false,
+      "audit": {
+        "level": "reachable-page",
+        "playbackTested": false,
+        "probes": [
+          {
+            "url": "https://beatrice-raws.org/",
+            "checkedAt": "2026-10-29T07:40:10.824890+00:00",
+            "level": "reachable-page",
+            "httpStatus": 200,
+            "finalUrl": "https://beatrice-raws.org/",
+            "bytesRead": 46661,
+            "status": "reachable",
+            "reason": "Homepage reachable; media playback/download was not tested.",
+            "title": "Beatrice-Raws | Just Encode It"
+          }
+        ],
+        "checkedAt": "2026-10-29T07:40:10.824890+00:00",
+        "selectedUrl": "https://beatrice-raws.org/"
+      },
+      "reason": "Homepage reachable; media playback/download was not tested.",
+      "browseUrl": "https://beatrice-raws.org/",
+      "excluded": false
+    },
+    {
+      "id": "drevos-index",
+      "name": "Drevos Index",
+      "url": "https://drevosindex.com/",
+      "alternateUrls": [],
+      "kinds": [
+        "anime"
+      ],
+      "categories": [
+        "torrent"
+      ],
+      "provenance": [
+        {
+          "page": "https://rentry.org/megathread-anime",
+          "section": "Torrent Sites",
+          "anchor": "drevos-index",
+          "listedUrls": [
+            "https://drevosindex.com/"
+          ],
+          "heading": "🧲 Drevos Index"
+        }
+      ],
+      "nativeId": null,
+      "status": "reachable",
+      "mode": "site",
+      "accountRequired": false,
+      "audit": {
+        "level": "reachable-page",
+        "playbackTested": false,
+        "probes": [
+          {
+            "url": "https://drevosindex.com/",
+            "checkedAt": "2026-10-29T07:40:10.863720+00:00",
+            "level": "reachable-page",
+            "httpStatus": 200,
+            "finalUrl": "https://drevosindex.com/",
+            "bytesRead": 4368,
+            "status": "reachable",
+            "reason": "Homepage reachable; media playback/download was not tested.",
+            "title": "Drevos - Blu-ray Anime Archive"
+          }
+        ],
+        "checkedAt": "2026-10-29T07:40:10.863720+00:00",
+        "selectedUrl": "https://drevosindex.com/"
+      },
+      "reason": "Homepage reachable; media playback/download was not tested.",
+      "browseUrl": "https://drevosindex.com/",
+      "excluded": false
+    },
+    {
+      "id": "erai-raws",
+      "name": "Erai-raws",
+      "url": "https://www.erai-raws.info/",
+      "alternateUrls": [],
+      "kinds": [
+        "anime"
+      ],
+      "categories": [
+        "torrent"
+      ],
+      "provenance": [
+        {
+          "page": "https://rentry.org/megathread-anime",
+          "section": "Torrent Sites",
+          "anchor": "erai-raws-sign-up-required",
+          "listedUrls": [
+            "https://www.erai-raws.info/"
+          ],
+          "heading": "🧲 Erai-raws • Sign Up Required"
+        }
+      ],
+      "nativeId": null,
+      "status": "account-required",
+      "mode": "site",
+      "accountRequired": true,
+      "audit": {
+        "level": "reachable-page",
+        "playbackTested": false,
+        "probes": [
+          {
+            "url": "https://www.erai-raws.info/",
+            "checkedAt": "2026-10-29T07:40:10.921357+00:00",
+            "level": "reachable-page",
+            "httpStatus": 200,
+            "finalUrl": "https://www.erai-raws.info/",
+            "bytesRead": 172237,
+            "status": "reachable",
+            "reason": "Homepage reachable; media playback/download was not tested.",
+            "title": "Erai-raws"
+          }
+        ],
+        "checkedAt": "2026-10-29T07:40:10.921357+00:00",
+        "selectedUrl": "https://www.erai-raws.info/"
+      },
+      "reason": "Source list explicitly documents required sign-up; homepage reachable.",
+      "browseUrl": "https://www.erai-raws.info/",
+      "excluded": false
+    },
+    {
+      "id": "tokyo-toshokan",
+      "name": "Tokyo Toshokan",
+      "url": "https://www.tokyotosho.info/?cat=1",
+      "alternateUrls": [],
+      "kinds": [
+        "anime"
+      ],
+      "categories": [
+        "torrent"
+      ],
+      "provenance": [
+        {
+          "page": "https://rentry.org/megathread-anime",
+          "section": "Torrent Sites",
+          "anchor": "tokyo-toshokan",
+          "listedUrls": [
+            "https://www.tokyotosho.info/?cat=1"
+          ],
+          "heading": "🧲 Tokyo Toshokan"
+        }
+      ],
+      "nativeId": null,
+      "status": "unavailable",
+      "mode": "unavailable",
+      "accountRequired": false,
+      "audit": {
+        "level": "reachable-page",
+        "playbackTested": false,
+        "probes": [
+          {
+            "url": "https://www.tokyotosho.info/?cat=1",
+            "checkedAt": "2026-10-29T07:40:11.508389+00:00",
+            "level": "reachable-page",
+            "status": "unavailable",
+            "reason": "URLError: <urlopen error [Errno 104] Connection reset by peer>"
+          }
+        ],
+        "checkedAt": "2026-10-29T07:40:11.508389+00:00",
+        "selectedUrl": "https://www.tokyotosho.info/?cat=1"
+      },
+      "reason": "URLError: <urlopen error [Errno 104] Connection reset by peer>",
+      "browseUrl": "https://www.tokyotosho.info/?cat=1",
+      "excluded": true
+    },
+    {
+      "id": "project-acgnx",
+      "name": "Project AcgnX",
+      "url": "https://share.acgnx.se/",
+      "alternateUrls": [],
+      "kinds": [
+        "anime"
+      ],
+      "categories": [
+        "torrent"
+      ],
+      "provenance": [
+        {
+          "page": "https://rentry.org/megathread-anime",
+          "section": "Torrent Sites",
+          "anchor": "project-acgnx-chinese",
+          "listedUrls": [
+            "https://share.acgnx.se/"
+          ],
+          "heading": "🧲 Project AcgnX • Chinese"
+        }
+      ],
+      "nativeId": null,
+      "status": "verification-wall",
+      "mode": "unavailable",
+      "accountRequired": false,
+      "audit": {
+        "level": "reachable-page",
+        "playbackTested": false,
+        "probes": [
+          {
+            "url": "https://share.acgnx.se/",
+            "checkedAt": "2026-10-29T07:40:11.843386+00:00",
+            "level": "reachable-page",
+            "httpStatus": 403,
+            "finalUrl": "https://share.acgnx.se/",
+            "bytesRead": 5565,
+            "status": "verification-wall",
+            "reason": "Explicit browser/human verification wall; excluded without bypass.",
+            "title": "Just a moment..."
+          }
+        ],
+        "checkedAt": "2026-10-29T07:40:11.843386+00:00",
+        "selectedUrl": "https://share.acgnx.se/"
+      },
+      "reason": "Explicit browser/human verification wall; excluded without bypass.",
+      "browseUrl": "https://share.acgnx.se/",
+      "excluded": true
+    }
+  ],
+  "excludedSources": [
+    {
+      "name": "Stremio",
+      "urls": [
+        "https://www.stremio.com/"
+      ],
+      "provenance": {
+        "page": "https://rentry.org/megathread-movies-and-tv",
+        "section": "Desktop Applications",
+        "anchor": "stremio",
+        "listedUrls": [
+          "https://www.stremio.com/"
+        ],
+        "heading": "🐐 Stremio"
+      },
+      "reason": "Outside requested source categories: Desktop Applications"
+    },
+    {
+      "name": "WebTorrent Desktop",
+      "urls": [
+        "https://webtorrent.io/desktop/"
+      ],
+      "provenance": {
+        "page": "https://rentry.org/megathread-movies-and-tv",
+        "section": "Desktop Applications",
+        "anchor": "webtorrent-desktop",
+        "listedUrls": [
+          "https://webtorrent.io/desktop/"
+        ],
+        "heading": "🐐 WebTorrent Desktop"
+      },
+      "reason": "Outside requested source categories: Desktop Applications"
+    },
+    {
+      "name": "PlayTorrio",
+      "urls": [
+        "https://playtorrio.pages.dev/"
+      ],
+      "provenance": {
+        "page": "https://rentry.org/megathread-movies-and-tv",
+        "section": "Desktop Applications",
+        "anchor": "playtorrio",
+        "listedUrls": [
+          "https://playtorrio.pages.dev/"
+        ],
+        "heading": "🖥️ PlayTorrio"
+      },
+      "reason": "Outside requested source categories: Desktop Applications"
+    },
+    {
+      "name": "Plex",
+      "urls": [
+        "https://www.plex.tv/"
+      ],
+      "provenance": {
+        "page": "https://rentry.org/megathread-movies-and-tv",
+        "section": "Desktop Applications",
+        "anchor": "plex",
+        "listedUrls": [
+          "https://www.plex.tv/"
+        ],
+        "heading": "🖥️ Plex"
+      },
+      "reason": "Outside requested source categories: Desktop Applications"
+    },
+    {
+      "name": "Jellyfin",
+      "urls": [
+        "https://jellyfin.org/"
+      ],
+      "provenance": {
+        "page": "https://rentry.org/megathread-movies-and-tv",
+        "section": "Desktop Applications",
+        "anchor": "jellyfin",
+        "listedUrls": [
+          "https://jellyfin.org/"
+        ],
+        "heading": "🖥️ Jellyfin"
+      },
+      "reason": "Outside requested source categories: Desktop Applications"
+    },
+    {
+      "name": "Kodi",
+      "urls": [
+        "https://kodi.tv/"
+      ],
+      "provenance": {
+        "page": "https://rentry.org/megathread-movies-and-tv",
+        "section": "Desktop Applications",
+        "anchor": "kodi",
+        "listedUrls": [
+          "https://kodi.tv/"
+        ],
+        "heading": "🖥️ Kodi"
+      },
+      "reason": "Outside requested source categories: Desktop Applications"
+    },
+    {
+      "name": "Vyla",
+      "urls": [
+        "https://vyla.cc/"
+      ],
+      "provenance": {
+        "page": "https://rentry.org/megathread-movies-and-tv",
+        "section": "Desktop Applications",
+        "anchor": "vyla",
+        "listedUrls": [
+          "https://vyla.cc/"
+        ],
+        "heading": "🖥️ Vyla"
+      },
+      "reason": "Outside requested source categories: Desktop Applications"
+    },
+    {
+      "name": "Lumen",
+      "urls": [
+        "https://getlumen.cloud"
+      ],
+      "provenance": {
+        "page": "https://rentry.org/megathread-movies-and-tv",
+        "section": "Desktop Applications",
+        "anchor": "lumen",
+        "listedUrls": [
+          "https://getlumen.cloud"
+        ],
+        "heading": "🖥️ Lumen"
+      },
+      "reason": "Outside requested source categories: Desktop Applications"
+    },
+    {
+      "name": "Famelack",
+      "urls": [
+        "https://famelack.com//"
+      ],
+      "provenance": {
+        "page": "https://rentry.org/megathread-movies-and-tv",
+        "section": "Live TV & Sports",
+        "anchor": "famelack",
+        "listedUrls": [
+          "https://famelack.com//"
+        ],
+        "heading": "🐐 Famelack"
+      },
+      "reason": "Outside requested source categories: Live TV & Sports"
+    },
+    {
+      "name": "Pluto TV",
+      "urls": [
+        "https://pluto.tv/"
+      ],
+      "provenance": {
+        "page": "https://rentry.org/megathread-movies-and-tv",
+        "section": "Live TV & Sports",
+        "anchor": "pluto-tv",
+        "listedUrls": [
+          "https://pluto.tv/"
+        ],
+        "heading": "📺 Pluto TV"
+      },
+      "reason": "Outside requested source categories: Live TV & Sports"
+    },
+    {
+      "name": "Tubi",
+      "urls": [
+        "https://tubitv.com/"
+      ],
+      "provenance": {
+        "page": "https://rentry.org/megathread-movies-and-tv",
+        "section": "Live TV & Sports",
+        "anchor": "tubi",
+        "listedUrls": [
+          "https://tubitv.com/"
+        ],
+        "heading": "📺 Tubi"
+      },
+      "reason": "Outside requested source categories: Live TV & Sports"
+    },
+    {
+      "name": "StreamEast",
+      "urls": [
+        "https://v1.gostreameast.link/"
+      ],
+      "provenance": {
+        "page": "https://rentry.org/megathread-movies-and-tv",
+        "section": "Live TV & Sports",
+        "anchor": "streameast",
+        "listedUrls": [
+          "https://v1.gostreameast.link/"
+        ],
+        "heading": "📺 StreamEast"
+      },
+      "reason": "Outside requested source categories: Live TV & Sports"
+    },
+    {
+      "name": "Anime",
+      "urls": [
+        "https://rentry.org/megathread-anime"
+      ],
+      "provenance": {
+        "page": "https://rentry.org/megathread-movies-and-tv",
+        "section": "Check Out More",
+        "anchor": "anime",
+        "listedUrls": [
+          "https://rentry.org/megathread-anime"
+        ],
+        "heading": "📜 Anime"
+      },
+      "reason": "Outside requested source categories: Check Out More"
+    },
+    {
+      "name": "AniList",
+      "urls": [
+        "https://anilist.co/"
+      ],
+      "provenance": {
+        "page": "https://rentry.org/megathread-anime",
+        "section": "Databases & Tracking",
+        "anchor": "anilist",
+        "listedUrls": [
+          "https://anilist.co/"
+        ],
+        "heading": "🐐 AniList"
+      },
+      "reason": "Outside requested source categories: Databases & Tracking"
+    },
+    {
+      "name": "MyAnimeList",
+      "urls": [
+        "https://myanimelist.net/"
+      ],
+      "provenance": {
+        "page": "https://rentry.org/megathread-anime",
+        "section": "Databases & Tracking",
+        "anchor": "myanimelist",
+        "listedUrls": [
+          "https://myanimelist.net/"
+        ],
+        "heading": "🐐 MyAnimeList"
+      },
+      "reason": "Outside requested source categories: Databases & Tracking"
+    },
+    {
+      "name": "Kitsu",
+      "urls": [
+        "https://kitsu.io/"
+      ],
+      "provenance": {
+        "page": "https://rentry.org/megathread-anime",
+        "section": "Databases & Tracking",
+        "anchor": "kitsu",
+        "listedUrls": [
+          "https://kitsu.io/"
+        ],
+        "heading": "📒 Kitsu"
+      },
+      "reason": "Outside requested source categories: Databases & Tracking"
+    },
+    {
+      "name": "AniDB",
+      "urls": [
+        "https://anidb.net/"
+      ],
+      "provenance": {
+        "page": "https://rentry.org/megathread-anime",
+        "section": "Databases & Tracking",
+        "anchor": "anidb",
+        "listedUrls": [
+          "https://anidb.net/"
+        ],
+        "heading": "📒 AniDB"
+      },
+      "reason": "Outside requested source categories: Databases & Tracking"
+    },
+    {
+      "name": "Kuroiru",
+      "urls": [
+        "https://kuroiru.co/"
+      ],
+      "provenance": {
+        "page": "https://rentry.org/megathread-anime",
+        "section": "Databases & Tracking",
+        "anchor": "kuroiru",
+        "listedUrls": [
+          "https://kuroiru.co/"
+        ],
+        "heading": "▶️ Kuroiru"
+      },
+      "reason": "Outside requested source categories: Databases & Tracking"
+    },
+    {
+      "name": "Kurozora",
+      "urls": [
+        "https://kurozora.app/"
+      ],
+      "provenance": {
+        "page": "https://rentry.org/megathread-anime",
+        "section": "Databases & Tracking",
+        "anchor": "kurozora",
+        "listedUrls": [
+          "https://kurozora.app/"
+        ],
+        "heading": "📒 Kurozora"
+      },
+      "reason": "Outside requested source categories: Databases & Tracking"
+    },
+    {
+      "name": "Anime-Planet",
+      "urls": [
+        "https://www.anime-planet.com/"
+      ],
+      "provenance": {
+        "page": "https://rentry.org/megathread-anime",
+        "section": "Databases & Tracking",
+        "anchor": "anime-planet",
+        "listedUrls": [
+          "https://www.anime-planet.com/"
+        ],
+        "heading": "📒 Anime-Planet"
+      },
+      "reason": "Outside requested source categories: Databases & Tracking"
+    },
+    {
+      "name": "Simkl",
+      "urls": [
+        "https://simkl.com/"
+      ],
+      "provenance": {
+        "page": "https://rentry.org/megathread-anime",
+        "section": "Databases & Tracking",
+        "anchor": "simkl",
+        "listedUrls": [
+          "https://simkl.com/"
+        ],
+        "heading": "📒 Simkl"
+      },
+      "reason": "Outside requested source categories: Databases & Tracking"
+    },
+    {
+      "name": "Hayase",
+      "urls": [
+        "https://hayase.watch/"
+      ],
+      "provenance": {
+        "page": "https://rentry.org/megathread-anime",
+        "section": "Desktop Applications",
+        "anchor": "hayase",
+        "listedUrls": [
+          "https://hayase.watch/"
+        ],
+        "heading": "🐐 Hayase"
+      },
+      "reason": "Outside requested source categories: Desktop Applications"
+    },
+    {
+      "name": "Seanime",
+      "urls": [
+        "https://seanime.rahim.app/",
+        "https://github.com/5rahim/seanime"
+      ],
+      "provenance": {
+        "page": "https://rentry.org/megathread-anime",
+        "section": "Desktop Applications",
+        "anchor": "seanime-github",
+        "listedUrls": [
+          "https://seanime.rahim.app/",
+          "https://github.com/5rahim/seanime"
+        ],
+        "heading": "🐐 Seanime / GitHub"
+      },
+      "reason": "Outside requested source categories: Desktop Applications"
+    },
+    {
+      "name": "Mangayomi",
+      "urls": [
+        "https://github.com/kodjodevf/mangayomi"
+      ],
+      "provenance": {
+        "page": "https://rentry.org/megathread-anime",
+        "section": "Desktop Applications",
+        "anchor": "mangayomi",
+        "listedUrls": [
+          "https://github.com/kodjodevf/mangayomi"
+        ],
+        "heading": "🖥️ Mangayomi"
+      },
+      "reason": "Outside requested source categories: Desktop Applications"
+    },
+    {
+      "name": "Akuse",
+      "urls": [
+        "https://github.com/akuse-app/akuse"
+      ],
+      "provenance": {
+        "page": "https://rentry.org/megathread-anime",
+        "section": "Desktop Applications",
+        "anchor": "akuse",
+        "listedUrls": [
+          "https://github.com/akuse-app/akuse"
+        ],
+        "heading": "🖥️ Akuse"
+      },
+      "reason": "Outside requested source categories: Desktop Applications"
+    },
+    {
+      "name": "Taiga",
+      "urls": [
+        "https://taiga.moe/"
+      ],
+      "provenance": {
+        "page": "https://rentry.org/megathread-anime",
+        "section": "Desktop Applications",
+        "anchor": "taiga",
+        "listedUrls": [
+          "https://taiga.moe/"
+        ],
+        "heading": "🖥️ Taiga"
+      },
+      "reason": "Outside requested source categories: Desktop Applications"
+    },
+    {
+      "name": "All Purpose Torrents",
+      "urls": [
+        "https://rentry.org/megathread-all-purpose"
+      ],
+      "provenance": {
+        "page": "https://rentry.org/megathread-anime",
+        "section": "Check Out More",
+        "anchor": "all-purpose-torrents",
+        "listedUrls": [
+          "https://rentry.org/megathread-all-purpose"
+        ],
+        "heading": "📜 All Purpose Torrents"
+      },
+      "reason": "Outside requested source categories: Check Out More"
+    }
+  ],
+  "auditedAt": "2026-10-29T07:41:16.911745+00:00",
+  "auditLevel": "reachable-page",
+  "counts": {
+    "account-required": 2,
+    "directory": 2,
+    "reachable": 62,
+    "unavailable": 22,
+    "unrelated": 1,
+    "verification-wall": 8
+  }
+}

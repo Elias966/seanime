@@ -93,6 +93,11 @@ class MediaHub:
             raise
     def get(self,path,q):
         arg=lambda k,d='':q.get(k,[d])[0]
+        if path=='/media/source-registry':
+            candidates=[Path(__file__).parent/'sources.json',Path(__file__).parent.parent/'media-hub/sources.json',Path(__file__).parent/'media-hub/sources.json']
+            for candidate in candidates:
+                if candidate.is_file():return json.loads(candidate.read_text())
+            raise ValueError('Source inventory is unavailable')
         if path=='/media/sources':return {'provenance':PROVENANCE,'sources':[{'id':k,'name':{'yts':'YTS','hydra':'HydraHD','anizone':'AniZone','nyaa':'Nyaa','animetosho':'AnimeTosho'}[k],'url':v,'kind':'movies' if k in ('yts','hydra') else 'anime'} for k,v in ROOTS.items()]}
         if path=='/media/library':
             with self.lock:return list(self.library.values())

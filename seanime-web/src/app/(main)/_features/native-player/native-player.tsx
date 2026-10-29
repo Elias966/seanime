@@ -24,6 +24,16 @@ import { nativePlayer_stateAtom } from "./native-player.atoms"
 
 const log = logger("NATIVE PLAYER")
 
+// The media hub sends the same lifecycle events as the server, so playback uses
+// VideoCore and its existing subtitle settings, translation, and renderers.
+const mediaHubWindow = window as Window & {
+    SeanimeNativePlayerMessage?: (event: { type: NativePlayer_ServerEvent, payload: unknown }) => void
+    SeanimeMediaHub?: {
+        nativePlayerReady?: (ready: boolean) => void
+        nativePlayerState?: (active: boolean) => void
+    }
+}
+
 // minimum interval between subtitle event flushes
 const SUBTITLE_FLUSH_INTERVAL_MS = 300
 
@@ -151,122 +161,134 @@ export function NativePlayer() {
     // Server events
     //
 
+    const handleNativePlayerMessage = ({ type, payload }: { type: NativePlayer_ServerEvent, payload: unknown }) => {
+        switch (type) {
+            // 1. Open and await
+            // The server is loading the stream
+            case "open-and-await":
+                log.info("Open and await event received", { payload })
+                resetSubtitleState("")
+                _preserveMiniPlayerRef.current = state.active && miniPlayer
+                setState(draft => {
+                    draft.active = true
+                    draft.loadingState = payload as string
+                    draft.playbackInfo = null
+                    draft.playbackError = null
+                    return
+                })
+                if (!_preserveMiniPlayerRef.current) {
+                    setMiniPlayer(false)
+                }
+
+                break
+            case "abort-open":
+                log.info("Abort open event received", { payload })
+                resetSubtitleState("")
+                _preserveMiniPlayerRef.current = false
+                if (!(payload as string)) {
+                    setMiniPlayer(true)
+                    setState(draft => {
+                        draft.active = false
+                        draft.loadingState = null
+                        draft.playbackInfo = null
+                        draft.playbackError = null
+                        return
+                    })
+                    break
+                }
+                setState(draft => {
+                    draft.loadingState = "An error occurred while loading the stream: " + ((payload as string) || "Unknown error")
+                    draft.playbackError = payload as string
+                    draft.playbackInfo = null
+                    return
+                })
+                setTimeout(() => {
+                    handleTerminateStream()
+                }, 3000)
+
+                break
+            // 2. Watch
+            // We received the playback info
+            case "watch":
+                log.info("Watch event received", { payload })
+                const playbackInfo = payload as NativePlayer_PlaybackInfo
+                resetSubtitleState(playbackInfo.id)
+                setState(draft => {
+                    draft.playbackInfo = playbackInfo
+                    draft.loadingState = null
+                    draft.playbackError = null
+                    return
+                })
+                if (!_preserveMiniPlayerRef.current) {
+                    setMiniPlayer(false)
+                }
+                _preserveMiniPlayerRef.current = false
+                break
+            // 3. Subtitle event (MKV)
+            // We receive the subtitle events after the server received the loaded-metadata event.
+            // Buffer the events and process them off the main thread
+            case "subtitle-event": {
+                let batch: NativePlayer_SubtitleEventsPayload
+
+                if (payload && typeof payload === "object" && !Array.isArray(payload) && "events" in payload) {
+                    batch = payload as NativePlayer_SubtitleEventsPayload
+                } else {
+                    const events = Array.isArray(payload)
+                        ? payload as MKVParser_SubtitleEvent[]
+                        : payload ? [payload as MKVParser_SubtitleEvent] : []
+                    batch = {
+                        events,
+                        playbackId: activePlaybackIdRef.current,
+                        generationId: Math.max(latestSubtitleGenRef.current, 0),
+                        seekTime: 0,
+                    }
+                }
+
+                if (!isSubtitleBatchCurrent(batch, activePlaybackIdRef.current, latestSubtitleGenRef.current)) {
+                    break
+                }
+
+                const isNewGeneration = batch.generationId > latestSubtitleGenRef.current
+                if (isNewGeneration) {
+                    latestSubtitleGenRef.current = batch.generationId
+                    resetSubtitleBuffer()
+                }
+
+                if (!batch.events?.length) break
+
+                if (isNewGeneration && subtitleManagerRef.current) {
+                    subtitleManagerRef.current.onSubtitleEvents(batch.events).then()
+                    break
+                }
+
+                subtitleBufferRef.current.push(batch)
+                scheduleSubtitleFlush()
+            }
+                break
+            case "error":
+                log.error("Error event received", payload)
+                toast.error("An error occurred while playing the stream. " + ((payload as { error: string }).error))
+                setState(draft => {
+                    draft.playbackError = (payload as { error: string }).error
+                    return
+                })
+                break
+        }
+    }
+    mediaHubWindow.SeanimeNativePlayerMessage = handleNativePlayerMessage
+    React.useEffect(() => {
+        mediaHubWindow.SeanimeMediaHub?.nativePlayerState?.(state.active)
+    }, [state.active])
+    React.useEffect(() => {
+        mediaHubWindow.SeanimeMediaHub?.nativePlayerReady?.(true)
+        return () => {
+            delete mediaHubWindow.SeanimeNativePlayerMessage
+            mediaHubWindow.SeanimeMediaHub?.nativePlayerReady?.(false)
+        }
+    }, [])
     useWebsocketMessageListener({
         type: WSEvents.NATIVE_PLAYER,
-        onMessage: ({ type, payload }: { type: NativePlayer_ServerEvent, payload: unknown }) => {
-            switch (type) {
-                // 1. Open and await
-                // The server is loading the stream
-                case "open-and-await":
-                    log.info("Open and await event received", { payload })
-                    resetSubtitleState("")
-                    _preserveMiniPlayerRef.current = state.active && miniPlayer
-                    setState(draft => {
-                        draft.active = true
-                        draft.loadingState = payload as string
-                        draft.playbackInfo = null
-                        draft.playbackError = null
-                        return
-                    })
-                    if (!_preserveMiniPlayerRef.current) {
-                        setMiniPlayer(false)
-                    }
-
-                    break
-                case "abort-open":
-                    log.info("Abort open event received", { payload })
-                    resetSubtitleState("")
-                    _preserveMiniPlayerRef.current = false
-                    if (!(payload as string)) {
-                        setMiniPlayer(true)
-                        setState(draft => {
-                            draft.active = false
-                            draft.loadingState = null
-                            draft.playbackInfo = null
-                            draft.playbackError = null
-                            return
-                        })
-                        break
-                    }
-                    setState(draft => {
-                        draft.loadingState = "An error occurred while loading the stream: " + ((payload as string) || "Unknown error")
-                        draft.playbackError = payload as string
-                        draft.playbackInfo = null
-                        return
-                    })
-                    setTimeout(() => {
-                        handleTerminateStream()
-                    }, 3000)
-
-                    break
-                // 2. Watch
-                // We received the playback info
-                case "watch":
-                    log.info("Watch event received", { payload })
-                    const playbackInfo = payload as NativePlayer_PlaybackInfo
-                    resetSubtitleState(playbackInfo.id)
-                    setState(draft => {
-                        draft.playbackInfo = playbackInfo
-                        draft.loadingState = null
-                        draft.playbackError = null
-                        return
-                    })
-                    if (!_preserveMiniPlayerRef.current) {
-                        setMiniPlayer(false)
-                    }
-                    _preserveMiniPlayerRef.current = false
-                    break
-                // 3. Subtitle event (MKV)
-                // We receive the subtitle events after the server received the loaded-metadata event.
-                // Buffer the events and process them off the main thread
-                case "subtitle-event": {
-                    let batch: NativePlayer_SubtitleEventsPayload
-
-                    if (payload && typeof payload === "object" && !Array.isArray(payload) && "events" in payload) {
-                        batch = payload as NativePlayer_SubtitleEventsPayload
-                    } else {
-                        const events = Array.isArray(payload)
-                            ? payload as MKVParser_SubtitleEvent[]
-                            : payload ? [payload as MKVParser_SubtitleEvent] : []
-                        batch = {
-                            events,
-                            playbackId: activePlaybackIdRef.current,
-                            generationId: Math.max(latestSubtitleGenRef.current, 0),
-                            seekTime: 0,
-                        }
-                    }
-
-                    if (!isSubtitleBatchCurrent(batch, activePlaybackIdRef.current, latestSubtitleGenRef.current)) {
-                        break
-                    }
-
-                    const isNewGeneration = batch.generationId > latestSubtitleGenRef.current
-                    if (isNewGeneration) {
-                        latestSubtitleGenRef.current = batch.generationId
-                        resetSubtitleBuffer()
-                    }
-
-                    if (!batch.events?.length) break
-
-                    if (isNewGeneration && subtitleManagerRef.current) {
-                        subtitleManagerRef.current.onSubtitleEvents(batch.events).then()
-                        break
-                    }
-
-                    subtitleBufferRef.current.push(batch)
-                    scheduleSubtitleFlush()
-                }
-                    break
-                case "error":
-                    log.error("Error event received", payload)
-                    toast.error("An error occurred while playing the stream. " + ((payload as { error: string }).error))
-                    setState(draft => {
-                        draft.playbackError = (payload as { error: string }).error
-                        return
-                    })
-                    break
-            }
-        },
+        onMessage: handleNativePlayerMessage,
     })
 
     //
@@ -332,7 +354,10 @@ export function NativePlayer() {
                 media: state.playbackInfo.media,
                 episode: state.playbackInfo.episode,
                 localFile: state.playbackInfo.localFile,
-                streamType: "native",
+                streamType: state.playbackInfo.streamType === "url" && (
+                    /mpegurl/i.test(state.playbackInfo.mimeType)
+                    || /\.m3u8(?:[?#&]|%3f|%26|$)/i.test(state.playbackInfo.streamUrl)
+                ) ? "hls" : "native",
             } : null,
         }
     }, [state])

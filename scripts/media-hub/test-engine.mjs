@@ -23,5 +23,8 @@ test('real local peer supplies verified bytes through seekable HTTP playback; st
   const denied=await fetch(base+'/torrents',{headers:{Origin:'https://evil.example'}});assert.equal(denied.status,403);
   const bad=await fetch(base+'/media-file/'+hash+'/0',{headers:{Range:'bytes=999999-'}});assert.equal(bad.status,416);
   const stopped=await fetch(base+'/torrents',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'stop',hash})});assert.equal(stopped.status,200);assert.equal(engine.snapshot().length,0);assert.ok(fs.existsSync(path.join(directory,'downloads','fixture.mp4')));
- }finally{await engine.close();await new Promise(resolve=>seed.destroy(resolve));fs.rmSync(directory,{recursive:true,force:true})}
+  assert.ok(fs.existsSync(path.join(directory,'downloads','metadata',hash+'.torrent')));
+  await new Promise(resolve=>seed.destroy(resolve));
+  const resumed=await fetch(base+'/torrents',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'resume',hash})});assert.equal(resumed.status,200);const restored=client.torrents[0];if(!restored.ready)await once(restored,'ready');const offline=await fetch(base+'/media-file/'+hash+'/0',{headers:{Range:'bytes=65536-65791'}});assert.equal(offline.status,206);assert.deepEqual(Buffer.from(await offline.arrayBuffer()),content.subarray(65536,65792));
+ }finally{await engine.close();if(!seed.destroyed)await new Promise(resolve=>seed.destroy(resolve));fs.rmSync(directory,{recursive:true,force:true})}
 });

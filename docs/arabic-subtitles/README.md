@@ -4,12 +4,12 @@ Unofficial Linux x86_64 Seanime 3.10.4 build, forked from [5rahim/seanime](https
 
 ## Download and run
 
-Download `Seanime-3.10.4-Arabic-Fixed-14.AppImage` and `SHA256SUMS` from [release 14](https://github.com/Elias966/seanime/releases/tag/v3.10.4-arabic-fix.14). Close any running Seanime instance, then:
+Download `Seanime-3.10.4-Arabic-Fixed-15.AppImage` and `SHA256SUMS` from [release 15](https://github.com/Elias966/seanime/releases/tag/v3.10.4-arabic-fix.15). Close any running Seanime instance, then:
 
 ```sh
 sha256sum -c SHA256SUMS
-chmod +x Seanime-3.10.4-Arabic-Fixed-14.AppImage
-./Seanime-3.10.4-Arabic-Fixed-14.AppImage
+chmod +x Seanime-3.10.4-Arabic-Fixed-15.AppImage
+./Seanime-3.10.4-Arabic-Fixed-15.AppImage
 ```
 
 Python 3 is required; no pip packages are needed. The build uses the existing Seanime profile. The launcher starts the bundled local helper on `127.0.0.1:11435`, or reuses a compatible already-running helper. Helper revision is checked so an older helper cannot silently override these fixes. If an old standalone service occupies this port, update it or stop it before opening the AppImage:
@@ -32,6 +32,20 @@ For local Ollama:
 Ollama itself remains at `http://127.0.0.1:11434`. All model requests stay local; no cloud fallback or model weights are bundled. Keep Ollama running.
 
 **Restart Seanime and reload the episode/subtitle track after upgrading**, because old untranslated results can remain in the player/backend caches. The user also reported that toggling translation mode away and back after changing models helped stale model selection.
+
+## Release 15: Movies redesign and the existing Seanime player
+
+Movies now uses poster cards, hover/focus summaries, quick library actions, rating/format badges, icon tabs with live counts, a detail hero and separate online/torrent choices. Responsive layouts and reduced-motion settings are supported. Opening Movies from the sidebar replaces the hash immediately, avoiding the React page-transition animation on the underlying route; Back to Seanime returns to that route. The existing search/filter/page/scroll restoration remains available within Movies.
+
+Playback now uses Seanime's existing **NativePlayer / VideoCore**, the same player selected for anime in the tested profile. The separate HTML movie/anime player is removed. Provider ASS, SRT and VTT tracks enter the existing subtitle renderer, styling and Arabic translation queue; the normal subtitle/audio/settings menus remain available. Provider tracks load on selection instead of fetching every language before playback. HLS audio and subtitle tracks remain handled by the existing player. Available captions depend on the source: this does not create subtitles for a source that supplies none. The optional MPV Prism player has not been connected to this new handoff.
+
+The Sources pages account for **all 100 relevant streaming, torrent, direct-download and drama headings** in the supplied movie/anime lists: **97 source brands and 112 primary/alternate/user-supplied URLs**, deduplicated with provenance. There are 65 movie/TV entries and 32 anime entries, including Asiaflix and 1Shows. Five catalog integrations remain; 61 other entries open as websites inside an isolated source browser, where detected HTTPS media, captions, magnets and torrent files can be handed to Seanime. The remaining 31 entries are listed with their unavailable/verification status instead of being silently omitted. Source status is a point-in-time page/reachability check, **not proof that every title or hoster plays**. Sources requiring CAPTCHA/verification are not solved or bypassed. Accounts remain user supplied. Database/tool/sports headings are recorded separately as outside these media categories.
+
+The source browser retains Electron sandboxing, context isolation and disabled Node integration, denies popups and unrelated top-level redirects, and uses a loopback capability relay on **11438** for detected media. The relay accepts registered public HTTPS resources only, pins DNS results, rewrites HLS references and supports seek ranges. Cookies/authorization are not forwarded across origins. See the complete [source coverage table](../../scripts/media-hub/SOURCE-COVERAGE.md).
+
+Torrent engine revision `media-engine-v2` retains verified metadata alongside downloaded pieces, allowing saved downloads to reopen after stopping/restarting without needing a peer to resend metadata. Helper revision is `media-sources-v9`; source relay revision is `media-source-relay-v1`. All earlier Arabic, offline artwork, alternative cover and navigation repairs remain included.
+
+Validation: **116 checks passed**, including 69 JavaScript checks against the resulting compiled player/search/bootstrap/Electron files, 34 helper tests, 4 registry tests and 9 torrent/relay tests. The real local-peer test stops the peer, reopens saved metadata and verifies downloaded seek ranges offline. Relay tests cover capability access, origin restrictions, HLS rewriting, redirected relative references and credential isolation. Live packaged-interface checks with the running backend covered Home/Settings-to-Movies transitions, returning from playback, native 1080p HLS playback, readable Arabic captions and the native subtitle menu with all provider languages. Desktop startup and service revisions are checked separately; browser preview cannot exercise Electron webview capture, and every third-party site has not been playback tested.
 
 ## Release 14: Movies and additional built-in anime sources
 

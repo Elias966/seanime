@@ -55,6 +55,7 @@ contextBridge.exposeInMainWorld(
                 "cast:mediaStatus",
                 "cast:receiverReady",
                 "cast:error",
+                "media-source:event",
             ]
             if (validChannels.includes(channel)) {
                 const listener = (_, ...args) => callback(...args)

@@ -19,7 +19,7 @@ from cover_store import CoverStore
 from media_hub import MediaHub
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-HELPER_REVISION = 'media-hub-v8'
+HELPER_REVISION = 'media-sources-v9'
 LOG = logging.getLogger('seanime-translation')
 ARABIC = re.compile(r'[\u0620-\u064a\u066e-\u06d3\u06fa-\u06ff\u0750-\u077f\u08a0-\u08c9]')
 LATIN_WORDS = re.compile(r'[A-Za-z]+')
@@ -245,6 +245,12 @@ class Handler(BaseHTTPRequestHandler):
         route = urllib.parse.urlsplit(self.path)
         if route.path.startswith('/media/'):
             if not self.cover_origin(): return self.send_json(403, {'error':'Origin not allowed'})
+            if route.path == '/media/subtitle-file':
+                try:
+                    value=self.server.media.get('/media/subtitle',urllib.parse.parse_qs(route.query))
+                    data=value['vtt'].encode('utf-8');self.send_response(200);self.cover_cors();self.send_header('Content-Type','text/vtt; charset=utf-8');self.send_header('Content-Length',str(len(data)));self.send_header('Cache-Control','no-store');self.end_headers();self.wfile.write(data);return
+                except (BrokenPipeError,ConnectionResetError):return
+                except Exception:return self.cover_json(502,{'error':'Subtitle source unavailable'})
             if route.path == '/media/proxy':
                 try:
                     query=urllib.parse.parse_qs(route.query)
