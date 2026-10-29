@@ -19,7 +19,7 @@ from cover_store import CoverStore
 from media_hub import MediaHub
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-HELPER_REVISION = 'media-sources-v9'
+HELPER_REVISION = 'media-sources-v10'
 LOG = logging.getLogger('seanime-translation')
 ARABIC = re.compile(r'[\u0620-\u064a\u066e-\u06d3\u06fa-\u06ff\u0750-\u077f\u08a0-\u08c9]')
 LATIN_WORDS = re.compile(r'[A-Za-z]+')
@@ -310,6 +310,14 @@ class Handler(BaseHTTPRequestHandler):
         self.send_json(404, {'error': {'message': 'Unknown endpoint'}})
 
     def do_POST(self):
+        if self.path == '/media/source-preferences':
+            if not self.cover_origin():return self.send_json(403, {'error':'Origin not allowed'})
+            try:
+                length=int(self.headers.get('Content-Length','0'))
+                if not 0 < length <= 16384 or self.headers.get('Content-Type','').split(';')[0]!='application/json':raise ValueError('Invalid request')
+                return self.cover_json(200,self.server.media.set_source_enabled(json.loads(self.rfile.read(length))))
+            except (ValueError,TypeError,AttributeError):return self.cover_json(400,{'error':'Invalid source preference'})
+            except Exception:return self.cover_json(502,{'error':'Could not save source preference. Try again.'})
         if self.path == '/media/library':
             if not self.cover_origin(): return self.send_json(403, {'error':'Origin not allowed'})
             try:

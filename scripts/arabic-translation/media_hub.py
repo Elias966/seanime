@@ -99,6 +99,7 @@ class MediaHub:
                 if candidate.is_file():return json.loads(candidate.read_text())
             raise ValueError('Source inventory is unavailable')
         if path=='/media/sources':return {'provenance':PROVENANCE,'sources':[{'id':k,'name':{'yts':'YTS','hydra':'HydraHD','anizone':'AniZone','nyaa':'Nyaa','animetosho':'AnimeTosho'}[k],'url':v,'kind':'movies' if k in ('yts','hydra') else 'anime'} for k,v in ROOTS.items()]}
+        if path=='/media/source-preferences':return self.source_preferences()
         if path=='/media/library':
             with self.lock:return list(self.library.values())
         if path=='/media/catalog':
@@ -157,6 +158,27 @@ class MediaHub:
             if not text.lstrip().startswith('WEBVTT'):text='WEBVTT\n\n'+re.sub(r'(\d\d:\d\d:\d\d),(\d{3})',r'\1.\2',text.lstrip('\ufeff'))
             return {'vtt':text}
         raise ValueError('Unknown media endpoint')
+    def source_preferences(self):
+        with self.lock:
+            try:
+                value=json.loads((self.directory/'source-preferences.json').read_text())
+                ids=value['disabledSourceIds']
+                if not isinstance(ids,list) or any(not isinstance(x,str) for x in ids):raise ValueError('Invalid source preferences')
+                return {'disabledSourceIds':sorted(set(ids))}
+            except FileNotFoundError:return {'disabledSourceIds':[]}
+    def set_source_enabled(self,value):
+        source_id=value.get('id');enabled=value.get('enabled')
+        if not isinstance(source_id,str) or not isinstance(enabled,bool):raise ValueError('Invalid source preference')
+        source=next((x for x in self.get('/media/source-registry',{})['sources'] if x['id']==source_id),None)
+        if source is None or enabled and source['mode']=='unavailable':raise ValueError('Source cannot be enabled')
+        with self.lock:
+            disabled=set(self.source_preferences()['disabledSourceIds'])
+            if enabled:disabled.discard(source_id)
+            else:disabled.add(source_id)
+            result={'disabledSourceIds':sorted(disabled)}
+            tmp=self.directory/'source-preferences.tmp';tmp.write_text(json.dumps(result));tmp.replace(self.directory/'source-preferences.json')
+            return result
+
     def save(self,value):
         item=value.get('item');action=value.get('action','save')
         if not isinstance(item,dict) or item.get('provider')not in ('yts','hydra','anizone'):raise ValueError('Invalid library item')

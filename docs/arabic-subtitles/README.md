@@ -4,12 +4,12 @@ Unofficial Linux x86_64 Seanime 3.10.4 build, forked from [5rahim/seanime](https
 
 ## Download and run
 
-Download `Seanime-3.10.4-Arabic-Fixed-15.AppImage` and `SHA256SUMS` from [release 15](https://github.com/Elias966/seanime/releases/tag/v3.10.4-arabic-fix.15). Close any running Seanime instance, then:
+Download `Seanime-3.10.4-Arabic-Fixed-16.AppImage` and `SHA256SUMS` from [release 16](https://github.com/Elias966/seanime/releases/tag/v3.10.4-arabic-fix.16). Close any running Seanime instance, then:
 
 ```sh
 sha256sum -c SHA256SUMS
-chmod +x Seanime-3.10.4-Arabic-Fixed-15.AppImage
-./Seanime-3.10.4-Arabic-Fixed-15.AppImage
+chmod +x Seanime-3.10.4-Arabic-Fixed-16.AppImage
+./Seanime-3.10.4-Arabic-Fixed-16.AppImage
 ```
 
 Python 3 is required; no pip packages are needed. The build uses the existing Seanime profile. The launcher starts the bundled local helper on `127.0.0.1:11435`, or reuses a compatible already-running helper. Helper revision is checked so an older helper cannot silently override these fixes. If an old standalone service occupies this port, update it or stop it before opening the AppImage:
@@ -32,6 +32,14 @@ For local Ollama:
 Ollama itself remains at `http://127.0.0.1:11434`. All model requests stay local; no cloud fallback or model weights are bundled. Keep Ollama running.
 
 **Restart Seanime and reload the episode/subtitle track after upgrading**, because old untranslated results can remain in the player/backend caches. The user also reported that toggling translation mode away and back after changing models helped stale model selection.
+
+## Release 16: Discover source selector and saved enable switches
+
+Discover now builds its source dropdown from the same registry as Sources, including every available, enabled movie and anime source. With default preferences this is **45 movie/TV choices and 21 anime choices**, instead of two and three. Catalog integrations retain their search/card grids. Selecting a website entry opens its existing isolated in-app browser, where the site supplies its own search and title browsing; detected media still hands off to Seanime's player. Entries are explicitly labelled Catalog or Website, rather than presenting websites as additional catalog adapters.
+
+Every source card has an **Enabled in Discover** switch. Turning it off removes that source from Discover; turning it on restores it. Choices are saved atomically in `media-hub/source-preferences.json` under Seanime's data directory and survive reload/restart. Disabling the currently selected source selects another enabled source. If all sources are disabled, Discover offers Manage sources and does not silently use a disabled provider. Unavailable/verification sources remain listed in Sources with disabled switches.
+
+Helper revision: `media-sources-v10`. All **124 regression checks passed** (73 frontend/compiled checks, 38 Python helper checks, 4 source-registry checks, 9 engine/relay checks). Added coverage verifies complete selector membership, website selection, hide/restore behavior, restart persistence, all-disabled behavior, failed disk writes, invalid source IDs and HTTP origin validation. Live UI checks confirmed that disabling 1Shows removed it from the 45-entry movie selector, a reload retained the 44-entry selection, and enabling it restored the choice. Test preferences were restored afterward.
 
 ## Release 15: Movies redesign and the existing Seanime player
 

@@ -26,6 +26,45 @@ class MediaTests(unittest.TestCase):
         second=MediaHub(self.tmp.name,lambda *_: (_ for _ in ()).throw(OSError('offline')))
         self.assertEqual(second.get('/media/catalog',query)['items'][0],item);self.assertEqual(second.get('/media/library',{})[0],item)
         second.save({'item':item,'action':'remove'});self.assertEqual(second.get('/media/library',{}),[])
+    def test_source_preferences_persist_and_reenable_without_losing_other_choices(self):
+        self.assertEqual(self.hub.get('/media/source-preferences',{}),{'disabledSourceIds':[]})
+        self.hub.set_source_enabled({'id':'yts','enabled':False})
+        self.hub.set_source_enabled({'id':'hydrahd','enabled':False})
+        restarted=MediaHub(self.tmp.name)
+        self.assertEqual(restarted.source_preferences()['disabledSourceIds'],['hydrahd','yts'])
+        restarted.set_source_enabled({'id':'yts','enabled':True})
+        self.assertEqual(self.hub.source_preferences()['disabledSourceIds'],['hydrahd'])
+    def test_invalid_source_toggles_and_unavailable_sources_are_rejected(self):
+        for value in [{'id':'../../etc/passwd','enabled':False},{'id':'yts','enabled':'false'},{'id':'missing','enabled':True},{}]:
+            with self.assertRaises(ValueError):self.hub.set_source_enabled(value)
+        blocked=next(x for x in self.hub.get('/media/source-registry',{})['sources'] if x['mode']=='unavailable')
+        with self.assertRaises(ValueError):self.hub.set_source_enabled({'id':blocked['id'],'enabled':True})
+        self.assertEqual(self.hub.source_preferences()['disabledSourceIds'],[])
+    def test_failed_preference_write_keeps_saved_selection(self):
+        self.hub.set_source_enabled({'id':'yts','enabled':False})
+        with patch.object(Path,'write_text',side_effect=OSError('disk full')):
+            with self.assertRaises(OSError):self.hub.set_source_enabled({'id':'hydrahd','enabled':False})
+        self.assertEqual(self.hub.source_preferences()['disabledSourceIds'],['yts'])
+
+    def test_source_preference_http_endpoint_validates_origin_and_persists(self):
+        import threading,urllib.request,urllib.error
+        from http.server import ThreadingHTTPServer
+        from translation_helper import Handler
+        server=ThreadingHTTPServer(('127.0.0.1',0),Handler);server.media=self.hub
+        thread=threading.Thread(target=server.serve_forever,daemon=True);thread.start()
+        self.addCleanup(server.server_close);self.addCleanup(server.shutdown)
+        url='http://127.0.0.1:'+str(server.server_port)+'/media/source-preferences'
+        def call(value=None,origin='app://-'):
+            return urllib.request.urlopen(urllib.request.Request(url,data=json.dumps(value).encode() if value is not None else None,headers={'Origin':origin,'Content-Type':'application/json'}),timeout=2)
+        with call({'id':'yts','enabled':False}) as r:
+            self.assertEqual(r.headers['Access-Control-Allow-Origin'],'app://-');self.assertEqual(json.load(r)['disabledSourceIds'],['yts'])
+        with call() as r:self.assertEqual(json.load(r)['disabledSourceIds'],['yts'])
+        with self.assertRaises(urllib.error.HTTPError) as e:call({'id':'hydrahd','enabled':False},'https://evil.example')
+        self.assertEqual(e.exception.code,403)
+        with self.assertRaises(urllib.error.HTTPError) as e:call({'id':'yts','enabled':'false'})
+        self.assertEqual(e.exception.code,400)
+        self.assertEqual(self.hub.source_preferences()['disabledSourceIds'],['yts'])
+
     def test_json_in_html_decodes_without_evaluating_javascript(self):
         encoded=json.dumps([{'src':'https://suzaku.xin-cdn.xyz/test/master.m3u8','title':'مرحبا'}],ensure_ascii=True).replace('"',r'\u0022')
         doc=Page('<div x-data="'+__import__('html').escape("{video:JSON.parse('"+encoded+"'),bad:alert(1)}",quote=True)+'"></div>')
