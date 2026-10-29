@@ -267,7 +267,7 @@ export const VerticalMenu = React.forwardRef<HTMLDivElement, VerticalMenuProps>(
                         <React.Fragment key={item.name + idx}>
                             {!item.subContent ?
                                 item.href ? (
-                                    <SeaLink href={item.href} {...itemProps(item)} data-vertical-menu-item-link={item.name}>
+                                    <SeaLink href={item.href} {...itemProps(item)} data-vertical-menu-item-link={item.name} data-mh-movies={item.id === "movies" ? "" : undefined}>
                                         <ItemContent {...item} />
                                     </SeaLink>
                                 ) : (
