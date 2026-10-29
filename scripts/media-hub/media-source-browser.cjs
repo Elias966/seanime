@@ -28,9 +28,15 @@ async function upstream(url,headers={},redirects=0){
 async function sessionUpstream(session,url,headers={}){
  await publicAddress(url);
  const {referer,Referer,cookie,Cookie,...rest}=headers,referrer=referer||Referer;
- const go=h=>session.fetch(url,{headers:h,referrer,redirect:'follow',bypassCustomProtocolHandlers:true});
+ // The referrer option is not sent by session.fetch, and CDNs that check it answer 403, so it goes in as a header.
+ // uBlock Origin judges a request with a Referer as the site's own and may block it; that request then goes out
+ // from Node instead (the page already loaded the media, so it is not an ad), and each header set is also tried without one.
+ const go=h=>session.fetch(url,{headers:h,redirect:'follow',bypassCustomProtocolHandlers:true});
  // Some captured header sets are refused by Chromium when replayed, fall back to the ones a media request needs
- let res;try{res=await go(rest)}catch(first){const basic=Object.fromEntries(Object.entries(rest).filter(([k])=>/^(accept|accept-language|user-agent|origin|range)$/i.test(k)));try{res=await go(basic)}catch(second){throw Error(`${first.message} / ${second.message} [${Object.keys(rest).join(',')}]`)}}
+ const basic=Object.fromEntries(Object.entries(rest).filter(([k])=>/^(accept|accept-language|user-agent|origin|range)$/i.test(k)));const {origin,Origin,...plain}=basic;
+ const ref=h=>referrer?{...h,Referer:referrer}:h,tries=[rest,basic,plain].flatMap(h=>referrer?[ref(h),h]:[h]),errors=[];
+ let res;for(const h of tries){try{res=await go(h);break}catch(e){errors.push(e.message);if(h.Referer&&/ERR_BLOCKED_BY_CLIENT/.test(e.message)){try{return await upstream(url,h)}catch(n){errors.push(n.message)}}}}
+ if(!res)throw Error(`${errors.join(' / ')} [${Object.keys(rest).join(',')}]`);
  if(res.url&&res.url!==url)await publicAddress(res.url);
  const {Readable}=require('node:stream');const r=res.body?Readable.fromWeb(res.body):Readable.from([]);
  r.statusCode=res.status;r.headers=Object.fromEntries(res.headers);r.sourceURL=res.url||url;return r;
@@ -113,8 +119,9 @@ function attach(win,options={}){
   guest.on('will-navigate',navigation);guest.on('will-redirect',navigation);
   // Download sites skip stream sniffing: session.webRequest hooks would shadow uBlock Origin's.
   if(!source.openNavigation){guest.session.webRequest.onBeforeSendHeaders({urls:['https://*/*']},(details,callback)=>{try{const u=new URL(details.url);c.headers.set(u.origin,{...details.requestHeaders})}catch{}callback({requestHeaders:details.requestHeaders})});
-  guest.session.webRequest.onCompleted({urls:['https://*/*']},details=>{
-   if(details.statusCode<200||details.statusCode>=300||seen.has(details.url))return;const h=details.responseHeaders||{},type=Object.entries(h).find(([k])=>k.toLowerCase()==='content-type')?.[1]?.[0]||'';let kind;try{kind=mediaKind(details.url,type)}catch{return}if(!kind)return;
+  // onResponseStarted, not onCompleted: a progressive video stays open for the whole movie.
+  guest.session.webRequest.onResponseStarted({urls:['https://*/*']},details=>{
+   if(details.statusCode<200||details.statusCode>=300||seen.has(details.url))return;const h=details.responseHeaders||{},type=Object.entries(h).find(([k])=>k.toLowerCase()==='content-type')?.[1]?.[0]||'';let kind;try{kind=mediaKind(details.url,type)||(details.resourceType==='media'&&/^(application\/octet-stream|binary\/octet-stream)?$/i.test(type)?'video':null)}catch{return}if(!kind)return;
    seen.add(details.url);try{emit({type:kind,url:relay.register(c,details.url,kind,c.headers.get(new URL(details.url).origin)),label:decodeURIComponent(new URL(details.url).pathname.split('/').pop()||kind),originalHost:new URL(details.url).hostname})}catch{}
   });}
   // Provider pages run without a preload, Node access or popup permissions.

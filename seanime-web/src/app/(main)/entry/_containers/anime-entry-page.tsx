@@ -23,6 +23,7 @@ import { DebridStreamPage } from "@/app/(main)/entry/_containers/debrid-stream/d
 import { ENTRY_VIEW_SHELL_TRANSITION, ENTRY_VIEW_TRANSITION } from "@/app/(main)/entry/_containers/entry-view-transition"
 import { EpisodeSection } from "@/app/(main)/entry/_containers/episode-list/episode-section"
 import { OnlineDownloadDrawer } from "@/app/(main)/entry/_containers/online-download/online-download-drawer"
+import { AnimeWebStreamModal } from "@/app/(main)/entry/_containers/web-stream/anime-web-stream"
 import { __torrentSearch_selectionAtom, TorrentSearchDrawer } from "@/app/(main)/entry/_containers/torrent-search/torrent-search-drawer"
 import { TorrentStreamPage } from "@/app/(main)/entry/_containers/torrent-stream/torrent-stream-page"
 import { OnlinestreamPage } from "@/app/(main)/onlinestream/_containers/onlinestream-page"
@@ -419,6 +420,7 @@ export function AnimeEntryPage() {
 
             <TorrentSearchDrawer entry={animeEntry} />
             <OnlineDownloadDrawer entry={animeEntry} />
+            <AnimeWebStreamModal entry={animeEntry} />
         </div>
     )
 }

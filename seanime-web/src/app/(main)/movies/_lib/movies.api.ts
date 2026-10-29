@@ -274,6 +274,8 @@ export type Movie_StreamSource = {
     /** Element to click once the page is ready, when the site needs it to start the player */
     click?: string
     timeout?: number
+    /** For sites without predictable addresses: finds the page to play (usually through the site's search) */
+    resolve?: (m: Movie_StreamRef, signal: AbortSignal) => Promise<string | undefined>
 }
 
 const slug = (s: string) => s.toLowerCase().normalize("NFKD").replace(/[^\w\s-]/g, "").trim().replace(/[\s_]+/g, "-")
@@ -297,6 +299,8 @@ export const MOVIE_STREAM_SOURCES: Movie_StreamSource[] = [
     { id: "aether", name: "Aether", sourceId: "aether", url: tmdbUrl((t, m) => `https://aether.cx/media/tmdb-movie-${t}-${slug(m.title)}`), timeout: 40000 },
     { id: "1shows", name: "1Shows", sourceId: "1shows", url: tmdbUrl((t, m) => `https://www.1shows.org/movies/${t}-${slug(m.title)}`) },
     { id: "huzske", name: "Huzske", sourceId: "huzske", url: tmdbUrl((t, m) => `https://huzske.com/?route=${encodeURIComponent(`movie/${slug(m.title)}-${t}/watch`)}`) },
+    { id: "cinezo", name: "Cinezo", sourceId: "cinezo", url: tmdbUrl(t => `https://cinezo.st/watch/movie/${t}`) },
+    { id: "vidlink", name: "VidLink", sourceId: "bingeflix", url: tmdbUrl(t => `https://vidlink.pro/movie/${t}`) },
 ]
 
 export type Movie_CapturedStream = {
@@ -436,6 +440,48 @@ export function captureMovieStream(source: Movie_StreamSource, ref: Movie_Stream
 
         // The permission call can stall, don't let it hold the source past its timeout
         const allow = window.electron.localServer.allowWebviewOrigin(new URL(url).origin)
+        Promise.race([allow, new Promise(r => setTimeout(r, 3000))]).catch(() => {}).finally(() => !done && document.body.append(view))
+    })
+}
+
+/**
+ * Opens a website page (usually its search results) in an invisible page and returns the first link that `pick`
+ * accepts from the links on it, waiting for script-rendered results.
+ */
+export function findPageLink(pageUrl: string, sourceId: string, pick: (links: { href: string, text: string }[]) => string | undefined,
+    signal?: AbortSignal, timeout = 20000) {
+    return new Promise<string | undefined>(resolve => {
+        if (!window.electron?.localServer?.allowWebviewOrigin) return resolve(undefined)
+        const view = document.createElement("webview") as any
+        view.setAttribute("partition", "persist:seanime-media-source-" + sourceId)
+        view.setAttribute("useragent", navigator.userAgent + " SeanimeSource/" + sourceId)
+        view.setAttribute("webpreferences", "contextIsolation=yes,sandbox=yes,nodeIntegration=no")
+        view.style.cssText = "position:fixed;left:0;top:0;width:1280px;height:720px;opacity:0.01;pointer-events:none;z-index:-1;"
+        view.setAttribute("src", pageUrl)
+        let done = false
+        const finish = (url?: string) => {
+            if (done) return
+            done = true
+            clearInterval(poll)
+            clearTimeout(timer)
+            signal?.removeEventListener("abort", onAbort)
+            view.remove()
+            resolve(url)
+        }
+        const onAbort = () => finish()
+        signal?.addEventListener("abort", onAbort)
+        const poll = setInterval(async () => {
+            try {
+                const links = await view.executeJavaScript(
+                    "[...document.querySelectorAll('a[href]')].map(a=>({href:a.href,text:(a.innerText||a.title||'').trim()}))")
+                const url = pick(links)
+                if (url) finish(url)
+            }
+            catch {
+            }
+        }, 1500)
+        const timer = setTimeout(() => finish(), timeout)
+        const allow = window.electron.localServer.allowWebviewOrigin(new URL(pageUrl).origin)
         Promise.race([allow, new Promise(r => setTimeout(r, 3000))]).catch(() => {}).finally(() => !done && document.body.append(view))
     })
 }
