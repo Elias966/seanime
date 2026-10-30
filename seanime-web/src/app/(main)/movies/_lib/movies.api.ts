@@ -341,13 +341,11 @@ export const MOVIE_STREAM_SOURCES: Movie_StreamSource[] = [
 const tvUrl = (fn: (tmdb: number, s: number, e: number) => string) => (m: Movie_StreamRef) =>
     m.tmdb && m.season !== undefined && m.episode !== undefined ? fn(m.tmdb, m.season, m.episode) : undefined
 
-/** The same websites, for a series episode (by TMDB id, season and episode). */
+/** The same websites, for a series episode (by TMDB id, season and episode). Cinezo is left out: its episodes come as DASH, which the player does not take. */
 export const SERIES_STREAM_SOURCES: Movie_StreamSource[] = [
     { id: "vixsrc", name: "VixSrc", sourceId: "hydrahd", url: tvUrl((t, s, e) => `https://vixsrc.to/tv/${t}/${s}/${e}?autoplay=true`) },
-    { id: "vidlink", name: "VidLink", sourceId: "bingeflix", url: tvUrl((t, s, e) => `https://vidlink.pro/tv/${t}/${s}/${e}`) },
     { id: "rive", name: "Rive", sourceId: "rive", url: tvUrl((t, s, e) => `https://www.rivestream.app/watch?type=tv&id=${t}&season=${s}&episode=${e}`) },
     { id: "xpass", name: "XPass", sourceId: "hydrahd", url: tvUrl((t, s, e) => `https://play.xpass.top/e/tv/${t}/${s}/${e}?autostart=true`) },
-    { id: "cinezo", name: "Cinezo", sourceId: "cinezo", url: tvUrl((t, s, e) => `https://cinezo.st/watch/tv/${t}/${s}/${e}`) },
     { id: "latestmovies", name: "LatestMovies", sourceId: "latestmovies", url: tvUrl((t, s, e) => `https://latestmovies.net/watch/tv/${t}/${s}/${e}`) },
 ]
 
@@ -480,7 +478,7 @@ export function captureMovieStream(source: Movie_StreamSource, ref: Movie_Stream
                 const label = String(event.label || "")
                 const language = /(?:^|[_\W])(ar|ara|arabic)(?:[_\W]|$)/i.test(label) ? "ar"
                     : /(?:^|[_\W])(en|eng|english)(?:[_\W]|$)/i.test(label) ? "en" : ""
-                subtitles.push({ src: event.url, type: /\.(ass|ssa|srt|vtt)(?:$|\?)/i.exec(label)?.[1] || "vtt", label: label || "Subtitles", language })
+                subtitles.push({ src: event.url, type: /\.(ass|ssa|srt|vtt)(?:\.txt\d?)?(?:$|\?)/i.exec(label)?.[1] || "vtt", label: label || "Subtitles", language })
             }
             else if (event.type === "hls" || event.type === "video") {
                 streams.push({ url: event.url, type: event.type })

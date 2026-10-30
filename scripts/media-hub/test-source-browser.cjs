@@ -1,5 +1,5 @@
 const {test}=require('node:test'),assert=require('node:assert/strict'),{Readable}=require('node:stream');
-const {publicIP,mediaKind,allowedOrigin,publicAddress,createRelay,attach}=require('./media-source-browser.cjs');
+const {publicIP,mediaKind,decryptSubtitle,allowedOrigin,publicAddress,createRelay,attach}=require('./media-source-browser.cjs');
 test('native media relay rejects private networks and non-HTTPS destinations',async()=>{
  for(const ip of ['127.0.0.1','10.0.0.1','172.16.0.1','192.168.0.1','169.254.169.254','100.64.0.1','::1','fc00::1','::ffff:127.0.0.1'])assert.equal(publicIP(ip),false,ip);
  for(const ip of ['8.8.8.8','1.1.1.1','2606:4700::1111'])assert.equal(publicIP(ip),true,ip);
@@ -23,4 +23,8 @@ test('relay streams delayed range bodies completely and preserves seek response 
  const expected=Buffer.from('range-body-arrives-in-chunks');let observed;
  const relay=createRelay({port:0,request:async(url,headers)=>{observed=headers.Range;const r=Readable.from((async function*(){yield expected.subarray(0,5);await new Promise(r=>setTimeout(r,25));yield expected.subarray(5)})());r.statusCode=206;r.headers={'content-type':'video/mp4','content-length':String(expected.length),'content-range':'bytes 10-36/100'};return r;}});
  relay.server.listen(0,'127.0.0.1');await new Promise(r=>relay.server.once('listening',r));const url=relay.register(relay.context('fixture'),'https://cdn.example/video.mp4','video');try{const r=await fetch(url,{headers:{Range:'bytes=10-36'}});assert.equal(r.status,206);assert.equal(r.headers.get('content-range'),'bytes 10-36/100');assert.deepEqual(Buffer.from(await r.arrayBuffer()),expected);assert.equal(observed,'bytes=10-36')}finally{await new Promise(r=>relay.server.close(r))}
+});
+test('kisskh encrypted subtitles are recognised and decrypted, timings kept',()=>{
+ assert.equal(mediaKind('https://sub.cdn.example/Show.2025.Ep1.en.srt.txt1?v=1'),'subtitle');
+ assert.equal(decryptSubtitle('1\n00:00:17,152 --> 00:00:19,208\nSq/yslS8glo0CoTCWZBT0GepZqSNY4KqATqtSAO1798=\n'),'1\n00:00:17,152 --> 00:00:19,208\n<i>♫ Set off ♫</i>\n');
 });

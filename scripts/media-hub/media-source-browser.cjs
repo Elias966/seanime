@@ -8,9 +8,18 @@ function publicIP(ip){
 function mediaKind(url,type=''){
  const p=new URL(url).pathname.toLowerCase();type=type.toLowerCase();
  if(/\.m3u8$/.test(p)||/mpegurl/.test(type))return 'hls';
- if(/\.(srt|vtt|ass|ssa)$/.test(p)||/text\/(vtt|srt)|subrip|x-ssa|x-ass/.test(type))return 'subtitle';
+ if(/\.(srt|vtt|ass|ssa)(\.txt\d?)?$/.test(p)||/text\/(vtt|srt)|subrip|x-ssa|x-ass/.test(type))return 'subtitle';
  if(/\.(mp4|m4v|webm|mkv|mov)$/.test(p)||/^video\/(mp4|webm|x-matroska|quicktime)/.test(type))return 'video';
  return null;
+}
+// kisskh serves its subtitles as .srt.txt/.srt.txt1 with every text line AES encrypted, its player decrypts them in the page
+const SUB_KEYS=[['AmSmZVcH93UQUezi','ReBKWW8cqdjPEnF6'],['8056483646328763','6852612370185273'],['sWODXX04QRTkHdlZ','8pwhapJeC4hrS9hO']];
+function decryptSubtitle(text){
+ return text.split(/\r?\n/).map(line=>{
+  if(!/^[A-Za-z0-9+/]{16,}={0,2}$/.test(line.trim()))return line;
+  for(const[k,iv]of SUB_KEYS){try{const d=crypto.createDecipheriv('aes-128-cbc',Buffer.from(k),Buffer.from(iv));return Buffer.concat([d.update(Buffer.from(line.trim(),'base64')),d.final()]).toString('utf8')}catch{}}
+  return line;
+ }).join('\n');
 }
 function allowedOrigin(o){if(!o||o==='app://-')return true;try{const u=new URL(o);return ['http:','https:'].includes(u.protocol)&&['127.0.0.1','localhost','[::1]'].includes(u.hostname)}catch{return false}}
 async function publicAddress(url){const u=new URL(url);if(u.protocol!=='https:'||u.username||u.password||u.port&&u.port!=='443')throw Error('Only public HTTPS media is supported');const all=net.isIP(u.hostname)?[{address:u.hostname.replace(/^\[|\]$/g,''),family:net.isIP(u.hostname)}]:await dns.lookup(u.hostname,{all:true});const ip=all.find(x=>x.family===4&&publicIP(x.address))||all.find(x=>publicIP(x.address));if(!ip)throw Error('Private media destinations are blocked');return {u,ip}}
@@ -50,7 +59,7 @@ function createRelay({port=11438,request=upstream}={}){
   const known=c.keys.get(url);if(known&&resources.has(known.split('/')[4]))return known;
   // A single HLS movie registers thousands of segments, so drop the least recently used ones instead of refusing new media.
   if(resources.size>=MAX_RESOURCES){const old=[...resources].sort((a,b)=>a[1].used-b[1].used).slice(0,resources.size-MAX_RESOURCES+1024);for(const[k]of old)resources.delete(k)}
-  const key=crypto.randomUUID(),extension=kind==='hls'?'.m3u8':kind==='subtitle'?(/\.(srt|vtt|ass|ssa)$/i.exec(u.pathname)?.[0]||'.vtt'):kind==='torrent'?'.torrent':kind==='video'?(/\.(mp4|webm|mkv|m4v|mov)$/i.exec(u.pathname)?.[0]||'.mp4'):'';
+  const key=crypto.randomUUID(),extension=kind==='hls'?'.m3u8':kind==='subtitle'?(/\.(srt|vtt|ass|ssa)(?=(\.txt\d?)?$)/i.exec(u.pathname)?.[0]||'.vtt'):kind==='torrent'?'.torrent':kind==='video'?(/\.(mp4|webm|mkv|m4v|mov)$/i.exec(u.pathname)?.[0]||'.mp4'):'';
   const local='http://127.0.0.1:'+(server.address()?.port||port)+'/source/'+key+'/stream'+extension;
   resources.set(key,{url,c,kind,headers:headers||{},headerOrigin,used:Date.now()});c.keys.set(url,local);return local;
  }
@@ -72,6 +81,10 @@ function createRelay({port=11438,request=upstream}={}){
     const child=(value,playlist)=>{const url=new URL(value,r.sourceURL||record.url).href;return register(record.c,url,playlist?'hls':mediaKind(url)||'segment',record.headers,record.headerOrigin)};
     // Variant and rendition playlists are often disguised (.jpg, no extension), so their kind comes from the tag pointing at them.
     let variant=false;text=text.split(/\r?\n/).map(line=>{if(line.startsWith('#')){variant=/^#EXT-X-STREAM-INF/i.test(line);const rendition=/^#EXT-X-(MEDIA|I-FRAME-STREAM-INF):/i.test(line);return line.replace(/URI="([^"]+)"/g,(_,uri)=>'URI="'+child(uri,rendition)+'"')}if(!line.trim())return line;const out=child(line.trim(),variant);variant=false;return out}).join('\n');const b=Buffer.from(text);res.writeHead(200,{'Content-Type':'application/vnd.apple.mpegurl','Content-Length':b.length,'Cache-Control':'no-store'});res.end(req.method==='HEAD'?undefined:b);return;
+   }
+   if(record.kind==='subtitle'&&/\.txt\d?$/i.test(new URL(record.url).pathname)){
+    let bytes=0,parts=[];for await(const b of r){bytes+=b.length;if(bytes>4*1024*1024)throw Error('Subtitle too large');parts.push(b)}
+    res.writeHead(200,{'Content-Type':'text/plain; charset=utf-8','Cache-Control':'no-store'});res.end(req.method==='HEAD'?undefined:decryptSubtitle(Buffer.concat(parts).toString('utf8')));return;
    }
    const out={'Content-Type':type,'Cache-Control':'no-store','Accept-Ranges':'bytes'};for(const key of ['content-length','content-range'])if(r.headers[key])out[key]=r.headers[key];res.writeHead(r.statusCode||200,out);if(req.method==='HEAD'){r.resume();res.end();return}res.on('close',()=>r.destroy());r.on('error',()=>res.destroy());r.pipe(res);
   }catch(e){if(!res.headersSent)res.writeHead(502,{'Content-Type':'text/plain'});res.end(String(e?.message||'Upstream failed').slice(0,200))}
@@ -182,4 +195,4 @@ function attach(win,options={}){
  });
  win.once('closed',()=>relay.server.close());return relay;
 }
-module.exports={publicIP,mediaKind,allowedOrigin,publicAddress,upstream,sessionUpstream,createRelay,attach};
+module.exports={publicIP,mediaKind,decryptSubtitle,allowedOrigin,publicAddress,upstream,sessionUpstream,createRelay,attach};
