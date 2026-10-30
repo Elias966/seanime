@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"seanime/internal/api/anilist"
 	"seanime/internal/database/db_bridge"
 	"seanime/internal/database/models"
@@ -129,7 +130,34 @@ func (h *Handler) HandleTorrentClientAction(c echo.Context) error {
 			return err
 		}
 		OpenDirInExplorer(b.Dir)
-	case "pause-all", "resume-all", "force-start", "queue-up", "queue-down", "move-storage", "recheck", "reannounce", "add-tracker", "remove-tracker", "set-file-priority", "set-sequential", "rename", "set-limits", "add-magnet":
+	case "add-magnet":
+		if err := h.guardStrictLocalOnlyAction(c); err != nil {
+			return err
+		}
+		if b.Magnet == "" || !strings.HasPrefix(b.Magnet, "magnet:") {
+			return h.RespondWithError(c, errors.New("invalid magnet link"))
+		}
+		if b.Dir != "" {
+			if !filepath.IsAbs(b.Dir) {
+				return h.RespondWithError(c, errors.New("destination path must be absolute"))
+			}
+			if err := h.guardStrictFilesystemPath(c, b.Dir); err != nil {
+				return err
+			}
+		}
+		// Any client can take a magnet, qBittorrent and Transmission are started first like for downloads
+		if h.App.TorrentClientRepository.GetProvider() != torrent_client.SeanimeClient {
+			if err := h.guardPrivilegedTorrentClient(c, h.App.Settings); err != nil {
+				return err
+			}
+			if !h.App.TorrentClientRepository.Start() {
+				return h.RespondWithError(c, errors.New("could not contact torrent client, verify your settings or make sure it's running"))
+			}
+		}
+		if err := h.App.TorrentClientRepository.AddMagnets([]string{b.Magnet}, b.Dir); err != nil {
+			return h.RespondWithError(c, err)
+		}
+	case "pause-all", "resume-all", "force-start", "queue-up", "queue-down", "move-storage", "recheck", "reannounce", "add-tracker", "remove-tracker", "set-file-priority", "set-sequential", "rename", "set-limits":
 		client := h.App.TorrentClientRepository.GetSeanimeClient()
 		if h.App.TorrentClientRepository.GetProvider() != torrent_client.SeanimeClient || client == nil {
 			return h.RespondWithError(c, errors.New("action is only available for the Seanime torrent client"))
@@ -168,8 +196,6 @@ func (h *Handler) HandleTorrentClientAction(c echo.Context) error {
 			err = client.RenameTorrent(b.Hash, b.Name)
 		case "set-limits":
 			client.SetLimits(b.DownloadLimit, b.UploadLimit)
-		case "add-magnet":
-			_, err = client.AddMagnet(b.Magnet, b.Dir)
 		}
 		if err != nil {
 			return h.RespondWithError(c, err)

@@ -67,3 +67,25 @@ test('older complete downloads are found from saved metadata, partial ones are s
   assert.equal((await (await fetch(base+'/library-scan')).json()).length,0);
  }finally{await engine.close();await new Promise(resolve=>seed.destroy(resolve));fs.rmSync(directory,{recursive:true,force:true})}
 });
+test('movies move to the chosen library folder and other clients\' downloads join the library',{timeout:25000},async()=>{
+ const directory=fs.mkdtempSync(path.join(os.tmpdir(),'seanime-torrent-test-')),downloads=path.join(directory,'downloads'),movies=path.join(directory,'Movies');
+ fs.mkdirSync(path.join(downloads,'Toy Story (1995)'),{recursive:true});const toy=Buffer.alloc(200*1024,5);fs.writeFileSync(path.join(downloads,'Toy Story (1995)','Toy.Story.1995.mp4'),toy);
+ fs.writeFileSync(path.join(downloads,'library.json'),JSON.stringify([{hash:'b'.repeat(40),imdb:'tt0114709',title:'Toy Story',release:'Toy Story (1995)',file:'Toy Story (1995)/Toy.Story.1995.mp4',size:toy.length,added:1}]));
+ const engine=createEngine({directory:downloads,client:new WebTorrent({dht:false,tracker:false,utp:false})});
+ try{
+  engine.server.listen(0,'127.0.0.1');await once(engine.server,'listening');const base='http://127.0.0.1:'+engine.server.address().port;
+  const post=body=>fetch(base+'/torrents',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});const settings=async()=>(await fetch(base+'/settings')).json();
+  assert.equal((await post({action:'set-library-dir',dir:'relative/folder'})).status,400);
+  assert.equal((await (await post({action:'set-library-dir',dir:movies})).json()).outside,1);assert.equal((await settings()).libraryDir,movies);
+  await post({action:'move-library'});for(let i=0;i<50&&!(await settings()).moving?.done;i++)await new Promise(r=>setTimeout(r,50));
+  assert.deepEqual((await settings()).moving,{total:1,moved:1,done:true,error:''});assert.ok(!fs.existsSync(path.join(downloads,'Toy Story (1995)')));
+  const list=await (await fetch(base+'/library')).json();assert.equal(list.length,1);assert.deepEqual(Buffer.from(await (await fetch(base+list[0].url)).arrayBuffer()),toy);
+  // A qBittorrent download is linked once it is complete and inside the library folder
+  const hash='c'.repeat(40);assert.equal((await (await post({action:'external-add',hash,media:{imdb:'tt2543164',title:'Arrival',year:'2016'},release:'Arrival (2016) [1080p]'})).json()).dir,movies);
+  fs.mkdirSync(path.join(movies,'Arrival (2016)'));fs.writeFileSync(path.join(movies,'Arrival (2016)','Arrival.2016.mp4'),Buffer.alloc(300*1024,3));fs.writeFileSync(path.join(movies,'Arrival (2016)','Arrival.sample.mp4'),Buffer.alloc(400*1024,1));
+  assert.equal((await post({action:'external-done',hash,path:os.tmpdir()})).status,400);
+  assert.equal((await post({action:'external-done',hash,path:path.join(movies,'Arrival (2016)')})).status,200);
+  const after=await (await fetch(base+'/library')).json();assert.deepEqual(after.map(x=>x.imdb),['tt2543164','tt0114709']);assert.equal(after[0].path,path.join(movies,'Arrival (2016)','Arrival.2016.mp4'));
+  assert.deepEqual((await settings()).external,[]);assert.equal((await (await fetch(base+'/library-scan')).json()).length,0);
+ }finally{await engine.close();fs.rmSync(directory,{recursive:true,force:true})}
+});

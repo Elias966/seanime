@@ -1,3 +1,6 @@
+import { useSeaQuery } from "@/api/client/requests"
+import { API_ENDPOINTS } from "@/api/generated/endpoints"
+import { TorrentClient_Torrent } from "@/api/generated/types"
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 
 /**
@@ -603,12 +606,70 @@ export function engineAction(action: "stop" | "resume" | "restore" | "library-re
 }
 
 export function useMovieLibrary(refetchInterval: number | false = false) {
+    const { seaFetch } = useSeaQuery()
     return useQuery({
         queryKey: ["movies-library"],
-        queryFn: () => getJson<Movie_LibraryItem[]>(`${TORRENT_ENGINE}/library`),
+        queryFn: async () => {
+            await syncClientDownloads(seaFetch).catch(() => {})
+            return getJson<Movie_LibraryItem[]>(`${TORRENT_ENGINE}/library`)
+        },
         refetchInterval,
         retry: 1,
     })
+}
+
+/** Where movie downloads are saved, chosen in Settings. Movies saved before in another folder can be moved there. */
+export type Movie_EngineSettings = {
+    libraryDir: string
+    defaultDir: string
+    custom: boolean
+    outside: number
+    moving: { total: number, moved: number, done: boolean, error: string } | null
+    external: string[]
+}
+
+export function useMovieSettings(refetchInterval: number | false = false) {
+    return useQuery({
+        queryKey: ["movies-settings"],
+        queryFn: () => getJson<Movie_EngineSettings>(`${TORRENT_ENGINE}/settings`),
+        refetchInterval,
+        retry: 1,
+    })
+}
+
+export const setMovieLibraryDir = (dir: string) =>
+    postJson<{ libraryDir: string, outside: number }>(`${TORRENT_ENGINE}/torrents`, { action: "set-library-dir", dir })
+
+export const moveMoviesToLibrary = () => postJson<unknown>(`${TORRENT_ENGINE}/torrents`, { action: "move-library" })
+
+type SeaFetch = ReturnType<typeof useSeaQuery>["seaFetch"]
+
+/**
+ * Sends the movie to the torrent client set in Settings (qBittorrent or Transmission), saving it in the movie library folder.
+ * The movie joins the Library once the client finishes it.
+ */
+export async function downloadWithTorrentClient(seaFetch: SeaFetch, magnet: string, hash: string, title: string, media: Movie_LibraryMedia) {
+    const { dir } = await postJson<{ dir: string }>(`${TORRENT_ENGINE}/torrents`, { action: "external-add", hash, media, release: title })
+    try {
+        await seaFetch(API_ENDPOINTS.TORRENT_CLIENT.TorrentClientAction.endpoint, "POST", { action: "add-magnet", magnet, dir })
+    }
+    catch (e: any) {
+        await postJson(`${TORRENT_ENGINE}/torrents`, { action: "external-remove", hash }).catch(() => {})
+        throw new Error(e?.response?.data?.error || e?.message || "The torrent client did not take the movie")
+    }
+}
+
+/** Adds movies the torrent client has finished to the Library. */
+async function syncClientDownloads(seaFetch: SeaFetch) {
+    const { external } = await getJson<Movie_EngineSettings>(`${TORRENT_ENGINE}/settings`)
+    if (!external.length) return
+    const torrents = await seaFetch<TorrentClient_Torrent[]>(API_ENDPOINTS.TORRENT_CLIENT.GetActiveTorrentList.endpoint, "GET")
+    for (const t of torrents ?? []) {
+        const hash = t.hash.toLowerCase()
+        if (external.includes(hash) && t.progress >= 1 && t.contentPath) {
+            await postJson(`${TORRENT_ENGINE}/torrents`, { action: "external-done", hash, path: t.contentPath }).catch(() => {})
+        }
+    }
 }
 
 const normalizeTitle = (s: string) => s.toLowerCase().normalize("NFKD").replace(/[^a-z0-9]+/g, " ").trim()

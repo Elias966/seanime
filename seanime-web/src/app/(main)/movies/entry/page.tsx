@@ -8,6 +8,7 @@ import { MovieCarousel } from "@/app/(main)/movies/_containers/movie-carousel"
 import { MovieDownloads } from "@/app/(main)/movies/_containers/movie-downloads"
 import { OnlineStreamModal, readLastSource } from "@/app/(main)/movies/_containers/online-stream-modal"
 import {
+    downloadWithTorrentClient,
     engineAction,
     fetchEngineTorrents,
     formatBytes,
@@ -30,6 +31,7 @@ import {
     useMovieHydraMatches,
     useMovieLibrary,
     useMovieMeta,
+    useMovieSettings,
     useMovieTorrents,
     ytsMagnet,
 } from "@/app/(main)/movies/_lib/movies.api"
@@ -47,6 +49,9 @@ import { Popover } from "@/components/ui/popover"
 import { ProgressBar } from "@/components/ui/progress-bar"
 import { StaticTabs } from "@/components/ui/tabs"
 import { useSearchParams } from "@/lib/navigation"
+import { TORRENT_CLIENT } from "@/lib/server/settings"
+import { useSeaQuery } from "@/api/client/requests"
+import { useServerStatus } from "@/app/(main)/_hooks/use-server-status"
 import { AnimatePresence, motion } from "motion/react"
 import React from "react"
 import { BiPlay } from "react-icons/bi"
@@ -246,6 +251,11 @@ function MovieTorrentSection({ meta }: { meta: Movie_Meta }) {
     const { data: yts, isLoading, isError } = useMovieTorrents(meta.id)
     const { data: library } = useMovieLibrary()
     const { data: active } = useEngineTorrents(3000)
+    const serverStatus = useServerStatus()
+    const { seaFetch } = useSeaQuery()
+    const { data: movieSettings, refetch: refetchMovieSettings } = useMovieSettings()
+    const clientName = ({ [TORRENT_CLIENT.QBITTORRENT]: "qBittorrent", [TORRENT_CLIENT.TRANSMISSION]: "Transmission" } as Record<string, string>)[
+        serverStatus?.settings?.torrent?.defaultTorrentClient ?? ""]
     const [streaming, setStreaming] = React.useState<{ hash: string, title: string, imdb: string }>()
     const [busy, setBusy] = React.useState<string>()
 
@@ -262,6 +272,22 @@ function MovieTorrentSection({ meta }: { meta: Movie_Meta }) {
         }
         catch (e: any) {
             toast.error(e?.message ?? "The torrent engine is unavailable")
+        }
+        finally {
+            setBusy(undefined)
+        }
+    }
+
+    async function sendToClient(t: Movie_YtsTorrent) {
+        const title = releaseTitle(meta, t)
+        setBusy(t.hash)
+        try {
+            await downloadWithTorrentClient(seaFetch, ytsMagnet(t.hash, title), t.hash.toLowerCase(), title, metaToLibraryMedia(meta))
+            toast.success(`Sent to ${clientName}, the movie will appear in your Library when it finishes`)
+            refetchMovieSettings()
+        }
+        catch (e: any) {
+            toast.error(e?.message ?? `${clientName} is unavailable`)
         }
         finally {
             setBusy(undefined)
@@ -285,6 +311,7 @@ function MovieTorrentSection({ meta }: { meta: Movie_Meta }) {
                                     const saved = library?.find(x => x.hash === hash)
                                     const job = active?.find(x => x.hash === hash)
                                     const downloading = !saved && job?.mode === "download"
+                                    const inClient = !saved && !!movieSettings?.external.includes(hash)
                                     return <div
                                         key={t.hash}
                                         className="border rounded-[--radius-md] bg-[--paper] p-4 flex items-center gap-4 hover:border-[--brand] transition-colors"
@@ -333,6 +360,15 @@ function MovieTorrentSection({ meta }: { meta: Movie_Meta }) {
                                         >
                                             {downloading ? `${Math.floor((job?.progress ?? 0) * 100)}%` : "Download"}
                                         </Button>}
+                                        {!saved && !!clientName && (inClient ? <Badge intent="gray">In {clientName}</Badge> : <Button
+                                            size="sm"
+                                            intent="gray-subtle"
+                                            leftIcon={<LuDownload />}
+                                            disabled={!!busy || downloading}
+                                            onClick={() => sendToClient(t)}
+                                        >
+                                            {clientName}
+                                        </Button>)}
                                     </div>
                                 })}
                             </div>}

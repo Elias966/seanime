@@ -28,21 +28,50 @@ export function createEngine(options={}){
  const metadataDir=path.join(directory,'metadata');fs.mkdirSync(metadataDir,{recursive:true});
  const savedFile=path.join(directory,'jobs.json');let saved=[];try{saved=JSON.parse(fs.readFileSync(savedFile,'utf8'))}catch{}
  function snapshot(){for(const j of jobs.values())record(j);return [...jobs.values()].map(({torrent:t,mode,title,error,media})=>({hash:t.infoHash,title:title||t.name||'Resolving metadata…',mode,error,media,ready:t.ready,progress:t.progress||0,downloaded:t.downloaded||0,length:t.length||0,downloadSpeed:t.downloadSpeed||0,peers:t.numPeers||0,files:t.files?.map((f,i)=>({index:i,name:f.name,length:f.length,playable:/\.(mp4|m4v|webm|mkv|mov)$/i.test(f.name),url:'/media-file/'+t.infoHash+'/'+i}))||[]}))}
- function persist(){fs.writeFileSync(savedFile+'.tmp',JSON.stringify([...jobs.values()].map(j=>({magnet:j.torrent.magnetURI,mode:j.mode,title:j.title,media:j.media}))));fs.renameSync(savedFile+'.tmp',savedFile)}
+ function persist(){fs.writeFileSync(savedFile+'.tmp',JSON.stringify([...jobs.values()].map(j=>({magnet:j.torrent.magnetURI,mode:j.mode,title:j.title,media:j.media,dir:j.torrent.path}))));fs.renameSync(savedFile+'.tmp',savedFile)}
  // Finished movie downloads are kept in library.json, they stay playable from disk after the transfer is stopped.
  const libraryFile=path.join(directory,'library.json');let library=[];try{library=JSON.parse(fs.readFileSync(libraryFile,'utf8'))}catch{}
  function saveLibrary(){fs.writeFileSync(libraryFile+'.tmp',JSON.stringify(library));fs.renameSync(libraryFile+'.tmp',libraryFile)}
- const libraryPath=x=>{const p=path.resolve(directory,x.file);return p.startsWith(path.resolve(directory)+path.sep)?p:null};
+ // Downloads go to the movie library folder picked in Settings (streams stay in the app folder). Folders used before
+ // stay allowed, so movies left there keep playing.
+ const settingsFile=path.join(directory,'settings.json');let settings={};try{settings=JSON.parse(fs.readFileSync(settingsFile,'utf8'))||{}}catch{}
+ function saveSettings(){fs.writeFileSync(settingsFile+'.tmp',JSON.stringify(settings));fs.renameSync(settingsFile+'.tmp',settingsFile)}
+ const libraryDir=()=>typeof settings.libraryDir==='string'&&path.isAbsolute(settings.libraryDir)?path.resolve(settings.libraryDir):directory;
+ const inside=(p,root)=>p.startsWith(path.resolve(root)+path.sep);
+ const roots=()=>[...new Set([directory,libraryDir(),...(settings.previous||[]).filter(d=>typeof d==='string'&&path.isAbsolute(d))].map(d=>path.resolve(d)))];
+ const libraryPath=x=>{const p=x.path?path.resolve(x.path):path.resolve(directory,x.file);return roots().some(r=>inside(p,r))?p:null};
+ const isVideo=name=>/\.(mp4|m4v|webm|mkv|mov)$/i.test(name);
+ // Movies sent to another torrent client (qBittorrent, Transmission) wait here until that client finishes them
+ const externalFile=path.join(directory,'external.json');let external=[];try{external=JSON.parse(fs.readFileSync(externalFile,'utf8'))}catch{}
+ function saveExternal(){fs.writeFileSync(externalFile+'.tmp',JSON.stringify(external));fs.renameSync(externalFile+'.tmp',externalFile)}
+ // A video counts as finished only when no part of it is missing on disk
+ const allocated=st=>st.blocks===undefined||st.blocks*512>=st.size;
+ function largestVideo(p){
+  const st=fs.statSync(p);if(st.isFile())return isVideo(p)?p:null;
+  const all=[],walk=(dir,depth)=>{for(const e of fs.readdirSync(dir,{withFileTypes:true})){const f=path.join(dir,e.name);if(e.isDirectory()){if(depth<2)walk(f,depth+1)}else if(e.isFile()&&isVideo(e.name)&&!/\bsample\b/i.test(e.name))all.push([f,fs.statSync(f).size])}};
+  walk(p,0);return all.sort((a,b)=>b[1]-a[1])[0]?.[0]??null}
+ let moving=null;
+ async function moveItem(from,to){try{await fs.promises.rename(from,to)}catch(e){if(e.code!=='EXDEV')throw e;await fs.promises.cp(from,to,{recursive:true,errorOnExist:true,force:false});await fs.promises.rm(from,{recursive:true,force:true})}}
+ // Moves saved movies (their whole release folder) into the current library folder
+ const outside=()=>library.filter(x=>{const p=libraryPath(x);return p&&!inside(p,libraryDir())&&!jobs.has(x.hash)});
+ function moveLibrary(){
+  if(moving&&!moving.done)return;const target=libraryDir(),items=outside();moving={total:items.length,moved:0,done:false,error:''};
+  (async()=>{fs.mkdirSync(target,{recursive:true});for(const x of items){try{
+   const p=libraryPath(x),root=roots().find(r=>inside(p,r)&&r!==target)||roots().find(r=>inside(p,r)),top=path.relative(root,p).split(path.sep)[0],from=path.join(root,top),to=path.join(target,top),moved=path.join(to,path.relative(from,p));
+   if(fs.existsSync(from)){if(fs.existsSync(to))throw Error(`"${top}" is already in the new folder`);await moveItem(from,to)}else if(!fs.existsSync(moved))throw Error(`"${x.title}" was not found`);
+   x.path=moved;delete x.file;saveLibrary();moving.moved++;
+  }catch(e){moving.error=e.message||'Could not move a movie'}}moving.done=true})();
+ }
  function record(job){
   const t=job.torrent;if(job.mode!=='download'||!job.media||!t.ready||t.progress<1||library.some(x=>x.hash===t.infoHash))return;
   const f=t.files.filter(f=>/\.(mp4|m4v|webm|mkv|mov)$/i.test(f.name)).sort((a,b)=>b.length-a.length)[0];if(!f)return;
-  library.unshift({hash:t.infoHash,...job.media,release:job.title,file:f.path,size:f.length,added:Date.now()});try{saveLibrary()}catch{}
+  library.unshift({hash:t.infoHash,...job.media,release:job.title,path:path.join(t.path,f.path),size:f.length,added:Date.now()});try{saveLibrary()}catch{}
  }
  // Downloads finished before the library existed (or whose details were lost) are found again from their saved
  // metadata. A file only counts once every piece of it matches the torrent's hashes, so partial streams are skipped.
  const verified=new Map();let scanning;
- async function complete(meta,file){
-  let size;try{const st=fs.statSync(path.join(directory,file.path));size=st.size;if(st.blocks!==undefined&&st.blocks*512<size*0.9)return false}catch{return false}if(size!==file.length)return false;
+ async function complete(meta,file,root){
+  let size;try{const st=fs.statSync(path.join(root,file.path));size=st.size;if(st.blocks!==undefined&&st.blocks*512<size*0.9)return false}catch{return false}if(size!==file.length)return false;
   const first=Math.floor(file.offset/meta.pieceLength),last=Math.floor((file.offset+file.length-1)/meta.pieceLength),all=[];for(let i=first;i<=last;i++)all.push(i);
   // Spread samples first so incomplete files fail without reading all of them
   const step=Math.max(1,Math.floor(all.length/24)),order=[...all.filter((_,i)=>i%step===0),...all.filter((_,i)=>i%step!==0)];
@@ -50,33 +79,34 @@ export function createEngine(options={}){
    for(const i of order){
     const start=i*meta.pieceLength,end=Math.min(start+meta.pieceLength,meta.length),buf=Buffer.alloc(end-start);
     for(const f of meta.files){const a=Math.max(start,f.offset),b=Math.min(end,f.offset+f.length);if(a>=b)continue;
-     if(!handles.has(f.path))handles.set(f.path,await fs.promises.open(path.join(directory,f.path),'r'));const {bytesRead}=await handles.get(f.path).read(buf,a-start,b-a,a-f.offset);if(bytesRead!==b-a)return false}
+     if(!handles.has(f.path))handles.set(f.path,await fs.promises.open(path.join(root,f.path),'r'));const {bytesRead}=await handles.get(f.path).read(buf,a-start,b-a,a-f.offset);if(bytesRead!==b-a)return false}
     if(crypto.createHash('sha1').update(buf).digest('hex')!==meta.pieces[i])return false;
    }return true;
   }catch{return false}finally{for(const h of handles.values())await h.close().catch(()=>{})}
  }
  // Videos with no saved metadata cannot be hash checked, they are only offered when no part of the file is missing on disk
  const minLooseSize=options.minLooseSize??50*2**20;
- function looseVideos(covered){
-  const found=[],walk=(dir,depth)=>{for(const e of fs.readdirSync(path.join(directory,dir),{withFileTypes:true})){const rel=path.join(dir,e.name);
-   if(e.isDirectory()){if(depth<2&&!(dir===''&&e.name==='metadata'))walk(rel,depth+1);continue}
-   if(!e.isFile()||!/\.(mp4|m4v|webm|mkv|mov)$/i.test(e.name)||/\bsample\b/i.test(e.name)||covered.has(rel))continue;
-   const st=fs.statSync(path.join(directory,rel));if(st.size<minLooseSize||st.blocks===undefined||st.blocks*512<st.size)continue;
-   found.push({hash:crypto.createHash('sha1').update('file:'+rel).digest('hex'),release:path.basename(dir)||e.name.replace(/\.[^.]+$/,''),file:rel,size:st.size,mtime:st.mtimeMs})}};
+ function looseVideos(root,covered){
+  const found=[],walk=(dir,depth)=>{for(const e of fs.readdirSync(path.join(root,dir),{withFileTypes:true})){const rel=path.join(dir,e.name),abs=path.join(root,rel);
+   if(e.isDirectory()){if(depth<2&&!(dir===''&&e.name==='metadata'&&root===path.resolve(directory)))walk(rel,depth+1);continue}
+   if(!e.isFile()||!isVideo(e.name)||/\bsample\b/i.test(e.name)||covered.has(abs))continue;
+   const st=fs.statSync(abs);if(st.size<minLooseSize||st.blocks===undefined||st.blocks*512<st.size)continue;
+   found.push({hash:crypto.createHash('sha1').update('file:'+abs).digest('hex'),release:path.basename(dir)||e.name.replace(/\.[^.]+$/,''),path:abs,size:st.size,mtime:st.mtimeMs})}};
   try{walk('',0)}catch{}return found}
  function scan(){return scanning??=(async()=>{
-  const found=[],covered=new Set([...library.map(x=>path.normalize(x.file)),...[...jobs.values()].flatMap(j=>j.torrent.files?.map(f=>path.normalize(f.path))??[])]);
+  const found=[],covered=new Set([...library.map(libraryPath).filter(Boolean),...[...jobs.values()].flatMap(j=>j.torrent.files?.map(f=>path.resolve(j.torrent.path,f.path))??[]),...external.map(x=>x.path).filter(Boolean)]);
   for(const name of fs.readdirSync(metadataDir).filter(n=>/^[a-f0-9]{40}\.torrent$/.test(n))){
    const hash=name.slice(0,40);
-   try{const meta=await parseTorrent(fs.readFileSync(path.join(metadataDir,name)));if(meta.infoHash!==hash)continue;for(const f of meta.files)covered.add(path.normalize(f.path));
+   try{const meta=await parseTorrent(fs.readFileSync(path.join(metadataDir,name)));if(meta.infoHash!==hash)continue;for(const r of roots())for(const f of meta.files)covered.add(path.resolve(r,f.path));
     if(library.some(x=>x.hash===hash)||jobs.has(hash))continue;
-    const file=meta.files.filter(f=>/\.(mp4|m4v|webm|mkv|mov)$/i.test(f.name)).sort((a,b)=>b.length-a.length)[0];if(!file||!libraryPath({file:file.path}))continue;
-    const mtime=fs.statSync(path.join(directory,file.path)).mtimeMs,known=verified.get(hash);
-    if(!(known&&known.mtime===mtime)){if(!await complete(meta,file))continue;verified.set(hash,{release:meta.name,file:file.path,size:file.length,mtime})}
+    const file=meta.files.filter(f=>isVideo(f.name)).sort((a,b)=>b.length-a.length)[0],root=file&&roots().find(r=>fs.existsSync(path.join(r,file.path)));if(!root)continue;
+    const abs=path.resolve(root,file.path);if(!roots().some(r=>inside(abs,r)))continue;
+    const mtime=fs.statSync(abs).mtimeMs,known=verified.get(hash);
+    if(!(known&&known.mtime===mtime&&known.path===abs)){if(!await complete(meta,file,root))continue;verified.set(hash,{release:meta.name,path:abs,size:file.length,mtime})}
     found.push({hash,release:meta.name,size:file.length});
    }catch{}
   }
-  for(const v of looseVideos(covered))if(!library.some(x=>x.hash===v.hash)){verified.set(v.hash,v);found.push({hash:v.hash,release:v.release,size:v.size})}
+  for(const v of roots().flatMap(r=>looseVideos(r,covered)))if(!library.some(x=>x.hash===v.hash)){verified.set(v.hash,v);found.push({hash:v.hash,release:v.release,size:v.size})}
   return found;
  })().finally(()=>{scanning=undefined})}
  async function add(value){
@@ -90,7 +120,8 @@ export function createEngine(options={}){
   if(jobs.size>=10)throw Error('Stop an existing transfer before adding another');
   const stored=path.join(metadataDir,parsed.infoHash+'.torrent');if(!metadata&&fs.existsSync(stored))metadata=fs.readFileSync(stored);
   if(metadata){const p=await parseTorrent(metadata);if(p.infoHash!==parsed.infoHash)throw Error('Cached metadata does not match this torrent');p.urlList=[];p.announce=['udp://tracker.opentrackr.org:1337/announce','udp://open.stealth.si:80/announce'];metadata=toTorrentFile(p)}
-  const t=client.add(metadata||magnet,{path:directory,deselect:value.mode!=='download'});const job={torrent:t,mode:value.mode==='download'?'download':'stream',title:String(value.title||'').slice(0,180),media,error:''};t.on('error',()=>{});if(!t.infoHash)await new Promise((resolve,reject)=>{t.once('infoHash',resolve);t.once('error',reject)});jobs.set(t.infoHash,job);
+  const dir=typeof value.dir==='string'&&roots().includes(path.resolve(value.dir))?path.resolve(value.dir):value.mode==='download'?libraryDir():directory;fs.mkdirSync(dir,{recursive:true});
+  const t=client.add(metadata||magnet,{path:dir,deselect:value.mode!=='download'});const job={torrent:t,mode:value.mode==='download'?'download':'stream',title:String(value.title||'').slice(0,180),media,error:''};t.on('error',()=>{});if(!t.infoHash)await new Promise((resolve,reject)=>{t.once('infoHash',resolve);t.once('error',reject)});jobs.set(t.infoHash,job);
   t.on('error',()=>{job.error='Torrent connection failed'});t.on('done',()=>record(job));t.once('ready',()=>{try{fs.writeFileSync(path.join(metadataDir,t.infoHash+'.torrent'),t.torrentFile)}catch{}if(job.mode==='stream')for(const f of t.files)f.deselect();persist()});persist();return t.infoHash;
  }
  const server=http.createServer(async(req,res)=>{
@@ -101,8 +132,9 @@ export function createEngine(options={}){
   if(req.method==='OPTIONS'){res.writeHead(204,{'Access-Control-Allow-Methods':'GET, POST, OPTIONS','Access-Control-Allow-Headers':'Content-Type'});res.end();return}
   if(req.method==='GET'&&u.pathname==='/health')return json(200,{ok:true,revision:'media-engine-v2'});
   if(req.method==='GET'&&u.pathname==='/torrents')return json(200,snapshot());
+  if(req.method==='GET'&&u.pathname==='/settings')return json(200,{libraryDir:libraryDir(),defaultDir:directory,custom:libraryDir()!==path.resolve(directory),outside:outside().length,moving,external:external.map(x=>x.hash)});
   if(req.method==='GET'&&u.pathname==='/library-scan')return json(200,await scan());
-  if(req.method==='GET'&&u.pathname==='/library')return json(200,library.filter(x=>{const p=libraryPath(x);return p&&fs.existsSync(p)}).map(x=>({...x,url:'/library-file/'+x.hash})));
+  if(req.method==='GET'&&u.pathname==='/library')return json(200,library.filter(x=>{const p=libraryPath(x);return p&&fs.existsSync(p)}).map(x=>({...x,file:x.file||path.basename(x.path),url:'/library-file/'+x.hash})));
   const saved_=/^\/library-file\/([a-f0-9]{40})$/.exec(u.pathname);
   if(saved_&&(req.method==='GET'||req.method==='HEAD')){
    const x=library.find(x=>x.hash===saved_[1]),p=x&&libraryPath(x);let size;try{size=fs.statSync(p).size}catch{return json(404,{error:'File not found'})}
@@ -115,7 +147,20 @@ export function createEngine(options={}){
    if(!req.headers['content-type']?.startsWith('application/json'))return json(400,{error:'JSON required'});
    try{let raw='';for await(const chunk of req){raw+=chunk;if(raw.length>16384)throw Error('Request too large')};const v=JSON.parse(raw);
     if(v.action==='resume'){if(!/^[a-f0-9]{40}$/.test(v.hash)||!fs.existsSync(path.join(metadataDir,v.hash+'.torrent')))throw Error('Saved transfer unavailable');const hash=await add({magnet:'magnet:?xt=urn:btih:'+v.hash,title:v.title||'Saved media',mode:v.mode==='download'?'download':'stream',media:v.media});return json(200,{hash})}
-    if(v.action==='library-add'){const x=verified.get(v.hash),media=cleanMedia(v.media);if(!x||!media)throw Error('Unknown download');if(!library.some(y=>y.hash===v.hash)){library.unshift({hash:v.hash,...media,release:x.release,file:x.file,size:x.size,added:Date.now()});saveLibrary()}return json(200,{ok:true})}
+    if(v.action==='library-add'){const x=verified.get(v.hash),media=cleanMedia(v.media);if(!x||!media)throw Error('Unknown download');if(!library.some(y=>y.hash===v.hash)){library.unshift({hash:v.hash,...media,release:x.release,path:x.path,size:x.size,added:Date.now()});saveLibrary()}return json(200,{ok:true})}
+    if(v.action==='set-library-dir'){
+     const dir=typeof v.dir==='string'&&v.dir.trim()?path.resolve(v.dir.trim()):'';if(v.dir&&!path.isAbsolute(String(v.dir).trim()))throw Error('Choose a full folder path');
+     if(moving&&!moving.done)throw Error('Wait for the movies being moved');if(dir)fs.mkdirSync(dir,{recursive:true});
+     const old=libraryDir();settings={...settings,libraryDir:dir||undefined,previous:[...new Set([...(settings.previous||[]),old])].filter(d=>d!==path.resolve(directory)&&d!==(dir||path.resolve(directory)))};saveSettings();
+     return json(200,{ok:true,libraryDir:libraryDir(),outside:outside().length})}
+    if(v.action==='move-library'){moveLibrary();return json(200,{ok:true,moving})}
+    if(v.action==='external-add'){const media=cleanMedia(v.media);if(!/^[a-f0-9]{40}$/.test(v.hash)||!media)throw Error('Invalid movie');external=[{hash:v.hash,media,release:String(v.release||media.title).slice(0,180)},...external.filter(x=>x.hash!==v.hash)].slice(0,100);saveExternal();return json(200,{ok:true,dir:libraryDir()})}
+    if(v.action==='external-done'){
+     const x=external.find(x=>x.hash===v.hash);if(!x)throw Error('Unknown download');const p=typeof v.path==='string'&&path.isAbsolute(v.path)?path.resolve(v.path):'';
+     if(!p||!roots().some(r=>inside(p,r)))throw Error('The download is outside the movie library folder');
+     const file=largestVideo(p);if(!file||!roots().some(r=>inside(file,r)))throw Error('No video found in the download');const st=fs.statSync(file);if(!allocated(st))throw Error('The download is not finished');
+     if(!library.some(y=>y.hash===x.hash))library.unshift({hash:x.hash,...x.media,release:x.release,path:file,size:st.size,added:Date.now()});saveLibrary();external=external.filter(y=>y.hash!==x.hash);saveExternal();return json(200,{ok:true})}
+    if(v.action==='external-remove'){external=external.filter(x=>x.hash!==v.hash);saveExternal();return json(200,{ok:true})}
     if(v.action==='library-remove'){library=library.filter(x=>x.hash!==v.hash);saveLibrary();return json(200,{ok:true})}
     if(v.action==='restore'){await restore();return json(200,{ok:true})}
     if(v.action==='stop'){

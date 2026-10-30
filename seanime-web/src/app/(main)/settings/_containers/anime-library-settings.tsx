@@ -1,6 +1,7 @@
 import { SettingsCard } from "@/app/(main)/settings/_components/settings-card"
 import { SettingsSubmitButton } from "@/app/(main)/settings/_components/settings-submit-button"
 import { DataSettings } from "@/app/(main)/settings/_containers/data-settings"
+import { MovieLibrarySettings } from "@/app/(main)/settings/_containers/movie-library-settings"
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
 import { Field } from "@/components/ui/form"
 import { Separator } from "@/components/ui/separator"
@@ -42,6 +43,8 @@ export function AnimeLibrarySettings(props: LibrarySettingsProps) {
                     shouldExist
                 />
             </SettingsCard>
+
+            <MovieLibrarySettings />
 
             <SettingsCard title="Scanning">
 
