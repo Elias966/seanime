@@ -261,7 +261,7 @@
                     receive(value) { values[index] = value; if (!--remaining && !destroyed) apply(plan.render(values)); },
                 }));
             },
-            enqueueAss(content, receive) {
+            enqueueAss(content, receive, progress) {
                 const lines = content.split(/(?<=\n)/), events = [];
                 let inEvents = false, textColumn = 9;
                 for (let i = 0; i < lines.length; i++) {
@@ -278,7 +278,7 @@
                     const millis = value => { const n = String(value).trim().split(":").map(Number); return n.length === 3 ? ((n[0] * 60 + n[1]) * 60 + n[2]) * 1000 : 0; };
                     events.push({ index: i, prefix, ending, text: line.slice(offset, ending ? -ending.length : undefined), style: fields[3], effect: fields[8], width: Number(content.match(/PlayResX:\s*(\d+)/i)?.[1]) || 1920, start: millis(fields[1]), end: millis(fields[2]) });
                 }
-                let remaining = events.length;
+                let remaining = events.length, shown = Date.now();
                 if (!remaining) { if (!destroyed) receive(content); return; }
                 for (const event of events) api.enqueueFormatted(event.text, null, (translated, layout) => {
                     let prefix = event.prefix;
@@ -292,6 +292,8 @@
                     }
                     lines[event.index] = prefix + translated + event.ending;
                     if (!--remaining && !destroyed) receive(lines.join(""));
+                    // Finished lines show while the rest of the file is still being translated
+                    else if (progress && !destroyed && Date.now() - shown > 3000) { shown = Date.now(); progress(lines.join("")); }
                 }, event);
             },
             accept(text, translated) {

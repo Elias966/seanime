@@ -43,6 +43,8 @@ export function OfflineLayout(props: OfflineLayoutProps) {
 
         if (
             pathname.startsWith("/offline") ||
+            pathname.startsWith("/movies") ||
+            pathname.startsWith("/series") ||
             pathname.startsWith("/settings") ||
             pathname.startsWith("/mediastream") ||
             pathname.startsWith("/medialinks")

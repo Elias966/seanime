@@ -2,6 +2,7 @@ import { MainLayout } from "@/app/(main)/_features/layout/main-layout"
 import { OfflineLayout } from "@/app/(main)/_features/layout/offline-layout"
 import { TopNavbar } from "@/app/(main)/_features/layout/top-navbar"
 import { TourOverlay } from "@/app/(main)/_features/tour/tour-overlay"
+import { useOfflineSubtitleSync } from "@/app/(main)/movies/_lib/movies.api"
 import { useServerStatus } from "@/app/(main)/_hooks/use-server-status"
 import { ServerDataWrapper } from "@/app/(main)/server-data-wrapper"
 import { AppErrorBoundary } from "@/components/shared/app-error-boundary"
@@ -12,6 +13,11 @@ import { ErrorBoundary } from "react-error-boundary"
 export const Route = createFileRoute("/_main")({
     component: Layout,
 })
+
+function OfflineSubtitleSync() {
+    useOfflineSubtitleSync()
+    return null
+}
 
 function Layout() {
     const serverStatus = useServerStatus()
@@ -39,6 +45,7 @@ function Layout() {
     return (
         <ServerDataWrapper host={host}>
             <MainLayout>
+                <OfflineSubtitleSync />
                 <div data-main-layout-container className="h-auto">
                     <TopNavbar />
                     <div data-main-layout-content>

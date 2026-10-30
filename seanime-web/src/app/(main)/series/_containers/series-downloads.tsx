@@ -14,7 +14,9 @@ import {
     Series_SiteEpisode,
     Series_Torrent,
     seriesFolder,
-    fetchMovieSubtitles,
+    fetchDownloadSubtitles,
+    moviePoster,
+    offlineImage,
     playMovieUrl,
     Series_File,
     SERIES_DOWNLOAD_SITES,
@@ -143,7 +145,7 @@ export function SeriesLibrary() {
         : `S${String(f.season ?? 1).padStart(2, "0")}E${String(f.episode).padStart(2, "0")}`
     const play = (f: Series_File, name: string, imdb?: string) => {
         const id = imdb && f.episode !== null ? `${imdb}:${f.season ?? 1}:${f.episode}` : undefined
-        return fetchMovieSubtitles(id, f.name)
+        return fetchDownloadSubtitles(f.subs, id, f.name)
             .then(subtitles => playMovieUrl(TORRENT_ENGINE + f.url, f.episode === null ? f.name : `${name} - ${code(f)}`, subtitles))
             .catch((e: any) => toast.error(e?.message ?? String(e)))
     }
@@ -157,7 +159,7 @@ export function SeriesLibrary() {
             const files = [...show.files].sort((a, b) => (a.season ?? 1) - (b.season ?? 1) || (a.episode ?? 0) - (b.episode ?? 0) || a.name.localeCompare(b.name))
             const unfinished = files.filter(f => !f.complete).length
             return <div key={show.folder} className="border rounded-[--radius-md] bg-[--paper] p-4 flex gap-4" data-series-library-show>
-                {!!show.meta?.poster && <img src={show.meta.poster} alt="" className="w-24 h-36 object-cover rounded-md shrink-0" />}
+                {!!show.meta?.poster && <img src={offlineImage(moviePoster(show.meta.poster))} alt="" className="w-24 h-36 object-cover rounded-md shrink-0" />}
                 <div className="flex-1 min-w-0 space-y-3">
                     <div className="flex items-center gap-3 flex-wrap">
                         <div className="flex-1 min-w-0">

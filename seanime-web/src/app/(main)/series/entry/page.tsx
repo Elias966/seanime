@@ -30,6 +30,8 @@ import {
     useSeriesFiles,
     useTorrentSource,
     fetchSeriesTorrents,
+    fetchDownloadSubtitles,
+    offlineImage,
     pickEpisodeTorrent,
     SERIES_FIREFOX_SITES,
 } from "@/app/(main)/movies/_lib/movies.api"
@@ -188,7 +190,7 @@ function SeriesMetaSection({ meta }: { meta: Movie_Meta }) {
                         <div className="space-y-2">
                             {meta.logo ? <div className="flex justify-center lg:justify-start">
                                 <img
-                                    src={meta.logo.replace("/logo/medium/", "/logo/large/")}
+                                    src={offlineImage(meta.logo.replace("/logo/medium/", "/logo/large/"))}
                                     alt={meta.name}
                                     className="max-h-[7rem] max-w-[min(30rem,80vw)] object-contain object-left drop-shadow-lg"
                                     onError={e => (e.currentTarget.style.display = "none")}
@@ -372,7 +374,7 @@ function SeriesEpisodes({ meta, drama }: { meta: Movie_Meta, drama?: Drama_Detai
                         >
                             <div className="relative flex-none w-32 aspect-video rounded-[--radius] overflow-hidden bg-[--background]">
                                 {!!v.thumbnail && <img
-                                    src={v.thumbnail}
+                                    src={offlineImage(v.thumbnail)}
                                     alt=""
                                     loading="lazy"
                                     className="absolute inset-0 w-full h-full object-cover"
@@ -390,7 +392,7 @@ function SeriesEpisodes({ meta, drama }: { meta: Movie_Meta, drama?: Drama_Detai
                                 size="sm"
                                 className="rounded-full flex-none"
                                 leftIcon={<BiPlay className="text-xl" />}
-                                onClick={() => playMovieUrl(TORRENT_ENGINE + file.url, refFor(v).title).catch((e: any) => toast.error(e?.message ?? String(e)))}
+                                onClick={() => fetchDownloadSubtitles(file.subs, `${meta.id}:${v.season}:${n}`, file.name).then(subtitles => playMovieUrl(TORRENT_ENGINE + file.url, refFor(v).title, subtitles)).catch((e: any) => toast.error(e?.message ?? String(e)))}
                                 data-series-episode-play-file
                             >
                                 File

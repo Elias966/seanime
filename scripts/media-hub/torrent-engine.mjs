@@ -74,6 +74,27 @@ export function createEngine(options={}){
    x.path=moved;delete x.file;saveLibrary();moving.moved++;
   }catch(e){moving.error=e.message||'Could not move a movie'}}moving.done=true})();
  }
+ // Subtitles saved beside a video as <video>.<language>.srt, so they play with no internet
+ const sidecars=video=>{const base=path.basename(video).replace(/\.[^.]+$/,''),low=base.toLowerCase();let names=[];try{names=fs.readdirSync(path.dirname(video))}catch{}
+  return names.filter(n=>/\.(srt|vtt|ass|ssa)$/i.test(n)).map(n=>({name:n,stem:n.replace(/\.[^.]+$/,'')})).filter(x=>x.stem.toLowerCase()===low||x.stem.toLowerCase().startsWith(low+'.')).map(x=>({path:path.join(path.dirname(video),x.name),language:x.stem.slice(base.length+1).split(/[._,]/)[0].toLowerCase()||'und'}))};
+ const savedSubs=video=>sidecars(video).filter(x=>/\.(srt|vtt)$/i.test(x.path)).map(x=>({language:x.language,url:'/saved-subtitle?'+new URLSearchParams({path:x.path})}));
+ // Subtitle tracks inside an MKV are listed near its start. Only the anime player reads them, movies and series need a saved file
+ const embedded=new Map();
+ async function hasEmbeddedSubs(video){const st=fs.statSync(video),key=video+':'+st.size;if(embedded.has(key))return embedded.get(key);
+  const h=await fs.promises.open(video,'r');try{const n=Math.min(st.size,4*2**20),head=Buffer.alloc(n);await h.read(head,0,n,0);
+   const found=/\.mkv$/i.test(video)&&['S_TEXT/','S_HDMV/PGS','S_VOBSUB'].some(x=>head.includes(x));embedded.set(key,found);return found}finally{await h.close()}}
+ // A video that found no subtitles is tried again a day later
+ const metaDir=path.join(directory,'saved-meta');fs.mkdirSync(metaDir,{recursive:true});
+ const triedFile=path.join(directory,'subtitles-tried.json');let tried={};try{tried=JSON.parse(fs.readFileSync(triedFile,'utf8'))}catch{}
+ const checkVideo=p=>{if(typeof p!=='string'||!path.isAbsolute(p)||!isVideo(p)||!fs.statSync(p).isFile())throw Error('Unknown video');return path.resolve(p)};
+ async function subtitleNeeds(video,readsEmbedded){if(Date.now()-(tried[video]||0)<864e5)return [];const have=sidecars(video).map(x=>x.language);
+  if(have.some(l=>l!=='ar'&&l!=='en')||(readsEmbedded&&await hasEmbeddedSubs(video)))return [];return ['ar','en'].filter(l=>!have.includes(l))}
+ async function saveSubtitle(video,language,url){
+  if(!/^[a-z]{2,3}(-[a-z]{2})?$/.test(language)||!/^https:\/\//.test(url))throw Error('Invalid subtitle');
+  const r=await fetch(url,{signal:AbortSignal.timeout(20000)});if(!r.ok)throw Error('Subtitle unavailable');const bytes=Buffer.from(await r.arrayBuffer());if(bytes.length>5*2**20)throw Error('Subtitle too large');
+  let text;try{text=new TextDecoder('utf-8',{fatal:true}).decode(bytes)}catch{text=new TextDecoder(language==='ar'?'windows-1256':'windows-1252').decode(bytes)}
+  if(!text.includes('-->'))throw Error('Not a subtitle file');
+  const out=video.replace(/\.[^.]+$/,'')+'.'+language+'.srt';fs.writeFileSync(out+'.tmp',text);fs.renameSync(out+'.tmp',out)}
  function record(job){
   const t=job.torrent;if(job.mode!=='download'||!job.media||!t.ready||t.progress<1||library.some(x=>x.hash===t.infoHash))return;
   const f=t.files.filter(f=>/\.(mp4|m4v|webm|mkv|mov)$/i.test(f.name)).sort((a,b)=>b.length-a.length)[0];if(!f)return;
@@ -148,8 +169,20 @@ export function createEngine(options={}){
   if(origin)res.setHeader('Access-Control-Allow-Origin',origin);res.setHeader('Vary','Origin');res.setHeader('X-Content-Type-Options','nosniff');
   function json(status,value){const b=JSON.stringify(value);res.writeHead(status,{'Content-Type':'application/json','Content-Length':Buffer.byteLength(b),'Cache-Control':'no-store'});res.end(b)}
   if(req.method==='OPTIONS'){res.writeHead(204,{'Access-Control-Allow-Methods':'GET, POST, OPTIONS','Access-Control-Allow-Headers':'Content-Type'});res.end();return}
-  if(req.method==='GET'&&u.pathname==='/health')return json(200,{ok:true,revision:'media-engine-v4'});
+  if(req.method==='GET'&&u.pathname==='/health')return json(200,{ok:true,revision:'media-engine-v5'});
   if(req.method==='GET'&&u.pathname==='/torrents')return json(200,snapshot());
+  // Details of downloaded titles, so their pages still open with no internet
+  const savedMeta=/^\/saved-meta(?:\/(tt\d{5,10}))?$/.exec(u.pathname);
+  if(savedMeta&&req.method==='GET'){
+   if(savedMeta[1]){try{return json(200,JSON.parse(fs.readFileSync(path.join(metaDir,savedMeta[1]+'.json'),'utf8')))}catch{return json(404,{error:'Not saved'})}}
+   const all=[];for(const n of fs.readdirSync(metaDir).filter(n=>n.endsWith('.json'))){try{const {id,type,name,poster,background,savedAt}=JSON.parse(fs.readFileSync(path.join(metaDir,n),'utf8'));all.push({id,type,name,poster,background,savedAt})}catch{}}return json(200,all)}
+  if(u.pathname==='/saved-meta'&&req.method==='POST'){
+   if(!req.headers['content-type']?.startsWith('application/json'))return json(400,{error:'JSON required'});
+   try{let raw='';for await(const chunk of req){raw+=chunk;if(raw.length>4*2**20)throw Error('Request too large')};const m=JSON.parse(raw);if(!/^tt\d{5,10}$/.test(m.id)||typeof m.name!=='string')throw Error('Invalid details');
+    fs.writeFileSync(path.join(metaDir,m.id+'.json'),JSON.stringify({...m,savedAt:Date.now()}));return json(200,{ok:true})}catch(e){return json(400,{error:e.message})}}
+  if(req.method==='GET'&&u.pathname==='/saved-subtitle'){const p=path.resolve(String(u.searchParams.get('path')||''));
+   if(!/\.(srt|vtt)$/i.test(p)||!roots().some(r=>inside(p,r)))return json(404,{error:'File not found'});let b;try{b=fs.readFileSync(p)}catch{return json(404,{error:'File not found'})}
+   res.writeHead(200,{'Content-Type':mimeFor(p)+'; charset=utf-8','Content-Length':b.length,'Cache-Control':'no-store'});res.end(b);return}
   if(req.method==='GET'&&u.pathname==='/settings')return json(200,{libraryDir:libraryDir(),seriesDir:path.join(libraryDir(),'Series'),defaultDir:directory,custom:libraryDir()!==path.resolve(directory),outside:outside().length,moving,external:external.map(x=>x.hash),hidden:Array.isArray(settings.hidden)?settings.hidden:[]});
   if(req.method==='GET'&&u.pathname==='/library-scan')return json(200,await scan());
   // Episodes saved for a series: torrents and files from the download sites, in every library folder used so far
@@ -162,7 +195,7 @@ export function createEngine(options={}){
    const folder=seriesFolder(name);if(!folder)return [];const found=[];
    for(const r of roots()){const base=path.join(r,'Series',folder),walk=(dir,depth)=>{let list;try{list=fs.readdirSync(dir,{withFileTypes:true})}catch{return}for(const e of list){const f=path.join(dir,e.name);
     if(e.isDirectory()){if(depth<3)walk(f,depth+1)}else if(e.isFile()&&isVideo(e.name)&&!/\bsample\b/i.test(e.name)){const st=fs.statSync(f),rel=path.relative(base,f);if(found.some(x=>x.path===f))continue;
-     found.push({path:f,name:e.name,file:rel,size:st.size,complete:allocated(st),...episodeOf(e.name),url:'/series-file?'+new URLSearchParams({folder,root:String(roots().indexOf(r)),file:rel})})}}};walk(base,0)}
+     found.push({path:f,localPath:f,subs:savedSubs(f),name:e.name,file:rel,size:st.size,complete:allocated(st),...episodeOf(e.name),url:'/series-file?'+new URLSearchParams({folder,root:String(roots().indexOf(r)),file:rel})})}}};walk(base,0)}
    return found}
   if(req.method==='GET'&&u.pathname==='/series-files'){const busy=new Set([...jobs.values()].filter(j=>j.torrent.progress<1).flatMap(j=>j.torrent.files?.map(f=>path.resolve(j.torrent.path,f.path))??[]));
    const lengths=await torrentLengths(),key=p=>path.basename(p);
@@ -180,7 +213,7 @@ export function createEngine(options={}){
    res.writeHead(range.status,headers);if(req.method==='HEAD'){res.end();return}
    const stream=fs.createReadStream(p,{start:range.start,end:range.end});stream.on('error',()=>res.destroy());res.on('close',()=>stream.destroy());stream.pipe(res);return;
   }
-  if(req.method==='GET'&&u.pathname==='/library')return json(200,library.filter(x=>{const p=libraryPath(x);return p&&fs.existsSync(p)}).map(x=>({...x,file:x.file||path.basename(x.path),url:'/library-file/'+x.hash})));
+  if(req.method==='GET'&&u.pathname==='/library')return json(200,library.filter(x=>{const p=libraryPath(x);return p&&fs.existsSync(p)}).map(x=>({...x,localPath:libraryPath(x),subs:savedSubs(libraryPath(x)),file:x.file||path.basename(x.path),url:'/library-file/'+x.hash})));
   const saved_=/^\/library-file\/([a-f0-9]{40})$/.exec(u.pathname);
   if(saved_&&(req.method==='GET'||req.method==='HEAD')){
    const x=library.find(x=>x.hash===saved_[1]),p=x&&libraryPath(x);let size;try{size=fs.statSync(p).size}catch{return json(404,{error:'File not found'})}
@@ -192,6 +225,9 @@ export function createEngine(options={}){
   if(req.method==='POST'&&u.pathname==='/torrents'){
    if(!req.headers['content-type']?.startsWith('application/json'))return json(400,{error:'JSON required'});
    try{let raw='';for await(const chunk of req){raw+=chunk;if(raw.length>16384)throw Error('Request too large')};const v=JSON.parse(raw);
+    if(v.action==='subtitle-status')return json(200,{needs:await subtitleNeeds(checkVideo(v.path),v.readsEmbedded===true)});
+    if(v.action==='subtitle-save'){await saveSubtitle(checkVideo(v.path),String(v.language),String(v.url));return json(200,{ok:true})}
+    if(v.action==='subtitle-tried'){tried[checkVideo(v.path)]=Date.now();fs.writeFileSync(triedFile,JSON.stringify(tried));return json(200,{ok:true})}
     if(v.action==='resume'){if(!/^[a-f0-9]{40}$/.test(v.hash)||!fs.existsSync(path.join(metadataDir,v.hash+'.torrent')))throw Error('Saved transfer unavailable');const hash=await add({magnet:'magnet:?xt=urn:btih:'+v.hash,title:v.title||'Saved media',mode:v.mode==='download'?'download':'stream',media:v.media});return json(200,{hash})}
     if(v.action==='library-add'){const x=verified.get(v.hash),media=cleanMedia(v.media);if(!x||!media)throw Error('Unknown download');if(!library.some(y=>y.hash===v.hash)){library.unshift({hash:v.hash,...media,release:x.release,path:x.path,size:x.size,added:Date.now()});saveLibrary()}return json(200,{ok:true})}
     // Movies the user hid from the catalogs, kept until unhidden from the settings

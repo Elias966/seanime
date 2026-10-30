@@ -132,7 +132,7 @@ Style: Default, Roboto Medium,24,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0
     private eventTranslationScheduler?: {
         enqueue(text: string, item: CachedEvent): void
         enqueueFormatted(text: string, item: CachedEvent): void
-        enqueueAss(content: string, receive: (content: string) => void): void
+        enqueueAss(content: string, receive: (content: string) => void, progress?: (content: string) => void): void
         accept(text: string, translated: string): boolean
         clear(): void
     }
@@ -641,6 +641,10 @@ Style: Default, Roboto Medium,24,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0
             this.translatedFileTracks.set(next, { translating: false })
             void this.addFileTrack({ ...track.info, index: trackNumber, src: "", content,
                 type: "ass", language: this.shouldTranslate || "ar", label: `${track.info.label} (translated)` })
+        }, content => {
+            if (this.translatedFileTracks.get(trackNumber)?.translating && this.currentTrackNumber === trackNumber) {
+                this.libassRenderer?.renderer?.setTrack(content)
+            }
         })
     }
 
@@ -1266,7 +1270,7 @@ declare global {
         }): {
             enqueue(text: string, item: T): void
             enqueueFormatted(text: string, item: T): void
-            enqueueAss(content: string, receive: (content: string) => void): void
+            enqueueAss(content: string, receive: (content: string) => void, progress?: (content: string) => void): void
             accept(text: string, translated: string): boolean
             clear(): void
         }

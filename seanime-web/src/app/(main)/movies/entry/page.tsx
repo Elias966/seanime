@@ -38,6 +38,7 @@ import {
     ytsMagnet,
     clientMagnet,
     syncClientDownloads,
+    offlineImage,
 } from "@/app/(main)/movies/_lib/movies.api"
 import { imageShimmer } from "@/components/shared/image-helpers"
 import { LuffyError } from "@/components/shared/luffy-error"
@@ -155,7 +156,7 @@ function MovieMetaSection({ meta, view, setView }: { meta: Movie_Meta, view: Mov
                         <div className="space-y-2">
                             {meta.logo ? <div className="flex justify-center lg:justify-start">
                                 <img
-                                    src={meta.logo.replace("/logo/medium/", "/logo/large/")}
+                                    src={offlineImage(meta.logo.replace("/logo/medium/", "/logo/large/"))}
                                     alt={meta.name}
                                     className="max-h-[7rem] max-w-[min(30rem,80vw)] object-contain object-left drop-shadow-lg"
                                     onError={e => (e.currentTarget.style.display = "none")}

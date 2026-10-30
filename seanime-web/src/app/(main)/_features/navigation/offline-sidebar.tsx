@@ -10,7 +10,7 @@ import { usePathname } from "@/lib/navigation"
 import { useThemeSettings } from "@/lib/theme/theme-hooks"
 import React from "react"
 import { IoCloudyOutline, IoLibraryOutline } from "react-icons/io5"
-import { LuBookOpen, LuSettings } from "react-icons/lu"
+import { LuBookOpen, LuFilm, LuSettings, LuTv } from "react-icons/lu"
 import { PluginSidebarTray } from "../plugin/tray/plugin-sidebar-tray"
 
 
@@ -92,6 +92,18 @@ export function OfflineSidebar() {
                                 href: "/offline/manga",
                                 isCurrent: pathname.startsWith("/offline/manga"),
                             }].filter(Boolean) as any,
+                            {
+                                iconType: LuFilm,
+                                name: "Movies",
+                                href: "/movies?tab=library",
+                                isCurrent: pathname.startsWith("/movies"),
+                            },
+                            {
+                                iconType: LuTv,
+                                name: "Series",
+                                href: "/series?tab=library",
+                                isCurrent: pathname.startsWith("/series"),
+                            },
                         ].filter(Boolean)}
                         onLinkItemClick={() => ctx.setOpen(false)}
                     />

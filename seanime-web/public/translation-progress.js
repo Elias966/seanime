@@ -212,7 +212,7 @@
             scheduled = false; mount(); if (!panel || !target) return;
             const s = tracker.snapshot();
             // Keep the completed status available whenever the playback bar is shown.
-            panel.hidden = !tracker.enabled || !(s.total > 0 || tracker.files.size > 0);
+            panel.hidden = !tracker.enabled;
             if (panel.hidden) { panel.dataset.expanded = "false"; button.setAttribute("aria-expanded", "false"); return; }
             const warning = s.offline || s.timeout || s.stalled || s.unchanged || s.mixed || s.unverified;
             panel.dataset.state = warning ? "warning" : s.active ? "active" : "done";
@@ -225,6 +225,11 @@
             detail.textContent = [s.total ? `${s.processed} processed · ${s.pending} pending` : "", s.unchanged ? `${s.unchanged} untranslated` : "",
                 s.mixed ? `${s.mixed} mixed-language` : "", s.timeout ? `${s.timeout} timed out` : "", s.unverified ? `${s.unverified} file could not be checked` : "", s.filePending && s.total ? "Subtitle file also processing…" : ""].filter(Boolean).join(" · ") ||
                 (s.filePending ? "Waiting for the translated file; line total unavailable" : "Arabic script detected; translation accuracy is not verified");
+            if (!s.total && !tracker.files.size) {
+                title.textContent = "AI translation ready → العربية";
+                counts.textContent = "Nothing is being translated now";
+                detail.textContent = "An Arabic track needs no translation. Pick another language in the subtitle menu to translate it.";
+            }
             const value = s.percent ?? (!s.filePending && !s.stalled ? 100 : 0);
             bar.style.width = `${value}%`;
             ring.style.strokeDashoffset = String(100 - value);

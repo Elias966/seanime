@@ -1,6 +1,6 @@
 import { useSeaQuery } from "@/api/client/requests"
 import { API_ENDPOINTS } from "@/api/generated/endpoints"
-import { TorrentClient_Torrent } from "@/api/generated/types"
+import { Anime_LocalFile, TorrentClient_Torrent } from "@/api/generated/types"
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import React from "react"
 
@@ -273,9 +273,17 @@ export function useInfiniteMovieCatalog(c: MovieCatalog, enabled = true) {
 }
 
 export async function fetchMovieMeta(id: string, type: Movie_Meta["type"] = "movie") {
-    const data = await getJson<{ meta?: Movie_Meta }>(`${CINEMETA}/meta/${type}/${id}.json`)
-    if (!data.meta?.name) throw new Error(type === "series" ? "Series not found" : "Movie not found")
-    return data.meta
+    try {
+        const data = await getJson<{ meta?: Movie_Meta }>(`${CINEMETA}/meta/${type}/${id}.json`)
+        if (!data.meta?.name) throw new Error(type === "series" ? "Series not found" : "Movie not found")
+        return data.meta
+    }
+    catch (e) {
+        // With no internet a downloaded title opens from its saved details
+        const saved = await getJson<Movie_Meta>(`${TORRENT_ENGINE}/saved-meta/${id}`).catch(() => undefined)
+        if (saved?.name) return saved
+        throw e
+    }
 }
 
 export function useMovieMeta(id: string | undefined, type: Movie_Meta["type"] = "movie") {
@@ -1051,7 +1059,8 @@ export function useEngineTorrents(refetchInterval: number | false = 2000) {
 /** Movie details stored with a download, used to show it in the Library once it finishes. */
 export type Movie_LibraryMedia = { imdb: string, title: string, year?: string, poster?: string, background?: string }
 
-export type Movie_LibraryItem = Movie_LibraryMedia & { hash: string, release: string, file: string, size: number, added: number, url: string }
+export type Saved_Subtitle = { language: string, url: string }
+export type Movie_LibraryItem = Movie_LibraryMedia & { localPath: string, subs?: Saved_Subtitle[], hash: string, release: string, file: string, size: number, added: number, url: string }
 
 export function metaToLibraryMedia(meta: Movie_Meta): Movie_LibraryMedia {
     return { imdb: meta.id, title: meta.name, year: movieYear(meta)?.toString(), poster: meta.poster, background: meta.background }
@@ -1134,7 +1143,7 @@ export function useSeriesSiteLinks(title: string, enabled: boolean) {
 }
 
 /** Episodes saved on disk for a series, from torrents and download sites */
-export type Series_File = { name: string, file: string, size: number, complete: boolean, season: number | null, episode: number | null, url: string }
+export type Series_File = { localPath: string, subs?: Saved_Subtitle[], name: string, file: string, size: number, complete: boolean, season: number | null, episode: number | null, url: string }
 
 export function useSeriesFiles(series: string, refetchInterval: number | false = false) {
     const folder = seriesFolder(series)
@@ -1153,9 +1162,13 @@ export function useSeriesLibrary() {
         queryKey: ["series-library"],
         queryFn: async () => {
             const shows = await getJson<{ folder: string, files: Series_File[] }[]>(`${TORRENT_ENGINE}/series-library`)
+            const saved = await getJson<Movie_Meta[]>(`${TORRENT_ENGINE}/saved-meta`).catch(() => [] as Movie_Meta[])
+            const named = (list: Movie_Meta[], folder: string) => list.find(m => m.type === "series" && seriesFolder(m.name).toLowerCase() === folder.toLowerCase())
             return Promise.all(shows.map(async show => {
+                const meta = named(saved, show.folder)
+                if (meta) return { ...show, meta }
                 const found = await fetchCatalog({ type: "series", catalog: "top", search: show.folder }).catch(() => [] as Movie_Meta[])
-                return { ...show, meta: found.find(m => seriesFolder(m.name).toLowerCase() === show.folder.toLowerCase()) }
+                return { ...show, meta: named(found.map(m => ({ ...m, type: "series" as const })), show.folder) }
             }))
         },
         refetchInterval: 20000,
@@ -1296,7 +1309,7 @@ export async function scanLibraryDownloads() {
 }
 
 export async function playLibraryItem(item: Movie_LibraryItem) {
-    const subtitles = await fetchMovieSubtitles(item.imdb, item.file.split("/").pop())
+    const subtitles = await fetchDownloadSubtitles(item.subs, item.imdb, item.file.split("/").pop())
     return playMovieUrl(TORRENT_ENGINE + item.url, item.year ? `${item.title} (${item.year})` : item.title, subtitles)
 }
 
@@ -1417,4 +1430,121 @@ export async function fetchMovieSubtitles(imdb?: string, release = ""): Promise<
             label: i ? `${name} ${i + 1}` : name,
             language: code,
         })))
+}
+
+/** Subtitles for a downloaded video: the ones saved beside it first, so they work offline, then the online ones in other languages. */
+export async function fetchDownloadSubtitles(saved: Saved_Subtitle[] | undefined, imdb?: string, release = ""): Promise<Movie_Subtitle[]> {
+    const local = saved ?? []
+    // A slow or missing connection never holds up a video that has its own subtitles
+    const online = await (local.length
+        ? Promise.race([fetchMovieSubtitles(imdb, release), new Promise<Movie_Subtitle[]>(done => setTimeout(() => done([]), 3000))])
+        : fetchMovieSubtitles(imdb, release))
+    return [
+        ...local.map(s => ({ src: TORRENT_ENGINE + s.url, type: "srt", label: languageName(s.language, s.language), language: s.language })),
+        ...online.filter(t => !local.some(s => s.language === t.language)),
+    ]
+}
+
+/** Artwork through the local cache, the same one the anime library uses, so it shows offline. */
+export function offlineImage(url: string) {
+    return window.SeanimeResolveImageUrl?.(url) ?? url
+}
+
+// Details and artwork of a downloaded title, renewed weekly
+async function saveTitleForOffline(id: string, type: Movie_Meta["type"], savedAt: Map<string, number>, episodes?: { season: number | null, episode: number | null }[]) {
+    if (Date.now() - (savedAt.get(id) ?? 0) < 7 * 86400000) return
+    const data = await getJson<{ meta?: Movie_Meta }>(`${CINEMETA}/meta/${type}/${id}.json`)
+    const meta = data.meta
+    if (!meta?.name) return
+    const thumbnails = (meta.videos ?? []).filter(v => episodes?.some(e => (e.season ?? 1) === v.season && e.episode === (v.episode ?? v.number))).map(v => v.thumbnail)
+    const urls = [movieBackground(meta), moviePoster(meta.poster), moviePoster(meta.poster, "large"), meta.logo?.replace("/logo/medium/", "/logo/large/"), ...thumbnails]
+    for (const url of new Set(urls)) {
+        if (url) await fetch(offlineImage(url), { signal: AbortSignal.timeout(40000) }).then(r => r.arrayBuffer()).catch(() => {})
+    }
+    await postJson(`${TORRENT_ENGINE}/saved-meta`, { ...meta, id, type })
+    savedAt.set(id, Date.now())
+}
+
+type OfflineVideo = { path: string, release: string, readsEmbedded?: boolean, id: () => Promise<string | undefined> }
+
+async function saveVideoSubtitles(video: OfflineVideo) {
+    const action = (action: string, more = {}) => postJson<{ needs?: string[] }>(`${TORRENT_ENGINE}/torrents`, { action, path: video.path, ...more })
+    const needs = (await action("subtitle-status", { readsEmbedded: video.readsEmbedded })).needs ?? []
+    if (!needs.length) return false
+    const tracks = await fetchMovieSubtitles(await video.id(), video.release)
+    let picks = needs.flatMap(language => tracks.find(t => t.language === language) ?? [])
+    // Neither Arabic nor English exists: any language can still be read or translated
+    if (!picks.length && tracks.length && needs.length > 1) picks = [tracks[0]]
+    for (const pick of picks) await action("subtitle-save", { language: pick.language, url: pick.src }).catch(() => {})
+    await action("subtitle-tried")
+    return picks.length > 0
+}
+
+// AniList entry to the IMDb id OpenSubtitles knows, with the season and episode numbering it uses
+const animeMappings = new Map<number, Promise<any>>()
+async function animeSubtitleId(mediaId: number, episode: number) {
+    if (!animeMappings.has(mediaId)) {
+        animeMappings.set(mediaId, fetch(`https://api.ani.zip/mappings?anilist_id=${mediaId}`, { signal: AbortSignal.timeout(10000) }).then(r => r.ok ? r.json() : null).catch(() => null))
+    }
+    const data = await animeMappings.get(mediaId)
+    const imdb = data?.mappings?.imdb_id
+    if (typeof imdb !== "string" || !imdb.startsWith("tt")) return undefined
+    if (String(data.mappings.type).toUpperCase() === "MOVIE") return imdb
+    const entry = data.episodes?.[String(episode)]
+    return `${imdb}:${entry?.seasonNumber || 1}:${entry?.episodeNumber || episode}`
+}
+
+/** Keeps subtitles on disk for every downloaded movie, series episode and anime episode that has none. */
+export function useOfflineSubtitleSync() {
+    const { seaFetch } = useSeaQuery()
+    const queryClient = useQueryClient()
+    React.useEffect(() => {
+        let running = false, stopped = false
+        const sweep = async () => {
+            if (running) return
+            running = true
+            try {
+                // Offline nothing can be fetched, and nothing should count as tried
+                const online = await fetch(`${OPENSUBTITLES}/manifest.json`, { signal: AbortSignal.timeout(8000) }).then(r => r.ok).catch(() => false)
+                if (!online) return
+                const videos: OfflineVideo[] = []
+                const savedList = await getJson<{ id: string, savedAt?: number }[]>(`${TORRENT_ENGINE}/saved-meta`).catch(() => [])
+                const savedAt = new Map(savedList.map(m => [m.id, m.savedAt ?? 0]))
+                for (const item of await getJson<Movie_LibraryItem[]>(`${TORRENT_ENGINE}/library`).catch(() => [])) {
+                    if (item.imdb) await saveTitleForOffline(item.imdb, "movie", savedAt).catch(() => {})
+                    if (item.imdb) videos.push({ path: item.localPath, release: item.file.split("/").pop() ?? "", id: async () => item.imdb })
+                }
+                for (const show of await getJson<{ folder: string, files: Series_File[] }[]>(`${TORRENT_ENGINE}/series-library`).catch(() => [])) {
+                    let meta: Promise<string | undefined> | undefined
+                    const showId = () => meta ??= fetchCatalog({ type: "series", catalog: "top", search: show.folder }).then(found => found.find(m => seriesFolder(m.name).toLowerCase() === show.folder.toLowerCase())?.id).catch(() => undefined)
+                    const id = await showId()
+                    if (id) await saveTitleForOffline(id, "series", savedAt, show.files.filter(f => f.complete)).catch(() => {})
+                    for (const f of show.files) {
+                        if (!f.complete || f.episode == null) continue
+                        videos.push({ path: f.localPath, release: f.name, id: async () => { const id = await showId(); return id ? `${id}:${f.season ?? 1}:${f.episode}` : undefined } })
+                    }
+                }
+                const animeFiles = await seaFetch<Anime_LocalFile[]>(API_ENDPOINTS.LOCALFILES.GetLocalFiles.endpoint, "GET").catch(() => [])
+                for (const f of animeFiles ?? []) {
+                    if (f.mediaId > 0 && f.metadata?.type === "main" && f.metadata.episode > 0) {
+                        videos.push({ path: f.path, release: f.name, readsEmbedded: true, id: () => animeSubtitleId(f.mediaId, f.metadata!.episode) })
+                    }
+                }
+                let saved = false
+                for (const video of videos) {
+                    if (stopped) return
+                    saved = await saveVideoSubtitles(video).catch(() => false) || saved
+                }
+                if (saved) {
+                    queryClient.invalidateQueries({ queryKey: ["movies-library"] })
+                    queryClient.invalidateQueries({ queryKey: ["series-library"] })
+                    queryClient.invalidateQueries({ queryKey: ["series-files"] })
+                }
+            } finally {
+                running = false
+            }
+        }
+        const first = setTimeout(sweep, 20000), repeat = setInterval(sweep, 5 * 60000)
+        return () => { stopped = true; clearTimeout(first); clearInterval(repeat) }
+    }, [])
 }
