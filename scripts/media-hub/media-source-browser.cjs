@@ -1,5 +1,5 @@
 /* Isolated source browsing and capability-scoped media relay. GPL-3.0. */
-const http=require('node:http'),https=require('node:https'),dns=require('node:dns').promises,net=require('node:net'),crypto=require('node:crypto'),fs=require('node:fs'),path=require('node:path'),{extractArchive,ARCHIVE}=require('./archive-extract.cjs');
+const http=require('node:http'),https=require('node:https'),dns=require('node:dns').promises,net=require('node:net'),crypto=require('node:crypto'),fs=require('node:fs'),path=require('node:path'),{extractArchive,ARCHIVE}=require('./archive-extract.cjs');const {probe,RangedItem}=require('./ranged-download.cjs');
 function publicIP(ip){
  if(ip.startsWith('::ffff:'))return publicIP(ip.slice(7));
  if(net.isIP(ip)===4){const[a,b]=ip.split('.').map(Number);return !(a===0||a===10||a===127||a>=224||a===169&&b===254||a===172&&b>=16&&b<=31||a===192&&(b===168||b===0)||a===100&&b>=64&&b<=127||a===198&&(b===18||b===19))}
@@ -107,22 +107,35 @@ function attachDownloads(win,registry){
  };
  const okDir=d=>typeof d==='string'&&path.isAbsolute(d)&&!d.includes('\0');
  const start=(sourceId,url,meta,referer)=>{const u=new URL(url);if(u.protocol!=='https:')return;if(pending.size>50)pending.delete(pending.keys().next().value);pending.set(u.href,meta);partition(sourceId).downloadURL(u.href,referer?{headers:{Referer:referer}}:undefined)};
+ const failed=(sourceId,url,asked,name,error)=>{const r={id:crypto.randomUUID(),sourceId,name,path:'',url,referer:asked.referer||'',title:asked.title||'',mediaId:asked.mediaId||0,received:0,total:0,state:'failed',error,speed:0,started:Date.now()};records.set(r.id,r);send({type:'download',...r});save()};
+ // Pieces are fetched by Node with the site session's browser identity: Electron crashes when session.fetch is used for this
+ const fetcher=(sourceId,referer)=>async(url,headers,signal)=>{await publicAddress(url);return fetch(url,{headers:{'User-Agent':partition(sourceId).getUserAgent(),...(referer&&{Referer:referer}),...headers},signal,redirect:'follow'})};
+ // A host that fails a whole-file request is asked for byte ranges instead, and the file is fetched in pieces
+ const ranged=async(source,url,asked,name)=>{
+  let info;try{info=await probe(fetcher(source.id,asked.referer),url)}catch(err){return failed(source.id,url,asked,name,/^The file server/.test(err.message)?err.message:'The site sent '+name+' instead of a video')}
+  const file=safeName(info.name);if(!DDL_FILE.test(file))return failed(source.id,url,asked,file,'The site sent '+file+' instead of a video');
+  const item=new RangedItem(fetcher(source.id,asked.referer),url,file,info.total);track(source,item,asked);item.begin();
+ };
  for(const source of sources)partition(source.id).on('will-download',(e,item)=>{
   const name=safeName(item.getFilename()),chain=item.getURLChain(),asked=chain.map(u=>pending.get(u)).find(Boolean);chain.forEach(u=>pending.delete(u));
-  // A download the app asked for that turns out not to be a video (an error page) is dropped and shown as failed
-  if(!DDL_FILE.test(name)){if(asked){e.preventDefault();const r={id:crypto.randomUUID(),sourceId:source.id,name,path:'',url:chain[0],title:asked.title||'',mediaId:asked.mediaId||0,received:0,total:0,state:'failed',error:'The site sent '+name+' instead of a video',speed:0,started:Date.now()};records.set(r.id,r);send({type:'download',...r});save()}return}
+  // A download the app asked for that turns out not to be a video (an error page) is dropped; the host may still serve it in pieces
+  if(!DDL_FILE.test(name)){if(asked){e.preventDefault();ranged(source,chain[0],asked,name)}return}
+  track(source,item,asked);
+ });
+ const track=(source,item,asked)=>{
+  const name=safeName(item.getFilename()),chain=item.getURLChain();
   // Files the user gets by browsing the site go where the drawer last pointed this site
   const meta={...dirs.get(source.id),...asked};
   const dir=meta.dir||path.join(app.getPath('downloads'),'Seanime');try{fs.mkdirSync(dir,{recursive:true})}catch{}
   const file=freePath(dir,name),id=crypto.randomUUID();item.setSavePath(file);items.set(id,item);
   const r={id,sourceId:source.id,name:path.basename(file),path:file,url:chain[0],referer:meta.referer||'',title:meta.title||'',mediaId:meta.mediaId||0,library:!!meta.dir,received:0,total:item.getTotalBytes(),state:'progressing',speed:0,started:Date.now()};records.set(id,r);
   let last=0,lastBytes=0,lastAt=Date.now();
-  const report=state=>{const now=Date.now(),got=item.getReceivedBytes();if(now-lastAt>=500){r.speed=Math.max(0,(got-lastBytes)*1000/(now-lastAt));lastBytes=got;lastAt=now}Object.assign(r,{received:got,total:item.getTotalBytes(),state});if(state!=='progressing')r.speed=0;send({type:'download',...r})};
+  const report=state=>{const now=Date.now(),got=item.getReceivedBytes();if(now-lastAt>=500){r.speed=Math.max(0,(got-lastBytes)*1000/(now-lastAt));lastBytes=got;lastAt=now}Object.assign(r,{received:got,total:item.getTotalBytes(),state});if(typeof item.problem==='string')r.error=item.problem||undefined;if(state!=='progressing')r.speed=0;send({type:'download',...r})};
   reports.set(id,report);report('progressing');save();
   item.on('updated',(_,state)=>{const now=Date.now();if(state==='progressing'&&!item.isPaused()&&now-last<700)return;last=now;report(state==='interrupted'?'interrupted':item.isPaused()?'paused':'progressing')});
   // A cancelled or failed download leaves a partial file, which is removed.
   item.once('done',(_,state)=>{items.delete(id);reports.delete(id);r.finished=Date.now();report(state);save();if(state!=='completed')fs.rm(file,{force:true},()=>{});else unpack(r)});
- });
+  };
  ipcMain.on('media-source:download',(e,msg)=>{
   if(e.sender!==win.webContents||!msg||typeof msg!=='object')return;const source=sources.find(s=>s.id===msg.sourceId);
   const id=typeof msg.id==='string'?msg.id:'',item=items.get(id),r=records.get(id);

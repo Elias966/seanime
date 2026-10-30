@@ -46,9 +46,37 @@ function tokiSearch(q: string) {
             const files = Array.from(doc.querySelectorAll("video[src],source[src],a[href]"))
                 .map(e => e.getAttribute("src") || e.getAttribute("href") || "")
                 .filter(u => /^https:\/\/.+\.(mkv|mp4)(\?|$)/i.test(u))
+                // AnimeToki Cloud links carry "?a=view" (its player); the file is the same without it
+                .map(u => u.replace(/\?.*$/, ""))
             const title = new DOMParser().parseFromString(p.title?.rendered || "", "text/html").body.textContent || ""
             return { title, link: p.link, files: Array.from(new Set(files)) }
         }))
+}
+
+// Runs on the file's own host. Links on AnimeToki Cloud open its player instead of the file: the player looks the file
+// up in its folder listing and downloads it by id, so the same is done here. Other hosts serve the link itself.
+function tokiFile(href: string) {
+    return fetch(href, { headers: { Range: "bytes=0-0" } }).then(async r => {
+        r.body?.cancel()
+        if (/^video\/|octet-stream|matroska/i.test(r.headers.get("content-type") || "")) return href
+        const u = new URL(href), folder = u.pathname.slice(0, u.pathname.lastIndexOf("/") + 1)
+        const name = decodeURIComponent(u.pathname.slice(folder.length))
+        const list = await fetch(folder + "?a=view", { method: "POST" }).then(r => r.json() as Promise<{ files?: any[] }>).catch(() => null)
+        const f = list?.files?.find((x: any) => x?.name === name && typeof x.id === "string")
+        if (!f) return "missing"
+        const b64 = btoa(Array.from(new TextEncoder().encode(f.name), b => String.fromCharCode(b)).join(""))
+        return `${u.origin}/?a=download&id=${encodeURIComponent(f.id)}&name=${encodeURIComponent(b64)}`
+    })
+}
+
+async function tokiResolve(href: string, signal: AbortSignal, status: (s: string) => void) {
+    status("Finding the file")
+    const origin = new URL(href).origin
+    // A plain file on the host: its player page would send a visitor without a referrer back to AnimeToki
+    const url = await withHiddenPage(origin + "/robots.txt", "animetoki",
+        page => page.until<string>(`(${tokiFile.toString()})(${JSON.stringify(href)})`, 30000, signal, 2000), [origin])
+    if (url === "missing") throw new Error("AnimeToki moved or removed this file")
+    return { url: url || href, referer: "https://animetoki.com/" }
 }
 
 // Runs inside an AnimeKaizoku series page. Only "Kaizoku" links go straight to a file; the site picks one of
@@ -124,7 +152,7 @@ export const ONLINE_SITES: OnlineSite[] = [
                         out.set(f, {
                             key: f, name, episode: fileEpisode(name) ?? fileEpisode(p.title), quality: fileQuality(name),
                             note: /\bdub|dual/i.test(name) ? "Dub" : undefined,
-                            resolve: async () => ({ url: f, referer: "https://animetoki.com/" }),
+                            resolve: (signal: AbortSignal, status: (s: string) => void) => tokiResolve(f, signal, status),
                         })
                     }
                 }
