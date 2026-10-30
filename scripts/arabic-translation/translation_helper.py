@@ -320,6 +320,14 @@ class Handler(BaseHTTPRequestHandler):
                 return self.cover_json(200,self.server.media.open_in_firefox(json.loads(self.rfile.read(length))))
             except (ValueError,TypeError,AttributeError) as e:return self.cover_json(400,{'error':str(e)})
             except Exception:return self.cover_json(502,{'error':'Could not open Firefox. Try again.'})
+        if self.path in ('/media/agent-start','/media/agent-cancel'):
+            if not self.cover_origin():return self.send_json(403, {'error':'Origin not allowed'})
+            try:
+                length=int(self.headers.get('Content-Length','0'))
+                if not 0 < length <= 65536 or self.headers.get('Content-Type','').split(';')[0]!='application/json':raise ValueError('Invalid request')
+                value=json.loads(self.rfile.read(length))
+                return self.cover_json(200,self.server.media.agent_start(value) if self.path.endswith('start') else self.server.media.agent.cancel(value.get('id')))
+            except (ValueError,TypeError,AttributeError) as e:return self.cover_json(400,{'error':str(e)})
         if self.path == '/media/source-preferences':
             if not self.cover_origin():return self.send_json(403, {'error':'Origin not allowed'})
             try:

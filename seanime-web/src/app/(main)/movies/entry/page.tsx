@@ -1,3 +1,4 @@
+import { SiteAgentDownload } from "@/app/(main)/movies/_containers/site-agent-download"
 import { TrailerModal } from "@/app/(main)/_features/anime/_components/trailer-modal"
 import { MediaEntryAudienceScore, MediaEntryGenresList } from "@/app/(main)/_features/media/_components/media-entry-metadata-components"
 import { MediaEntryPageLoadingDisplay } from "@/app/(main)/_features/media/_components/media-entry-page-loading-display"
@@ -24,6 +25,7 @@ import {
     Movie_StreamSource,
     movieTrailerId,
     movieYear,
+    seriesFolder,
     playEngineFile,
     playLibraryItem,
     startEngineTorrent,
@@ -254,6 +256,8 @@ function releaseTitle(meta: Movie_Meta, t: Movie_YtsTorrent) {
 
 function MovieTorrentSection({ meta }: { meta: Movie_Meta }) {
     const [source, setSource] = useTorrentSource<"1337x" | "yts">("movies", "1337x")
+    const [siteOpen, setSiteOpen] = React.useState(false)
+    const settings = useMovieSettings().data
     const x1337 = useMovie1337xTorrents(source === "1337x" ? meta.name : undefined, movieYear(meta))
     const ytsQuery = useMovieTorrents(source === "yts" ? meta.id : undefined)
     const { isLoading, isError, error } = source === "1337x" ? x1337 : ytsQuery
@@ -313,6 +317,17 @@ function MovieTorrentSection({ meta }: { meta: Movie_Meta }) {
             <div className="space-y-4">
                 <div className="flex items-center gap-3 flex-wrap">
                     <h3 className="text-xl font-semibold">Releases</h3>
+                    <Button size="sm" intent="white" leftIcon={<LuDownload />} onClick={() => setSiteOpen(true)} data-movie-ai-download>Download from a website</Button>
+                    <Modal open={siteOpen} onOpenChange={setSiteOpen} title={`Download ${meta.name}`} contentClass="max-w-3xl">
+                        <div className="h-[70vh] flex flex-col">
+                            <SiteAgentDownload
+                                kind="movie"
+                                title={meta.name}
+                                year={movieYear(meta)}
+                                dir={settings?.libraryDir ? `${settings.libraryDir}/${seriesFolder(`${meta.name} ${movieYear(meta) ?? ""}`)}` : ""}
+                            />
+                        </div>
+                    </Modal>
                     <select
                         className="rounded-md bg-gray-900 border px-2 text-sm h-8"
                         value={source}

@@ -15,6 +15,9 @@ IDLE_QUIT=20*60
 
 class NeedsHuman(ValueError):pass
 
+# Filled by site_agent, which owns what the AI reads from a page
+OBSERVE_HOLDER={'js':'null','gate':'false'}
+
 def is_check(title='',body=''):return bool(CHECK_TITLE.search(title or '') or CHECK_BODY.search((body or '')[:20000]))
 
 def firefox_binary():
@@ -63,7 +66,7 @@ class Connection:
 class FirefoxSession:
     def __init__(self,profile=None,binary=None,check_wait=4,human_wait=180):
         self.profile=Path(profile or profile_dir());self.binary=binary;self.conn=None;self.lock=threading.RLock();self.used=0
-        self.check_wait=check_wait;self.human_wait=human_wait;self.waiting_human=False
+        self.check_wait=check_wait;self.human_wait=human_wait;self.waiting_human=False;self.agent_active=False
         threading.Thread(target=self._idle,daemon=True).start()
     def _idle(self):
         while True:
@@ -113,7 +116,7 @@ class FirefoxSession:
         return self.conn.evaluate(self.conn.request(tab['actor'],'getTarget')['frame']['consoleActor'],text)
     def _browsing(self):
         """The person has a site open in their own tab"""
-        try:return self._chrome("Services.wm.getMostRecentWindow('navigator:browser').gBrowser.tabs.length>1")is True
+        try:return self._chrome("Services.wm.getMostRecentWindow('navigator:browser').gBrowser.tabs.filter(t=>!t.hasAttribute('seanime-side')).length>1")is True
         except (OSError,RuntimeError,ValueError,AttributeError):return False
     def _select(self,index):
         return self._chrome("(()=>{const g=Services.wm.getMostRecentWindow('navigator:browser').gBrowser,old=g.tabs.indexOf(g.selectedTab);g.selectedTab=g.tabs[%d]||g.tabs[0];return old})()"%index)
@@ -165,7 +168,7 @@ class FirefoxSession:
         with self.lock:
             self._connect();self.used=time.time()
             # The first tab is this session's, the others belong to the person
-            back=self._select(0)
+            back=self._side_tab() if self.agent_active else self._select(0)
             origin=re.match(r'https://[^/]+',urls[0]).group(0)
             if not self._state()['url'].startswith(origin):self._load(urls[0])
             self._pass_check()
@@ -176,6 +179,79 @@ class FirefoxSession:
                 self._load(blocked);self._pass_check()
             self.used=time.time();self._select(back)
             return [r['t'] if r['s']==200 else '' for r in out]
+    def _agent_tab(self):
+        """The AI works in the session's own first tab, like every other read, so human checks go the same way"""
+        self._connect();self.used=time.time();self._select(0)
+    def _side_tab(self):
+        """Reads that arrive while the AI is on a page must not take its tab away"""
+        return self._chrome("(()=>{const g=Services.wm.getMostRecentWindow('navigator:browser').gBrowser,old=g.tabs.indexOf(g.selectedTab);let t=g.tabs.find(t=>t.hasAttribute('seanime-side'));if(!t){t=g.addTab('about:blank',{triggeringPrincipal:Services.scriptSecurityManager.getSystemPrincipal()});t.setAttribute('seanime-side','1')}g.selectedTab=t;return old})()")
+    def agent_load(self,url):
+        with self.lock:self._agent_tab();self._load(url)
+    def agent_page(self,text):
+        with self.lock:
+            self._agent_tab()
+            try:return self._page(text)
+            except RuntimeError:return None # the page is changing
+    def agent_pass_check(self,on_wait=None):
+        """Exactly the earlier flow: only the title is read until a check has cleared, nothing runs on its page"""
+        with self.lock:self._agent_tab()
+        end=time.time()+self.check_wait
+        while time.time()<end:
+            if not is_check(self._state()['title']):return
+            time.sleep(.5)
+        self.show(True);self.waiting_human=True
+        if on_wait:on_wait()
+        try:
+            end=time.time()+self.human_wait
+            while time.time()<end:
+                time.sleep(1)
+                with self.lock:s=self._state()
+                if s['url'] and s['ready']=='complete' and not is_check(s['title']):return
+            raise NeedsHuman('The human check in Firefox was not finished')
+        finally:
+            self.waiting_human=False
+            with self.lock:self.show(self._browsing())
+    def agent_observe(self):
+        v=self.agent_page(OBSERVE_HOLDER['js'])
+        return json.loads(v) if isinstance(v,str) else None
+    def close_popup(self):
+        """Its close button when it has one, otherwise Escape"""
+        self.agent_page("(()=>{const c=window.__seanimeCloses||[];if(c[0])c[0].click();else document.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',code:'Escape',keyCode:27,bubbles:true}));return 1})()")
+    def wait_human(self):
+        """A check inside a normal page: Firefox comes up and only a plain lookup runs until it is gone."""
+        with self.lock:self._agent_tab();self.show(True);self.waiting_human=True
+        try:
+            end=time.time()+self.human_wait
+            while time.time()<end:
+                time.sleep(3)
+                if self.agent_page(OBSERVE_HOLDER['gate'])is False:return
+            raise NeedsHuman('The human check in Firefox was not finished')
+        finally:
+            self.waiting_human=False
+            with self.lock:self.show(self._browsing())
+    def set_download_dir(self,folder):
+        self._connect()
+        self._chrome("(()=>{const p=Services.prefs;p.setIntPref('browser.download.folderList',2);p.setCharPref('browser.download.dir',%s);p.setBoolPref('browser.download.useDownloadDir',true);p.setBoolPref('browser.download.always_ask_before_handling_new_types',false);p.setBoolPref('browser.download.alwaysOpenPanel',false);return 1})()"%json.dumps(folder))
+    def downloads(self):
+        with self.lock:
+            self._connect()
+            # A promise does not come back through the console, so its answer is left where a second call can read it
+            self._chrome("(()=>{globalThis.__seanimeDownloads=null;(async()=>{const {Downloads}=ChromeUtils.importESModule('resource://gre/modules/Downloads.sys.mjs');const l=await Downloads.getList(Downloads.ALL);globalThis.__seanimeDownloads=JSON.stringify((await l.getAll()).map(d=>({path:d.target.path,url:d.source.url,ok:d.succeeded,err:!!d.error,stopped:d.stopped,cur:d.currentBytes,tot:d.totalBytes,started:String(d.startTime)})))})();return 1})()")
+            for _ in range(20):
+                v=self._chrome("globalThis.__seanimeDownloads")
+                if isinstance(v,str):return json.loads(v)
+                time.sleep(.1)
+        return []
+    def start_download(self,url,folder,referrer=''):
+        """A file link goes straight to Firefox's downloader, with the session's cookies"""
+        name=re.sub(r'[\\/:*?"<>|\x00-\x1f]',' ',os.path.basename(url.split('?')[0].split('#')[0])) or 'video.mp4'
+        with self.lock:
+            self._connect()
+            self._chrome("(async()=>{const {Downloads}=ChromeUtils.importESModule('resource://gre/modules/Downloads.sys.mjs');const d=await Downloads.createDownload({source:{url:%s},target:{path:%s}});(await Downloads.getList(Downloads.ALL)).add(d);d.start().catch(()=>{});return 1})()"%(json.dumps(url),json.dumps(os.path.join(folder,name))))
+    def cancel_download(self,path):
+        with self.lock:
+            self._connect()
+            self._chrome("(async()=>{const {Downloads}=ChromeUtils.importESModule('resource://gre/modules/Downloads.sys.mjs');const l=await Downloads.getList(Downloads.ALL);for(const d of await l.getAll())if(d.target.path===%s){await d.finalize(true);await d.removePartialData?.();await l.remove(d);await IOUtils.remove(d.target.path,{ignoreAbsent:true})}return 1})()"%json.dumps(path))
     def shutdown(self):
         """The app is closing. Another request may be holding the lock, so this uses a connection of its own."""
         try:

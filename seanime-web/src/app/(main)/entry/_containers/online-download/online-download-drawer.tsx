@@ -3,6 +3,8 @@ import { useServerStatus } from "@/app/(main)/_hooks/use-server-status"
 import { OnlineFile, ONLINE_SITES, OnlineSite, startOnlineDownload } from "@/app/(main)/entry/_containers/online-download/online-download-sites"
 import { OnlineDownloadRow, PreparingDownloadRow } from "@/app/(main)/online-downloads/_components/online-download-row"
 import { isActiveDownload, sendDownloadAction, useOnlineDownloads, usePreparingDownloads } from "@/app/(main)/online-downloads/_lib/online-downloads"
+import { SiteAgentDownload } from "@/app/(main)/movies/_containers/site-agent-download"
+import { Modal } from "@/components/ui/modal"
 import { SeaLink } from "@/components/shared/sea-link"
 import { Button, IconButton } from "@/components/ui/button"
 import { cn } from "@/components/ui/core/styling"
@@ -46,6 +48,7 @@ export function OnlineDownloadDrawer({ entry }: { entry: Anime_Entry }) {
     const [audio, setAudio] = React.useState<"all" | "sub" | "dub">("all")
     const [selected, setSelected] = React.useState<Set<string>>(new Set())
     const [queueing, setQueueing] = React.useState(false)
+    const [aiOpen, setAiOpen] = React.useState(false)
     const downloads = useOnlineDownloads()
     const preparing = usePreparingDownloads()
 
@@ -128,6 +131,12 @@ export function OnlineDownloadDrawer({ entry }: { entry: Anime_Entry }) {
                         <h3 className="text-xl font-semibold">Online download</h3>
                         <span className="text-[--muted] text-sm truncate max-w-[40ch]">{title}</span>
                         <span className="text-xs text-[--muted] ml-auto truncate max-w-[50ch]">Saving to {folder || "Downloads/Seanime"}</span>
+                        <Button size="sm" intent="white" leftIcon={<BiDownload />} onClick={() => setAiOpen(true)} data-anime-ai-download>Download with AI</Button>
+                        <Modal open={aiOpen} onOpenChange={setAiOpen} title={`Download ${title}`} contentClass="max-w-3xl">
+                            <div className="h-[70vh] flex flex-col">
+                                <SiteAgentDownload kind="anime" title={title} dir={folder} episodes={Array.from({ length: media?.episodes || entry.currentEpisodeCount || 0 }, (_, i) => i + 1)} />
+                            </div>
+                        </Modal>
                         <SeaLink href="/online-downloads" onClick={() => setOpen(false)}>
                             <Button size="sm" intent="gray-subtle" leftIcon={<BiListUl />}>Online downloads</Button>
                         </SeaLink>

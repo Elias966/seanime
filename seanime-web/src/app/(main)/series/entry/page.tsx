@@ -422,6 +422,7 @@ function SeriesEpisodes({ meta, drama }: { meta: Movie_Meta, drama?: Drama_Detai
                 isDrama={!!drama}
                 season={current || 1}
                 seasons={seasons}
+                episodesOf={s => videos.filter(v => v.season === s).map(episodeNumber).sort((a, b) => a - b)}
                 onStream={setTorrentStream}
             />
             <SeriesStreamModal streaming={torrentStream} onClose={() => setTorrentStream(undefined)} />

@@ -272,6 +272,7 @@ def main():
                         app_dir / 'resources/cover_store.py')
         shutil.copyfile(ROOT / 'scripts/arabic-translation/media_hub.py', app_dir / 'resources/media_hub.py')
         shutil.copyfile(ROOT / 'scripts/arabic-translation/firefox_session.py', app_dir / 'resources/firefox_session.py')
+        shutil.copyfile(ROOT / 'scripts/arabic-translation/site_agent.py', app_dir / 'resources/site_agent.py')
         ensure_ublock_firefox(ROOT / 'scripts/media-hub/ublock-firefox.xpi')
         shutil.copyfile(ROOT / 'scripts/media-hub/ublock-firefox.xpi', app_dir / 'resources/ublock-firefox.xpi')
         shutil.copyfile(ROOT / 'scripts/media-hub/sources.json', app_dir / 'resources/sources.json')

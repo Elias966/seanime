@@ -1,5 +1,6 @@
 import { SiteBrowser } from "@/app/(main)/entry/_containers/online-download/online-download-drawer"
 import { sendDownloadAction } from "@/app/(main)/online-downloads/_lib/online-downloads"
+import { SiteAgentDownload } from "@/app/(main)/movies/_containers/site-agent-download"
 import { MovieDownloads } from "@/app/(main)/movies/_containers/movie-downloads"
 import {
     clientMagnet,
@@ -19,7 +20,6 @@ import {
     offlineImage,
     playMovieUrl,
     Series_File,
-    SERIES_DOWNLOAD_SITES,
     TORRENT_ENGINE,
     useSeriesLibrary,
     startEngineTorrent,
@@ -189,7 +189,7 @@ const covers = (t: Series_Torrent, season: number) => t.pack && (t.season === nu
  * there is one, otherwise the episodes picked), and for dramas Dramaday's links, opened in the app so the user passes
  * the site's link pages; the file it gives is saved into the same folder.
  */
-export function SeriesDownloadDrawer({ open, onOpenChange, title, imdb, isDrama, season, seasons, onStream }: {
+export function SeriesDownloadDrawer({ open, onOpenChange, title, imdb, isDrama, season, seasons, episodesOf, onStream }: {
     open: boolean
     onOpenChange: (v: boolean) => void
     title: string
@@ -197,8 +197,11 @@ export function SeriesDownloadDrawer({ open, onOpenChange, title, imdb, isDrama,
     isDrama: boolean
     season: number
     seasons: number[]
+    episodesOf: (season: number) => number[]
     onStream: (stream: Series_TorrentStream) => void
 }) {
+    const [siteSeason, setSiteSeason] = React.useState(season)
+    React.useEffect(() => setSiteSeason(season), [season])
     const [tab, setTab] = React.useState<"torrents" | "sites" | "firefox" | "progress">("torrents")
     const settings = useMovieSettings().data
     const folder = seriesFolder(title)
@@ -228,7 +231,17 @@ export function SeriesDownloadDrawer({ open, onOpenChange, title, imdb, isDrama,
                             onStream(s)
                         }} onStarted={() => setTab("progress")} />}
                         {tab === "sites" && <SeriesSiteLinks title={title} dir={dir} />}
-                        {tab === "firefox" && <SeriesFirefoxSites title={title} />}
+                        {tab === "firefox" && <>
+                            {seasons.length > 1 && <select
+                                className="rounded-md bg-gray-900 border px-2 text-sm h-8 w-48"
+                                value={siteSeason}
+                                onChange={e => setSiteSeason(Number(e.target.value))}
+                                aria-label="Season"
+                            >
+                                {seasons.map(s => <option key={s} value={s}>{s === 0 ? "Specials" : `Season ${s}`}</option>)}
+                            </select>}
+                            <SiteAgentDownload kind="series" title={title} dir={dir} season={siteSeason} episodes={episodesOf(siteSeason)} />
+                        </>}
                         {tab === "progress" && <div className="flex-1 overflow-y-auto pr-1">
                             <MovieDownloads filter={t => t.folder === folder} empty="No episodes of this series are downloading." />
                         </div>}
@@ -361,23 +374,6 @@ function SeriesTorrents({ title, imdb, season: initialSeason, seasons, onStarted
 }
 
 /** Sites behind a human check, the person does the check and finds the series in Firefox */
-function SeriesFirefoxSites({ title }: { title: string }) {
-    const open = (site: { id: string, name: string }) => window.SeanimeMediaHub?.browse?.(site.id)
-        .then(() => toast.success(`${site.name} opened in Firefox`))
-        .catch((e: any) => toast.error(e?.message ?? String(e)))
-    return (
-        <div className="flex-1 overflow-y-auto pr-1 space-y-2" data-series-firefox-sites>
-            <p className="text-sm text-[--muted]">
-                These sites ask for a human check, so they open in Firefox. Search for {title} there. Their downloads are saved by Firefox and do not show under Downloading.
-            </p>
-            {SERIES_DOWNLOAD_SITES.map(site => <div key={site.id} className="flex items-center gap-3 rounded-md border p-3">
-                <span className="font-medium flex-1">{site.name}</span>
-                <Button size="sm" intent="white" leftIcon={<BiLinkExternal />} onClick={() => open(site)} data-series-firefox-site={site.id}>Open in Firefox</Button>
-            </div>)}
-        </div>
-    )
-}
-
 function packLabel(t: Series_Torrent) {
     if (t.season === null) return "Complete series"
     return t.last && t.last !== t.season ? `Seasons ${t.season}–${t.last}` : `Season ${t.season}`

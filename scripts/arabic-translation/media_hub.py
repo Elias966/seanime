@@ -12,6 +12,7 @@ import urllib.request as R
 import xml.etree.ElementTree as ET
 
 from firefox_session import FirefoxSession
+from site_agent import SiteAgent
 
 ROOTS = {'yts':'https://yts.lt', 'hydra':'https://hydrahd.gd', 'anizone':'https://anizone.to', 'nyaa':'https://nyaa.si', 'animetosho':'https://animetosho.org'}
 KISSKH = 'https://kisskh.co/api/DramaList/'
@@ -253,7 +254,7 @@ def torrent_rss(text):
 class MediaHub:
     def __init__(self,directory=None,fetcher=fetch):
         self.directory=Path(directory or Path(os.environ.get('XDG_DATA_HOME',str(Path.home()/'.local/share')))/'seanime/media-hub');self.directory.mkdir(parents=True,exist_ok=True)
-        self.fetcher=fetcher;self.lock=threading.RLock();self._firefox=None;self.x1337_known={}
+        self.fetcher=fetcher;self.lock=threading.RLock();self._firefox=None;self._agent=None;self.x1337_known={}
         try:self.library=json.loads((self.directory/'library.json').read_text())
         except (OSError,ValueError):self.library={}
     @property
@@ -275,6 +276,7 @@ class MediaHub:
             raise
     def get(self,path,q):
         arg=lambda k,d='':q.get(k,[d])[0]
+        if path=='/media/agent-jobs':return self.agent.list()
         if path=='/media/source-registry':
             candidates=[Path(__file__).parent/'sources.json',Path(__file__).parent.parent/'media-hub/sources.json',Path(__file__).parent/'media-hub/sources.json']
             for candidate in candidates:
@@ -387,6 +389,15 @@ class MediaHub:
         if source is None or source['mode']!='firefox':raise ValueError('This source does not open in Firefox')
         self.firefox.open_site(source['browseUrl'] or source['url'])
         return {'ok':True}
+    @property
+    def agent(self):
+        with self.lock:
+            if self._agent is None:self._agent=SiteAgent(lambda:self.firefox)
+            return self._agent
+    def agent_start(self,value):
+        source=next((x for x in self.get('/media/source-registry',{})['sources'] if x['id']==value.get('id')),None)
+        if source is None or source['mode'] not in ('site','firefox') or source.get('excluded'):raise ValueError('This website cannot be used')
+        return self.agent.start(source,value)
     def shutdown(self):
         if self._firefox:self._firefox.shutdown()
     def source_preferences(self):
