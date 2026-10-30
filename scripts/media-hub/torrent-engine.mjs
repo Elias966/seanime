@@ -148,7 +148,7 @@ export function createEngine(options={}){
   if(origin)res.setHeader('Access-Control-Allow-Origin',origin);res.setHeader('Vary','Origin');res.setHeader('X-Content-Type-Options','nosniff');
   function json(status,value){const b=JSON.stringify(value);res.writeHead(status,{'Content-Type':'application/json','Content-Length':Buffer.byteLength(b),'Cache-Control':'no-store'});res.end(b)}
   if(req.method==='OPTIONS'){res.writeHead(204,{'Access-Control-Allow-Methods':'GET, POST, OPTIONS','Access-Control-Allow-Headers':'Content-Type'});res.end();return}
-  if(req.method==='GET'&&u.pathname==='/health')return json(200,{ok:true,revision:'media-engine-v3'});
+  if(req.method==='GET'&&u.pathname==='/health')return json(200,{ok:true,revision:'media-engine-v4'});
   if(req.method==='GET'&&u.pathname==='/torrents')return json(200,snapshot());
   if(req.method==='GET'&&u.pathname==='/settings')return json(200,{libraryDir:libraryDir(),seriesDir:path.join(libraryDir(),'Series'),defaultDir:directory,custom:libraryDir()!==path.resolve(directory),outside:outside().length,moving,external:external.map(x=>x.hash),hidden:Array.isArray(settings.hidden)?settings.hidden:[]});
   if(req.method==='GET'&&u.pathname==='/library-scan')return json(200,await scan());
@@ -167,6 +167,11 @@ export function createEngine(options={}){
   if(req.method==='GET'&&u.pathname==='/series-files'){const busy=new Set([...jobs.values()].filter(j=>j.torrent.progress<1).flatMap(j=>j.torrent.files?.map(f=>path.resolve(j.torrent.path,f.path))??[]));
    const lengths=await torrentLengths(),key=p=>path.basename(p);
    return json(200,seriesFiles(u.searchParams.get('folder')).map(({path:p,...x})=>({...x,complete:x.complete&&!busy.has(p)&&(!lengths.has(key(p))||lengths.get(key(p))===x.size)})))}
+  // Every series folder with its episodes on disk
+  if(req.method==='GET'&&u.pathname==='/series-library'){const busy=new Set([...jobs.values()].filter(j=>j.torrent.progress<1).flatMap(j=>j.torrent.files.map(f=>f.path)));
+   const lengths=await torrentLengths(),key=p=>path.basename(p),names=new Set();
+   for(const r of roots()){try{for(const e of fs.readdirSync(path.join(r,'Series'),{withFileTypes:true}))if(e.isDirectory())names.add(e.name)}catch{}}
+   return json(200,[...names].sort((a,b)=>a.localeCompare(b)).map(folder=>({folder,files:seriesFiles(folder).map(({path:p,...x})=>({...x,complete:x.complete&&!busy.has(p)&&(!lengths.has(key(p))||lengths.get(key(p))===x.size)}))})).filter(x=>x.files.length))}
   if(u.pathname==='/series-file'&&(req.method==='GET'||req.method==='HEAD')){
    const folder=seriesFolder(u.searchParams.get('folder')),r=roots()[Number(u.searchParams.get('root'))],base=folder&&r&&path.join(r,'Series',folder),p=base&&path.resolve(base,String(u.searchParams.get('file')||''));
    let size;try{if(!p||!inside(p,base)||!isVideo(p))throw 0;size=fs.statSync(p).size}catch{return json(404,{error:'File not found'})}

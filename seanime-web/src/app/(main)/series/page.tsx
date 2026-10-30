@@ -3,14 +3,18 @@ import { MediaGenreSelector } from "@/app/(main)/_features/media/_components/med
 import { MovieEntryCard } from "@/app/(main)/movies/_components/movie-entry-card"
 import { MoviesPageHeader } from "@/app/(main)/movies/_components/movies-page-header"
 import { MovieCarousel } from "@/app/(main)/movies/_containers/movie-carousel"
+import { MovieDownloads } from "@/app/(main)/movies/_containers/movie-downloads"
+import { SeriesLibrary } from "@/app/(main)/series/_containers/series-downloads"
 import {
     ASIAN_DRAMA_GENRE,
+    browseYears,
     DRAMA_COUNTRIES,
     fetchMovieMeta,
     listItemMeta,
     Movie_Meta,
     SERIES_GENRES_WITH_DRAMAS,
     useHiddenMovies,
+    useBrowseCatalog,
     useInfiniteDramaCatalog,
     useInfiniteMovieCatalog,
     useMovieList,
@@ -33,7 +37,7 @@ import { BiCalendarCheck, BiTag, BiTrash, BiTv, BiWorld } from "react-icons/bi"
 import { FaSortAmountDown } from "react-icons/fa"
 import { FiSearch } from "react-icons/fi"
 
-type SeriesTab = "discover" | "browse" | "list"
+type SeriesTab = "discover" | "browse" | "list" | "library" | "downloads"
 
 const TAB_TRANSITION = {
     initial: { opacity: 0, y: 60 },
@@ -102,6 +106,8 @@ export default function Page() {
                                 { name: "Series", isCurrent: tab === "discover", onClick: () => setTab("discover") },
                                 { name: "Browse", isCurrent: tab === "browse", onClick: () => setTab("browse") },
                                 { name: "My List", isCurrent: tab === "list", onClick: () => setTab("list") },
+                                { name: "Library", isCurrent: tab === "library", onClick: () => setTab("library") },
+                                { name: "Downloads", isCurrent: tab === "downloads", onClick: () => setTab("downloads") },
                             ]}
                         />
                     </div>
@@ -132,6 +138,16 @@ export default function Page() {
                     {tab === "list" && <PageWrapper key="list" className="relative pb-10 pt-4 space-y-6" {...TAB_TRANSITION}>
                         <h2>My List</h2>
                         <SeriesMyList />
+                    </PageWrapper>}
+
+                    {tab === "library" && <PageWrapper key="library" className="relative pb-10 pt-4 space-y-6 max-w-5xl mx-auto" {...TAB_TRANSITION}>
+                        <h2>Library</h2>
+                        <SeriesLibrary />
+                    </PageWrapper>}
+
+                    {tab === "downloads" && <PageWrapper key="downloads" className="relative pb-10 pt-4 space-y-6 max-w-5xl mx-auto" {...TAB_TRANSITION}>
+                        <h2>Downloads</h2>
+                        <MovieDownloads filter={t => !!t.folder} empty="No series are downloading. Open a series and press Download." />
                     </PageWrapper>}
                 </AnimatePresence>
             </motion.div>
@@ -201,17 +217,18 @@ function SeriesBrowse() {
     const hidden = useHiddenMovies()
     const { query, setQuery, search, searchParams, setParams } = useSearchBox()
     const genre = searchParams.get("genre") ?? undefined
+    const year = searchParams.get("year") ?? undefined
 
     const isDrama = genre === ASIAN_DRAMA_GENRE
     const setGenre = (g: string | undefined) => {
         if ((g === ASIAN_DRAMA_GENRE) === isDrama) return setParams({ genre: g })
         // The drama page has its own search and filters, so neither carries over
         setQuery("")
-        setParams({ genre: g, q: undefined, country: undefined, order: undefined, type: undefined, status: undefined, tag: undefined })
+        setParams({ genre: g, q: undefined, year: undefined, country: undefined, order: undefined, type: undefined, status: undefined, tag: undefined })
     }
 
-    const catalog = useInfiniteMovieCatalog(search ? { type: "series", catalog: "top", search } : { type: "series", catalog: "top", genre }, !isDrama)
-    const items = React.useMemo(() => unique(catalog.data?.pages.flat() ?? [], hidden), [catalog.data, hidden])
+    const catalog = useBrowseCatalog("series", genre, year, search, !isDrama)
+    const items = React.useMemo(() => unique(catalog.metas, hidden), [catalog.metas, hidden])
 
     const genres = <MediaGenreSelector
         items={[
@@ -230,6 +247,14 @@ function SeriesBrowse() {
     return (
         <>
             <SearchBox value={query} onChange={setQuery} placeholder="Search series and cartoons…" />
+
+            <div className="w-40 mx-auto" data-browse-year>
+                <Select
+                    options={[{ value: "0", label: "Any year" }, ...browseYears("series").map(y => ({ value: y, label: y }))]}
+                    value={year ?? "0"}
+                    onValueChange={v => setParams({ year: v !== "0" ? v : undefined })}
+                />
+            </div>
 
             {!search && genres}
 

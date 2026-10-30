@@ -14,7 +14,12 @@ import {
     Series_SiteEpisode,
     Series_Torrent,
     seriesFolder,
+    fetchMovieSubtitles,
+    playMovieUrl,
+    Series_File,
     SERIES_DOWNLOAD_SITES,
+    TORRENT_ENGINE,
+    useSeriesLibrary,
     startEngineTorrent,
     startSeriesTorrent,
     useEngineTorrents,
@@ -24,7 +29,9 @@ import {
     useTorrentSource,
 } from "@/app/(main)/movies/_lib/movies.api"
 import { Button } from "@/components/ui/button"
+import { LuffyError } from "@/components/shared/luffy-error"
 import { LoadingSpinner } from "@/components/ui/loading-spinner"
+import { useRouter } from "@/lib/navigation"
 import { Modal } from "@/components/ui/modal"
 import { ProgressBar } from "@/components/ui/progress-bar"
 import { StaticTabs } from "@/components/ui/tabs"
@@ -126,6 +133,50 @@ export function SeriesStreamModal({ streaming, onClose }: { streaming?: Series_T
             </div>
         </Modal>
     )
+}
+
+/** Every series saved on disk, each episode plays from its file */
+export function SeriesLibrary() {
+    const { data, isLoading, isError } = useSeriesLibrary()
+    const router = useRouter()
+    const code = (f: Series_File) => f.episode === null ? f.name
+        : `S${String(f.season ?? 1).padStart(2, "0")}E${String(f.episode).padStart(2, "0")}`
+    const play = (f: Series_File, name: string, imdb?: string) => {
+        const id = imdb && f.episode !== null ? `${imdb}:${f.season ?? 1}:${f.episode}` : undefined
+        return fetchMovieSubtitles(id, f.name)
+            .then(subtitles => playMovieUrl(TORRENT_ENGINE + f.url, f.episode === null ? f.name : `${name} - ${code(f)}`, subtitles))
+            .catch((e: any) => toast.error(e?.message ?? String(e)))
+    }
+
+    if (isLoading) return <div className="flex justify-center py-10"><LoadingSpinner /></div>
+    if (isError) return <LuffyError title="Torrent engine unavailable"><p>Restart Seanime to load your downloaded series.</p></LuffyError>
+    if (!data?.length) return <LuffyError title={null}><p>No downloaded series yet. Open a series and press Download.</p></LuffyError>
+
+    return <div className="space-y-4" data-series-library>
+        {data.map(show => {
+            const files = [...show.files].sort((a, b) => (a.season ?? 1) - (b.season ?? 1) || (a.episode ?? 0) - (b.episode ?? 0) || a.name.localeCompare(b.name))
+            const unfinished = files.filter(f => !f.complete).length
+            return <div key={show.folder} className="border rounded-[--radius-md] bg-[--paper] p-4 flex gap-4" data-series-library-show>
+                {!!show.meta?.poster && <img src={show.meta.poster} alt="" className="w-24 h-36 object-cover rounded-md shrink-0" />}
+                <div className="flex-1 min-w-0 space-y-3">
+                    <div className="flex items-center gap-3 flex-wrap">
+                        <div className="flex-1 min-w-0">
+                            <p className="font-semibold line-clamp-1">{show.meta?.name ?? show.folder}</p>
+                            <p className="text-sm text-[--muted]">
+                                {files.length - unfinished} ready{!!unfinished && ` · ${unfinished} not finished`} · {formatBytes(files.reduce((n, f) => n + f.size, 0))}
+                            </p>
+                        </div>
+                        {!!show.meta && <Button size="sm" intent="gray-subtle" onClick={() => router.push(`/series/entry?id=${show.meta!.id}`)}>Open series</Button>}
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                        {files.map(f => <Button key={f.url} size="sm" intent="white-subtle" leftIcon={<BiPlay />} disabled={!f.complete}
+                            title={f.name} className="max-w-full truncate" onClick={() => play(f, show.meta?.name ?? show.folder, show.meta?.id)}
+                            data-series-library-play>{code(f)}</Button>)}
+                    </div>
+                </div>
+            </div>
+        })}
+    </div>
 }
 
 /** A pack covers the season when its range includes it ("complete" packs cover every season) */

@@ -5,6 +5,7 @@ import { MoviesPageHeader } from "@/app/(main)/movies/_components/movies-page-he
 import { MovieCarousel } from "@/app/(main)/movies/_containers/movie-carousel"
 import { MovieDownloads } from "@/app/(main)/movies/_containers/movie-downloads"
 import {
+    browseYears,
     listItemMeta,
     MOVIE_GENRES,
     Movie_LibraryItem,
@@ -12,6 +13,7 @@ import {
     playLibraryItem,
     scanLibraryDownloads,
     useHiddenMovies,
+    useBrowseCatalog,
     useInfiniteMovieCatalog,
     useMovieLibrary,
     useMovieList,
@@ -21,6 +23,7 @@ import { LuffyError } from "@/components/shared/luffy-error"
 import { PageWrapper } from "@/components/shared/page-wrapper"
 import { Button } from "@/components/ui/button"
 import { LoadingSpinner } from "@/components/ui/loading-spinner"
+import { Select } from "@/components/ui/select"
 import { StaticTabs } from "@/components/ui/tabs"
 import { TextInput } from "@/components/ui/text-input"
 import { useDebounce } from "@/hooks/use-debounce"
@@ -191,6 +194,7 @@ function MoviesBrowse() {
     const search = useDebounce(query.trim(), 500)
     // The genre and search live in the URL, so going back from a movie shows the same results
     const genre = searchParams.get("genre") ?? undefined
+    const year = searchParams.get("year") ?? undefined
     const setParams = (change: Record<string, string | undefined>) => {
         const params = new URLSearchParams(searchParams)
         for (const [k, v] of Object.entries(change)) v ? params.set(k, v) : params.delete(k)
@@ -201,13 +205,12 @@ function MoviesBrowse() {
         if (search !== (searchParams.get("q") ?? "")) setParams({ q: search || undefined })
     }, [search])
 
-    const { data, isLoading, fetchNextPage, hasNextPage, isFetchingNextPage, isError } = useInfiniteMovieCatalog(
-        search ? { catalog: "top", search } : { catalog: "top", genre })
+    const { metas, isLoading, fetchNextPage, hasNextPage, isFetchingNextPage, isError } = useBrowseCatalog("movie", genre, year, search)
 
     const items = React.useMemo(() => {
         const seen = new Set<string>()
-        return (data?.pages.flat() ?? []).filter(m => !hidden.has(m.id) && !seen.has(m.id) && seen.add(m.id))
-    }, [data, hidden])
+        return metas.filter(m => !hidden.has(m.id) && !seen.has(m.id) && seen.add(m.id))
+    }, [metas, hidden])
 
     return (
         <>
@@ -219,6 +222,14 @@ function MoviesBrowse() {
                     onValueChange={setQuery}
                     className="rounded-full"
                     autoFocus
+                />
+            </div>
+
+<div className="w-40 mx-auto" data-browse-year>
+                <Select
+                    options={[{ value: "0", label: "Any year" }, ...browseYears("movie").map(y => ({ value: y, label: y }))]}
+                    value={year ?? "0"}
+                    onValueChange={v => setParams({ year: v !== "0" ? v : undefined })}
                 />
             </div>
 

@@ -59,7 +59,7 @@ if ! python3 - <<'PYMEDIA'
 import json,urllib.request
 try:
     with urllib.request.urlopen('http://127.0.0.1:11437/health',timeout=0.5) as r:
-        assert json.load(r).get('revision') == 'media-engine-v3'
+        assert json.load(r).get('revision') == 'media-engine-v4'
 except Exception: raise SystemExit(1)
 PYMEDIA
 then

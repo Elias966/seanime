@@ -234,6 +234,32 @@ export function useMovieCatalog(c: MovieCatalog, enabled = true) {
     })
 }
 
+/** Years Cinemeta has a catalog for, newest first */
+export function browseYears(type: "movie" | "series") {
+    const first = type === "movie" ? 1920 : 1960
+    return Array.from({ length: new Date().getFullYear() - first + 1 }, (_, i) => String(new Date().getFullYear() - i))
+}
+
+/**
+ * Browse results for a genre, a year or both. Cinemeta's catalogs filter by one of them only, so with both
+ * the year's catalog is filtered here, loading further pages until there are enough to show.
+ */
+export function useBrowseCatalog(type: "movie" | "series", genre: string | undefined, year: string | undefined, search: string, enabled = true) {
+    const query = useInfiniteMovieCatalog(
+        search ? { type, catalog: "top", search }
+            : year ? { type, catalog: "year", genre: year }
+            : { type, catalog: "top", genre }, enabled)
+    const metas = React.useMemo(() => (query.data?.pages.flat() ?? []).filter(m => search
+        ? !year || movieYear(m) === Number(year)
+        : !year || !genre || !!m.genres?.includes(genre)), [query.data, search, year, genre])
+    const filtering = !search && !!year && !!genre
+    const more = filtering && metas.length < 24 && !!query.hasNextPage && (query.data?.pages.length ?? 0) < 20
+    React.useEffect(() => {
+        if (more && !query.isFetchingNextPage) query.fetchNextPage()
+    }, [more, query.isFetchingNextPage])
+    return { ...query, metas, isLoading: query.isLoading || (more && !metas.length) }
+}
+
 export function useInfiniteMovieCatalog(c: MovieCatalog, enabled = true) {
     return useInfiniteQuery({
         queryKey: ["movies-catalog-infinite", c],
@@ -1055,6 +1081,12 @@ export const SERIES_DOWNLOAD_SITES = [
     { id: "cinema-of-the-world", name: "Cinema of the World" },
     { id: "the-movie-channel", name: "the movie channel" },
     ...SERIES_FIREFOX_SITES,
+    { id: "1337x-movies", name: "1337x Movies" },
+    { id: "animeout", name: "AnimeOut" },
+    { id: "animepahe", name: "AnimePahe" },
+    { id: "anihq", name: "AniHQ" },
+    { id: "animesilo", name: "AnimeSilo" },
+    { id: "project-acgnx", name: "Project AcgnX" },
 ]
 
 /** Season and episode in a file name, null for what it does not say */
@@ -1111,6 +1143,22 @@ export function useSeriesFiles(series: string, refetchInterval: number | false =
         queryFn: () => getJson<Series_File[]>(`${TORRENT_ENGINE}/series-files?${new URLSearchParams({ folder })}`),
         enabled: !!folder,
         refetchInterval,
+        retry: 1,
+    })
+}
+
+/** Every series saved on disk, with the catalog entry of the same name when there is one */
+export function useSeriesLibrary() {
+    return useQuery({
+        queryKey: ["series-library"],
+        queryFn: async () => {
+            const shows = await getJson<{ folder: string, files: Series_File[] }[]>(`${TORRENT_ENGINE}/series-library`)
+            return Promise.all(shows.map(async show => {
+                const found = await fetchCatalog({ type: "series", catalog: "top", search: show.folder }).catch(() => [] as Movie_Meta[])
+                return { ...show, meta: found.find(m => seriesFolder(m.name).toLowerCase() === show.folder.toLowerCase()) }
+            }))
+        },
+        refetchInterval: 20000,
         retry: 1,
     })
 }
