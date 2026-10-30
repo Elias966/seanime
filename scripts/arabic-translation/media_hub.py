@@ -13,6 +13,8 @@ import xml.etree.ElementTree as ET
 
 ROOTS = {'yts':'https://yts.lt', 'hydra':'https://hydrahd.gd', 'anizone':'https://anizone.to', 'nyaa':'https://nyaa.si', 'animetosho':'https://animetosho.org'}
 KISSKH = 'https://kisskh.co/api/DramaList/'
+# kisskh has no genres; Dramaday's WordPress tags (Korean dramas) supply them, each title is then found on kisskh
+DRAMADAY = 'https://dramaday.me/wp-json/wp/v2/posts'
 PROVENANCE = {'movies':'https://rentry.org/megathread-movies-and-tv','anime':'https://rentry.org/megathread-anime'}
 
 def fetch(url, referer=None):
@@ -120,10 +122,25 @@ class MediaHub:
                     url=ROOTS['anizone']+'/anime?'+U.urlencode({'search':query,'page':page})
                     return {'items':[anime_item(a) for a in anizone_items(self.fetcher(url)) if not a.get('is_unsafe')],'page':page}
                 if provider=='kisskh':
-                    # East and South Asian dramas from kisskh's own API (country 0 all, 1 China, 2 Korea, 3 Japan...; order 1 popular, 2 recently updated, 3 new)
-                    if query:data=json.loads(self.fetcher(KISSKH+'Search?'+U.urlencode({'q':query,'type':0})));total=len(data)
+                    # East and South Asian dramas from kisskh's own API (country 0 all, 1 China, 2 Korea, 3 Japan...; order 1 popular, 2 recently updated, 3 new;
+                    # type 1 TV series, 2 movies (0 would add kisskh's anime and Hollywood sections); status 0 all, 1 ongoing, 2 completed;
+                    # genre is a Dramaday tag id)
+                    kind=int(arg('type','1'))
+                    if genre.isdigit() and not query:
+                        posts=json.loads(self.fetcher(DRAMADAY+'?'+U.urlencode({'tags':genre,'categories':692 if kind==2 else 3,'page':page,'per_page':20,'_fields':'title'})))
+                        titles=[html.unescape(p.get('title',{}).get('rendered','')).strip() for p in posts if isinstance(p,dict)]
+                        norm=lambda t:re.sub(r'[^a-z0-9]+','',re.sub(r'\s*\(\d{4}\)\s*$','',t.lower()))
+                        def find(title):
+                            try:found=self.cached('kisskh-search:%d:%s'%(kind,title),lambda:json.loads(self.fetcher(KISSKH+'Search?'+U.urlencode({'q':title,'type':kind}))),age=7*86400)
+                            except Exception:return None
+                            return next((a for a in found if a.get('id') and norm(a.get('title',''))==norm(title)),None)
+                        from concurrent.futures import ThreadPoolExecutor
+                        with ThreadPoolExecutor(8) as pool:data=[a for a in pool.map(find,titles) if a]
+                        # Dramaday doesn't say how many there are here; a full page means there may be more
+                        total=(page-1)*20+len(data)+(20 if len(posts)==20 else 0)
+                    elif query:data=json.loads(self.fetcher(KISSKH+'Search?'+U.urlencode({'q':query,'type':kind})));total=len(data)
                     else:
-                        data=json.loads(self.fetcher(KISSKH+'List?'+U.urlencode({'page':page,'type':0,'sub':0,'country':int(arg('country','0')),'status':0,'order':int(arg('order','1')),'pageSize':30})))
+                        data=json.loads(self.fetcher(KISSKH+'List?'+U.urlencode({'page':page,'type':kind,'sub':0,'country':int(arg('country','0')),'status':int(arg('status','0')),'order':int(arg('order','1')),'pageSize':30})))
                         total=data.get('totalCount',0);data=data.get('data',[])
                     return {'items':[{'id':str(a['id']),'provider':'kisskh','title':a.get('title',''),'poster':a.get('thumbnail',''),'episodes':a.get('episodesCount'),'type':'series'} for a in data if a.get('id')],'total':total,'page':page}
                 raise ValueError('Unknown catalog')

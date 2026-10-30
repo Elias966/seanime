@@ -27,12 +27,16 @@ import json,sys,urllib.request
 try:
     with urllib.request.urlopen('http://127.0.0.1:' + sys.argv[1] + '/health',timeout=0.5) as r:
         data = json.load(r)
-        assert data.get('ok') is True and data.get('revision') == 'media-sources-v10'
+        assert data.get('ok') is True and data.get('revision') == 'media-sources-v12'
 except Exception:
     raise SystemExit(1)
 PY
 }
 if ! helper_ready; then
+    # An older standalone helper installed as a user service would keep the port, so stop it for this session
+    if command -v systemctl >/dev/null 2>&1 && systemctl --user is-active --quiet seanime-translation-helper.service 2>/dev/null; then
+        systemctl --user stop seanime-translation-helper.service 2>/dev/null || true
+    fi
     python3 "$APPDIR/resources/seanime-translation-helper.py" --port "$port" &
     helper_pid=$!
     ready=0

@@ -9,6 +9,7 @@ import { OnlineStreamModal, readLastSource } from "@/app/(main)/movies/_containe
 import {
     Drama_Detail,
     KISSKH_PREFIX,
+    ASIAFLIX_STREAM_SOURCE,
     KISSKH_STREAM_SOURCE,
     Movie_Meta,
     Movie_StreamRef,
@@ -19,6 +20,7 @@ import {
     movieTrailerId,
     SERIES_STREAM_SOURCES,
     useDramaDetail,
+    useDramaMatch,
     useMovieMeta,
 } from "@/app/(main)/movies/_lib/movies.api"
 import { imageShimmer } from "@/components/shared/image-helpers"
@@ -204,20 +206,31 @@ function SeriesEpisodes({ meta, drama }: { meta: Movie_Meta, drama?: Drama_Detai
     const episodes = React.useMemo(() => videos.filter(v => v.season === current).sort((a, b) => episodeNumber(a) - episodeNumber(b)), [videos, current])
 
     const [playing, setPlaying] = React.useState<{ ref: Movie_StreamRef, sources: Movie_StreamSource[], key: number }>()
-    const sourcesFor = (ref: Movie_StreamRef) => drama ? [KISSKH_STREAM_SOURCE] : SERIES_STREAM_SOURCES.filter(s => !!s.url(ref))
+    // Dramas play from kisskh, and from the series websites too once the drama is matched to its IMDb entry
+    const match = useDramaMatch(drama).data
+    const allSources = drama ? [KISSKH_STREAM_SOURCE, ASIAFLIX_STREAM_SOURCE, ...(match?.tmdb ? SERIES_STREAM_SOURCES : [])] : SERIES_STREAM_SOURCES
+    const sourcesFor = (ref: Movie_StreamRef) => allSources.filter(s => !!s.url(ref))
 
     const refFor = (v: Movie_Video): Movie_StreamRef => {
         const n = episodeNumber(v)
         const title = `${meta.name} - ${drama ? "" : `S${String(v.season).padStart(2, "0")}`}E${String(n).padStart(2, "0")}${v.name && !/^episode \d+$/i.test(v.name) ? ` - ${v.name}` : ""}`
-        if (drama) return { title, episode: n, drama: { id: String(drama.id), episodeId: Number(v.id), title: drama.title } }
+        if (drama) return {
+            title, episode: n, drama: { id: String(drama.id), episodeId: Number(v.id), title: drama.title },
+            ...(match?.tmdb && { imdb: match.imdb, tmdb: match.tmdb, season: match.season }),
+        }
         return { imdb: meta.id, tmdb: meta.moviedb_id, title, season: v.season, episode: n }
     }
+    // "auto" tries every website, starting with the one that worked last; picking one plays only from it
+    const [sourceId, setSourceId] = React.useState("auto")
     const play = (v: Movie_Video) => {
         const ref = refFor(v)
+        const all = sourcesFor(ref)
+        const picked = all.filter(s => s.id === sourceId)
         const last = readLastSource(SERIES_LAST_SOURCE_KEY)
-        const sources = [...sourcesFor(ref)].sort((a, b) => Number(b.id === last) - Number(a.id === last))
+        const sources = picked.length ? picked : [...all].sort((a, b) => Number(b.id === last) - Number(a.id === last))
         setPlaying({ ref, sources, key: Date.now() })
     }
+    const sourceChoices = allSources
 
     const now = Date.now()
     const aired = (v: Movie_Video) => !v.released || isNaN(Date.parse(v.released)) || Date.parse(v.released) <= now
@@ -229,6 +242,14 @@ function SeriesEpisodes({ meta, drama }: { meta: Movie_Meta, drama?: Drama_Detai
         <div className="space-y-4" data-series-episodes>
             <div className="flex items-center gap-4 flex-wrap">
                 <h3 className="text-xl font-semibold flex-1">Episodes</h3>
+                {sourceChoices.length > 1 && <div className="w-48">
+                    <Select
+                        value={sourceId}
+                        onValueChange={v => setSourceId(v || "auto")}
+                        options={[{ value: "auto", label: "Any source" }, ...sourceChoices.map(s => ({ value: s.id, label: s.name }))]}
+                        data-series-source-select
+                    />
+                </div>}
                 {seasons.length > 1 && <div className="w-48">
                     <Select
                         value={String(current)}
@@ -239,9 +260,9 @@ function SeriesEpisodes({ meta, drama }: { meta: Movie_Meta, drama?: Drama_Detai
                 </div>}
             </div>
             <p className="text-sm text-[--muted]">
-                {canStream ? drama
-                    ? "Episodes play from kisskh."
-                    : "Play tries the streaming websites one by one until one plays, starting with the one that worked last."
+                {canStream ? sourceId === "auto"
+                    ? "Play tries the streaming websites one by one until one plays, starting with the one that worked last. Pick a source to use only that one. A website's servers show while it looks for the episode, pick one if the first doesn't work."
+                    : "Play uses only the chosen source. Its servers show while it looks for the episode; if none plays, choose another source or Any source."
                     : "No streaming website can find this series."}
             </p>
 

@@ -3,8 +3,8 @@ import { createFileRoute } from "@tanstack/react-router"
 import { z } from "zod"
 
 const searchSchema = z.object({
-    id: z.string().optional(),
-    drama: z.string().optional(),
+    id: z.coerce.string().optional(),
+    drama: z.coerce.string().optional(),
 })
 
 export const Route = createFileRoute("/_main/series/entry/")({

@@ -1,8 +1,8 @@
 import { MediaEntryCardSkeleton } from "@/app/(main)/_features/media/_components/media-entry-card-skeleton"
 import { MediaGenreSelector } from "@/app/(main)/_features/media/_components/media-genre-selector"
 import { MovieEntryCard } from "@/app/(main)/movies/_components/movie-entry-card"
-import { MOVIE_GENRES, Movie_Meta, MovieCatalog, SERIES_GENRES, useHiddenMovies, useMovieCatalog } from "@/app/(main)/movies/_lib/movies.api"
-import { Drama_Catalog, useDramaCatalog } from "@/app/(main)/movies/_lib/movies.api"
+import { MOVIE_GENRES, Movie_Meta, MovieCatalog, useHiddenMovies, useMovieCatalog } from "@/app/(main)/movies/_lib/movies.api"
+import { ASIAN_DRAMA_GENRE, Drama_Catalog, SERIES_GENRES_WITH_DRAMAS, useDramaCatalog } from "@/app/(main)/movies/_lib/movies.api"
 import { LuffyError } from "@/components/shared/luffy-error"
 import { Carousel, CarouselContent, CarouselDotButtons } from "@/components/ui/carousel"
 import { useRouter, useSearchParams } from "@/lib/navigation"
@@ -51,9 +51,11 @@ export function MovieCarousel(props: MovieCarouselProps) {
         else params.delete(genreParam)
         router.replace(`?${params.toString()}`, { scroll: false })
     }
-    const movies = useMovieCatalog({ ...catalog, genre }, !dramas && (!lazy || isInView))
-    const asian = useDramaCatalog(dramas ?? {}, !!dramas && (!lazy || isInView))
-    const { data, isLoading, isError } = dramas ? asian : movies
+    // Picking "Asian Drama" in a series row's genre list shows kisskh's popular dramas
+    const drama = dramas ?? (catalog.type === "series" && genre === ASIAN_DRAMA_GENRE ? { order: 1 } : undefined)
+    const movies = useMovieCatalog({ ...catalog, genre }, !drama && (!lazy || isInView))
+    const asian = useDramaCatalog(drama ?? {}, !!drama && (!lazy || isInView))
+    const { data, isLoading, isError } = drama ? asian : movies
 
     const items = React.useMemo(() => (data ?? []).filter(m => m.id !== excludeId && !hidden.has(m.id)), [data, excludeId, hidden])
 
@@ -75,7 +77,7 @@ export function MovieCarousel(props: MovieCarouselProps) {
                 {withGenreSelector && <MediaGenreSelector
                     items={[
                         { name: "All", isCurrent: !genre, onClick: () => setGenre(undefined) },
-                        ...(catalog.type === "series" ? SERIES_GENRES : MOVIE_GENRES).map(g => ({ name: g, isCurrent: genre === g, onClick: () => setGenre(g) })),
+                        ...(catalog.type === "series" ? SERIES_GENRES_WITH_DRAMAS : MOVIE_GENRES).map(g => ({ name: g, isCurrent: genre === g, onClick: () => setGenre(g) })),
                     ]}
                 />}
                 <CarouselDotButtons />

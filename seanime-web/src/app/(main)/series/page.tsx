@@ -4,11 +4,12 @@ import { MovieEntryCard } from "@/app/(main)/movies/_components/movie-entry-card
 import { MoviesPageHeader } from "@/app/(main)/movies/_components/movies-page-header"
 import { MovieCarousel } from "@/app/(main)/movies/_containers/movie-carousel"
 import {
+    ASIAN_DRAMA_GENRE,
     DRAMA_COUNTRIES,
     fetchMovieMeta,
     listItemMeta,
     Movie_Meta,
-    SERIES_GENRES,
+    SERIES_GENRES_WITH_DRAMAS,
     useHiddenMovies,
     useInfiniteDramaCatalog,
     useInfiniteMovieCatalog,
@@ -16,9 +17,11 @@ import {
 } from "@/app/(main)/movies/_lib/movies.api"
 import { LuffyError } from "@/components/shared/luffy-error"
 import { PageWrapper } from "@/components/shared/page-wrapper"
-import { Button } from "@/components/ui/button"
+import { AppLayoutGrid, AppLayoutStack } from "@/components/ui/app-layout"
+import { Button, IconButton } from "@/components/ui/button"
 import { LoadingSpinner } from "@/components/ui/loading-spinner"
-import { Switch } from "@/components/ui/switch"
+import { cn } from "@/components/ui/core/styling"
+import { Select } from "@/components/ui/select"
 import { StaticTabs } from "@/components/ui/tabs"
 import { TextInput } from "@/components/ui/text-input"
 import { useDebounce } from "@/hooks/use-debounce"
@@ -26,6 +29,8 @@ import { useRouter, useSearchParams } from "@/lib/navigation"
 import { useQueries } from "@tanstack/react-query"
 import { AnimatePresence, motion } from "motion/react"
 import React from "react"
+import { BiCalendarCheck, BiTag, BiTrash, BiTv, BiWorld } from "react-icons/bi"
+import { FaSortAmountDown } from "react-icons/fa"
 import { FiSearch } from "react-icons/fi"
 
 type SeriesTab = "discover" | "browse" | "list"
@@ -40,7 +45,6 @@ const TAB_TRANSITION = {
 const CURRENT_YEAR = new Date().getFullYear()
 /** Cinemeta calls cartoons "Animation" */
 const CARTOONS = "Animation"
-const ASIAN_KEY = "seanime-series-asian-drama"
 
 const tabMemory = new Map<string, { params: string, scroll: number }>()
 
@@ -49,31 +53,18 @@ export default function Page() {
     const router = useRouter()
     const searchParams = useSearchParams()
     const tab = (searchParams.get("tab") as SeriesTab) || "discover"
-    // Asian Drama swaps the Cinemeta catalog for kisskh's, remembered for next time
-    const asian = searchParams.has("asian") ? searchParams.get("asian") === "1" : readAsian()
     const pendingScroll = React.useRef<number | undefined>(undefined)
 
-    const go = (t: SeriesTab, a: boolean) => {
-        const key = `${tab}:${asian}`
+    const setTab = (t: SeriesTab) => {
+        if (t === tab) return
         const current = new URLSearchParams(searchParams)
         current.delete("tab")
-        current.delete("asian")
-        tabMemory.set(key, { params: current.toString(), scroll: window.scrollY })
-        const saved = tabMemory.get(`${t}:${a}`)
+        tabMemory.set(tab, { params: current.toString(), scroll: window.scrollY })
+        const saved = tabMemory.get(t)
         const params = new URLSearchParams(saved?.params ?? "")
         if (t !== "discover") params.set("tab", t)
-        params.set("asian", a ? "1" : "0")
         pendingScroll.current = saved?.scroll ?? 0
         router.push(`/series?${params.toString()}`, { scroll: false })
-    }
-    const setTab = (t: SeriesTab) => t !== tab && go(t, asian)
-    const setAsian = (a: boolean) => {
-        try {
-            localStorage.setItem(ASIAN_KEY, a ? "1" : "0")
-        }
-        catch {
-        }
-        go(tab, a)
     }
 
     React.useEffect(() => {
@@ -86,16 +77,14 @@ export default function Page() {
             if ((Math.abs(window.scrollY - target) < 2 && Date.now() - started > 400) || Date.now() - started > 2000) window.clearInterval(timer)
         }, 50)
         return () => window.clearInterval(timer)
-    }, [tab, asian])
+    }, [tab])
 
-    const [heroItems, setHeroItems] = React.useState<{ asian: boolean, items: Movie_Meta[] }>()
+    const [heroItems, setHeroItems] = React.useState<Movie_Meta[]>()
     const hidden = useHiddenMovies()
-    const onHero = (items: Movie_Meta[]) => heroItems?.asian !== asian && setHeroItems({ asian, items })
 
     return (
         <>
-            <MoviesPageHeader items={React.useMemo(() => heroItems?.asian === asian ? heroItems.items.filter(m => !hidden.has(m.id)) : undefined,
-                [heroItems, hidden, asian])} />
+            <MoviesPageHeader items={React.useMemo(() => heroItems?.filter(m => !hidden.has(m.id)), [heroItems, hidden])} />
             <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
@@ -116,35 +105,28 @@ export default function Page() {
                             ]}
                         />
                     </div>
-                    {tab !== "list" && <div className="border rounded-full px-4 py-1.5 bg-[--background]/60" data-series-asian-toggle>
-                        <Switch label="Asian Drama" value={asian} onValueChange={setAsian} fieldClass="w-fit flex-none" />
-                    </div>}
                 </div>
 
                 <AnimatePresence mode="wait" initial={false}>
-                    {tab === "discover" && !asian && <PageWrapper key="discover" className="relative pb-10 pt-4 space-y-8" {...TAB_TRANSITION}>
+                    {tab === "discover" && <PageWrapper key="discover" className="relative pb-10 pt-4 space-y-8" {...TAB_TRANSITION}>
                         <Row title="Trending Right Now"><MovieCarousel catalog={{ type: "series", catalog: "top" }} withGenreSelector genreParam="trending"
-                                                                       onData={onHero} /></Row>
+                                                                       onData={setHeroItems} /></Row>
                         <Row title={`New in ${CURRENT_YEAR}`}><MovieCarousel catalog={{ type: "series", catalog: "year", genre: String(CURRENT_YEAR) }} lazy /></Row>
                         <Row title="Cartoons"><MovieCarousel catalog={{ type: "series", catalog: "top", genre: CARTOONS }} lazy /></Row>
                         <Row title="Drama"><MovieCarousel catalog={{ type: "series", catalog: "top", genre: "Drama" }} lazy /></Row>
+                        <Row title="Popular Asian Dramas"><MovieCarousel catalog={{ type: "series" }} dramas={{ order: 1 }} lazy /></Row>
+                        <Row title="Korean Dramas"><MovieCarousel catalog={{ type: "series" }} dramas={{ country: 2, order: 1 }} lazy /></Row>
                         <Row title="Comedy"><MovieCarousel catalog={{ type: "series", catalog: "top", genre: "Comedy" }} lazy /></Row>
                         <Row title="Crime"><MovieCarousel catalog={{ type: "series", catalog: "top", genre: "Crime" }} lazy /></Row>
                         <Row title="Sci-Fi & Fantasy"><MovieCarousel catalog={{ type: "series", catalog: "top", genre: "Sci-Fi" }} lazy /></Row>
+                        <Row title="Chinese Dramas"><MovieCarousel catalog={{ type: "series" }} dramas={{ country: 1, order: 1 }} lazy /></Row>
+                        <Row title="Recently Updated Asian Dramas"><MovieCarousel catalog={{ type: "series" }} dramas={{ order: 2 }} lazy /></Row>
                         <Row title="Reality TV"><MovieCarousel catalog={{ type: "series", catalog: "top", genre: "Reality-TV" }} lazy /></Row>
                         <Row title="Last Year's Best"><MovieCarousel catalog={{ type: "series", catalog: "year", genre: String(CURRENT_YEAR - 1) }} lazy /></Row>
                     </PageWrapper>}
 
-                    {tab === "discover" && asian && <PageWrapper key="discover-asian" className="relative pb-10 pt-4 space-y-8" {...TAB_TRANSITION}>
-                        <Row title="Popular Asian Dramas"><MovieCarousel catalog={{ type: "series" }} dramas={{ order: 1 }} onData={onHero} /></Row>
-                        <Row title="Recently Updated"><MovieCarousel catalog={{ type: "series" }} dramas={{ order: 2 }} lazy /></Row>
-                        {DRAMA_COUNTRIES.filter(c => c.id).slice(0, 5).map(c => <Row key={c.id} title={`${c.name} Dramas`}>
-                            <MovieCarousel catalog={{ type: "series" }} dramas={{ country: c.id, order: 1 }} lazy />
-                        </Row>)}
-                    </PageWrapper>}
-
-                    {tab === "browse" && <PageWrapper key={`browse-${asian}`} className="relative pb-10 pt-4 space-y-6" {...TAB_TRANSITION}>
-                        {asian ? <DramaBrowse /> : <SeriesBrowse />}
+                    {tab === "browse" && <PageWrapper key="browse" className="relative pb-10 pt-4 space-y-6" {...TAB_TRANSITION}>
+                        <SeriesBrowse />
                     </PageWrapper>}
 
                     {tab === "list" && <PageWrapper key="list" className="relative pb-10 pt-4 space-y-6" {...TAB_TRANSITION}>
@@ -155,15 +137,6 @@ export default function Page() {
             </motion.div>
         </>
     )
-}
-
-function readAsian() {
-    try {
-        return localStorage.getItem(ASIAN_KEY) === "1"
-    }
-    catch {
-        return false
-    }
 }
 
 function Row({ title, children }: { title: string, children: React.ReactNode }) {
@@ -228,22 +201,37 @@ function SeriesBrowse() {
     const hidden = useHiddenMovies()
     const { query, setQuery, search, searchParams, setParams } = useSearchBox()
     const genre = searchParams.get("genre") ?? undefined
-    const setGenre = (g: string | undefined) => setParams({ genre: g })
 
-    const catalog = useInfiniteMovieCatalog(search ? { type: "series", catalog: "top", search } : { type: "series", catalog: "top", genre })
+    const isDrama = genre === ASIAN_DRAMA_GENRE
+    const setGenre = (g: string | undefined) => {
+        if ((g === ASIAN_DRAMA_GENRE) === isDrama) return setParams({ genre: g })
+        // The drama page has its own search and filters, so neither carries over
+        setQuery("")
+        setParams({ genre: g, q: undefined, country: undefined, order: undefined, type: undefined, status: undefined, tag: undefined })
+    }
+
+    const catalog = useInfiniteMovieCatalog(search ? { type: "series", catalog: "top", search } : { type: "series", catalog: "top", genre }, !isDrama)
     const items = React.useMemo(() => unique(catalog.data?.pages.flat() ?? [], hidden), [catalog.data, hidden])
+
+    const genres = <MediaGenreSelector
+        items={[
+            { name: "All", isCurrent: !genre, onClick: () => setGenre(undefined) },
+            { name: "Cartoons", isCurrent: genre === CARTOONS, onClick: () => setGenre(CARTOONS) },
+            ...SERIES_GENRES_WITH_DRAMAS.filter(g => g !== CARTOONS).map(g => ({ name: g, isCurrent: genre === g, onClick: () => setGenre(g) })),
+        ]}
+    />
+
+    // Asian Drama opens its own search page, with kisskh's countries and sorting
+    if (isDrama) return <>
+        {genres}
+        <DramaSearch />
+    </>
 
     return (
         <>
             <SearchBox value={query} onChange={setQuery} placeholder="Search series and cartoons…" />
 
-            {!search && <MediaGenreSelector
-                items={[
-                    { name: "All", isCurrent: !genre, onClick: () => setGenre(undefined) },
-                    { name: "Cartoons", isCurrent: genre === CARTOONS, onClick: () => setGenre(CARTOONS) },
-                    ...SERIES_GENRES.filter(g => g !== CARTOONS).map(g => ({ name: g, isCurrent: genre === g, onClick: () => setGenre(g) })),
-                ]}
-            />}
+            {!search && genres}
 
             {search ? <SearchSections items={items} isLoading={catalog.isLoading} isError={catalog.isError} />
                 : <Results
@@ -287,46 +275,111 @@ function SearchSections({ items, isLoading, isError }: { items: Movie_Meta[], is
     </>
 }
 
-function DramaBrowse() {
+const DRAMA_SORTING = [{ value: "1", label: "Popular" }, { value: "2", label: "Recently updated" }, { value: "3", label: "Newest" }]
+const DRAMA_TYPES = [{ value: "1", label: "TV series" }, { value: "2", label: "Movies" }]
+const DRAMA_STATUS = [{ value: "0", label: "Any status" }, { value: "1", label: "Ongoing" }, { value: "2", label: "Completed" }]
+// kisskh has no genres, so these are Dramaday's tags (its Korean titles, matched to kisskh)
+const DRAMA_GENRES = [
+    ["Romance", 7], ["Comedy", 8], ["Thriller", 80], ["Mystery", 79], ["Action", 45], ["Fantasy", 13], ["Crime", 106],
+    ["Melodrama", 18], ["Historical", 29], ["Youth", 159], ["Family", 265], ["Horror", 421], ["BL", 745], ["Legal", 84],
+    ["Supernatural", 293], ["Medical", 48], ["School", 120], ["Sci-fi", 139], ["Political", 44], ["Music", 160], ["Office", 75],
+] as const
+
+/** Laid out like the anime search page: options on the left, results on the right */
+function DramaSearch() {
     const hidden = useHiddenMovies()
-    const { query, setQuery, search, searchParams, setParams } = useSearchBox()
+    const { searchParams, setParams } = useUrlParams()
+    const [query, setQuery] = React.useState(searchParams.get("q") ?? "")
+    const search = useDebounce(query.trim(), 500)
+    React.useEffect(() => {
+        if (search !== (searchParams.get("q") ?? "")) setParams({ q: search || undefined })
+    }, [search])
     const country = Number(searchParams.get("country") ?? 0) || 0
     const order = Number(searchParams.get("order") ?? 1) || 1
+    const type = Number(searchParams.get("type") ?? 1) || 1
+    const status = Number(searchParams.get("status") ?? 0) || 0
+    const tag = Number(searchParams.get("tag") ?? 0) || 0
+    const tagName = DRAMA_GENRES.find(g => g[1] === tag)?.[0]
 
-    const catalog = useInfiniteDramaCatalog(search ? { search } : { country, order })
+    // kisskh's search only filters by type, the other options apply to the lists. A genre lists Korean titles, newest first
+    const catalog = useInfiniteDramaCatalog(search ? { search, type } : tag ? { tag, type } : { country, order, type, status })
     const items = React.useMemo(() => unique(catalog.data?.pages.flat() ?? [], hidden), [catalog.data, hidden])
 
+    const countryName = DRAMA_COUNTRIES.find(c => c.id === country)?.name
+    const what = type === 2 ? "movies" : "dramas"
+    const title = search ? `Asian ${what} matching "${search}"`
+        : tagName ? `${tagName} Korean ${what}`
+        : `${DRAMA_SORTING.find(o => o.value === String(order))?.label}${status ? ` ${DRAMA_STATUS[status].label.toLowerCase()}` : ""} ${country ? countryName : "Asian"} ${what}`
+    const changed = !!query || !!country || order !== 1 || type !== 1 || !!status || !!tag
+
     return (
-        <>
-            <SearchBox value={query} onChange={setQuery} placeholder="Search Asian dramas…" />
-
-            {!search && <>
-                <MediaGenreSelector
-                    items={DRAMA_COUNTRIES.map(c => ({
-                        name: c.name,
-                        isCurrent: country === c.id,
-                        onClick: () => setParams({ country: c.id ? String(c.id) : undefined }),
-                    }))}
-                />
-                <MediaGenreSelector
-                    items={[{ id: 1, name: "Popular" }, { id: 2, name: "Recently updated" }, { id: 3, name: "New" }].map(o => ({
-                        name: o.name,
-                        isCurrent: order === o.id,
-                        onClick: () => setParams({ order: o.id === 1 ? undefined : String(o.id) }),
-                    }))}
-                />
-            </>}
-
-            <Results
-                items={items}
-                isLoading={catalog.isLoading}
-                isError={catalog.isError}
-                hasNextPage={catalog.hasNextPage}
-                isFetchingNextPage={catalog.isFetchingNextPage}
-                fetchNextPage={catalog.fetchNextPage}
-                empty="Nothing found."
-            />
-        </>
+        <div className="space-y-6" data-drama-search>
+            <h2 className="line-clamp-2">{title}</h2>
+            <AppLayoutGrid cols={6} spacing="lg">
+                <AppLayoutStack className="px-4 xl:px-0 space-y-3" data-drama-search-options>
+                    <TextInput leftIcon={<FiSearch />} placeholder="Title" value={query} onValueChange={setQuery} autoFocus />
+                    <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-1 gap-4 lg:gap-3">
+                        <Select
+                            leftAddon={<BiTag className={cn(!!tag && "text-indigo-300 font-bold text-xl")} />}
+                            className="w-full"
+                            options={[{ value: "0", label: "Any genre" }, ...DRAMA_GENRES.map(([name, id]) => ({ value: String(id), label: name }))]}
+                            value={String(tag)}
+                            onValueChange={v => setParams({ tag: v !== "0" ? v : undefined })}
+                            disabled={!!search}
+                        />
+                        <Select
+                            leftAddon={<BiWorld className={cn(!!country && "text-indigo-300 font-bold text-xl")} />}
+                            className="w-full"
+                            options={DRAMA_COUNTRIES.map(c => ({ value: String(c.id), label: c.id ? c.name : "All countries" }))}
+                            value={String(country)}
+                            onValueChange={v => setParams({ country: v !== "0" ? v : undefined })}
+                            disabled={!!search || !!tag}
+                        />
+                        <Select
+                            leftAddon={<BiTv className={cn(type !== 1 && "text-indigo-300 font-bold text-xl")} />}
+                            className="w-full"
+                            options={DRAMA_TYPES}
+                            value={String(type)}
+                            onValueChange={v => setParams({ type: v !== "1" ? v : undefined })}
+                        />
+                        <Select
+                            leftAddon={<BiCalendarCheck className={cn(!!status && "text-indigo-300 font-bold text-xl")} />}
+                            className="w-full"
+                            options={DRAMA_STATUS}
+                            value={String(status)}
+                            onValueChange={v => setParams({ status: v !== "0" ? v : undefined })}
+                            disabled={!!search || !!tag}
+                        />
+                        <Select
+                            leftAddon={<FaSortAmountDown className={cn(order !== 1 && "text-indigo-300 font-bold text-xl")} />}
+                            className="w-full"
+                            options={DRAMA_SORTING}
+                            value={String(order)}
+                            onValueChange={v => setParams({ order: v !== "1" ? v : undefined })}
+                            disabled={!!search || !!tag}
+                        />
+                        <IconButton
+                            icon={<BiTrash />} intent={changed ? "alert" : "gray-subtle"} className="flex-none"
+                            onClick={() => {
+                                setQuery("")
+                                setParams({ q: undefined, country: undefined, order: undefined, type: undefined, status: undefined, tag: undefined })
+                            }}
+                        />
+                    </div>
+                </AppLayoutStack>
+                <div className="col-span-5" data-drama-search-list>
+                    <Results
+                        items={items}
+                        isLoading={catalog.isLoading}
+                        isError={catalog.isError}
+                        hasNextPage={catalog.hasNextPage}
+                        isFetchingNextPage={catalog.isFetchingNextPage}
+                        fetchNextPage={catalog.fetchNextPage}
+                        empty="Nothing found."
+                    />
+                </div>
+            </AppLayoutGrid>
+        </div>
     )
 }
 

@@ -1,4 +1,5 @@
-import { captureMovieStream, Movie_StreamRef, Movie_StreamSource, playCapturedStream } from "@/app/(main)/movies/_lib/movies.api"
+import { captureMovieStream, Movie_StreamRef, Movie_StreamServers, Movie_StreamSource, playCapturedStream } from "@/app/(main)/movies/_lib/movies.api"
+import { cn } from "@/components/ui/core/styling"
 import { Button } from "@/components/ui/button"
 import { Modal } from "@/components/ui/modal"
 import { ProgressBar } from "@/components/ui/progress-bar"
@@ -16,11 +17,12 @@ export function readLastSource(key = MOVIE_LAST_SOURCE_KEY) {
 }
 
 /** Plays one website's video, returning why it failed or undefined once it plays. */
-async function streamFromSource(source: Movie_StreamSource, ref: Movie_StreamRef, signal: AbortSignal, onStarting: () => void) {
+async function streamFromSource(source: Movie_StreamSource, ref: Movie_StreamRef, signal: AbortSignal, onStarting: () => void,
+    onServers: (servers: Movie_StreamServers) => void) {
     try {
         const found = source.resolve && await source.resolve(ref, signal)
         if (source.resolve && !found) return signal.aborted ? "skipped" : `${source.name} can't find this title`
-        const stream = await captureMovieStream(found ? { ...source, url: () => found } : source, ref, signal)
+        const stream = await captureMovieStream(found ? { ...source, url: () => found } : source, ref, signal, onServers)
         if (signal.aborted) return
         onStarting()
         // OpenSubtitles finds a series episode by "tt…:season:episode"
@@ -46,11 +48,14 @@ export function OnlineStreamModal({ streaming, ref_, onClose, onTryAll, lastSour
     const [failed, setFailed] = React.useState<{ name: string, error: string }[]>([])
     const [error, setError] = React.useState<string>()
     const [starting, setStarting] = React.useState(false)
+    // The current website's servers for this episode or movie, switchable while it looks for the video
+    const [servers, setServers] = React.useState<Movie_StreamServers>()
     const skipRef = React.useRef<(() => void) | undefined>(undefined)
 
     React.useEffect(() => {
         setCurrent(undefined)
         setStarting(false)
+        setServers(undefined)
         setFailed([])
         setError(undefined)
         if (!streaming) return
@@ -60,12 +65,13 @@ export function OnlineStreamModal({ streaming, ref_, onClose, onTryAll, lastSour
             for (const source of streaming.sources) {
                 if (controller.signal.aborted) return
                 setCurrent(source)
+                setServers(undefined)
                 // Skip only cancels this website, closing the modal cancels everything
                 const attempt = new AbortController()
                 const cancel = () => attempt.abort()
                 controller.signal.addEventListener("abort", cancel)
                 skipRef.current = cancel
-                const message = await streamFromSource(source, ref_, attempt.signal, () => setStarting(true))
+                const message = await streamFromSource(source, ref_, attempt.signal, () => setStarting(true), setServers)
                 controller.signal.removeEventListener("abort", cancel)
                 skipRef.current = undefined
                 if (controller.signal.aborted) return
@@ -79,6 +85,7 @@ export function OnlineStreamModal({ streaming, ref_, onClose, onTryAll, lastSour
                     return
                 }
                 setStarting(false)
+                setServers(undefined)
                 const reason = attempt.signal.aborted ? "skipped" : message!
                 const line = { name: source.name, error: reason.startsWith(source.name) ? reason : `${source.name}: ${reason}` }
                 setFailed(f => [...f, line])
@@ -120,6 +127,26 @@ export function OnlineStreamModal({ streaming, ref_, onClose, onTryAll, lastSour
                             Next website
                         </Button>}
                     </div>
+                    {!!current && !starting && !!servers && servers.labels.length > 1 && <div className="space-y-2" data-movie-online-stream-servers>
+                        <p className="text-xs text-[--muted]">
+                            Servers on {current.name}. Dead ones are skipped, or pick one to use it (remembered for this website).
+                        </p>
+                        <div className="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto">
+                            {servers.labels.map((label, i) => <button
+                                key={i}
+                                type="button"
+                                className={cn("px-2.5 py-1 rounded-full text-xs border transition-colors",
+                                    i === servers.active ? "bg-white text-black border-white" : "border-[--border] hover:bg-gray-800")}
+                                onClick={() => {
+                                    servers.pick(i)
+                                    setServers({ ...servers, active: i })
+                                }}
+                                data-movie-online-stream-server={i}
+                            >
+                                {label}
+                            </button>)}
+                        </div>
+                    </div>}
                 </>}
                 {!!failed.length && <div className="space-y-1">
                     {failed.map((f, i) => <p key={i} className="text-xs text-[--muted]">✕ {f.error}</p>)}

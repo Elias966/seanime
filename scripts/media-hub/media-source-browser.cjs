@@ -172,8 +172,19 @@ function attach(win,options={}){
  const registry=options.registry||JSON.parse(fs.readFileSync(path.join(process.resourcesPath,'media-hub','sources.json'),'utf8'));
  const {session}=require('electron');
  const relay=createRelay({request:options.request||((url,headers,c)=>sessionUpstream(session.fromPartition('persist:seanime-media-source-'+c.sourceId),url,headers))});relay.server.listen(11438,'127.0.0.1');let count=0;if(!options.registry)attachDownloads(win,registry);
+ // The app runs its page helpers (start the player, list and switch servers) through the guest's main frame:
+ // webview.executeJavaScript waits for the page to finish loading, which ad-heavy sites never do.
+ const guests=new Map();const {ipcMain}=require('electron');
+ ipcMain.on('media-source:run',(e,msg)=>{
+  if(e.sender!==win.webContents||!msg||typeof msg.code!=='string'||typeof msg.id!=='string')return;const guest=guests.get(msg.guestId);
+  const reply=(result,error)=>{if(!win.isDestroyed())win.webContents.send('media-source:event',{type:'run-result',guestId:msg.guestId,id:msg.id,result,error})};
+  if(!guest||guest.isDestroyed())return reply(undefined,'gone');
+  // allFrames also runs it in the embedded players, each frame's answer (null for one that failed) in a list
+  Promise.resolve().then(()=>msg.allFrames?Promise.all(guest.mainFrame.framesInSubtree.map(f=>f.executeJavaScript(msg.code,true).catch(()=>null))):guest.mainFrame.executeJavaScript(msg.code,true)).then(r=>reply(r),err=>reply(undefined,String(err?.message||err)));
+ });
  win.webContents.on('did-attach-webview',(_,guest)=>{
   const marker=/SeanimeSource\/([a-z0-9-]+)/.exec(guest.getUserAgent());if(!marker)return;const source=registry.sources.find(s=>s.id===marker[1]&&s.mode!=='unavailable');if(!source){guest.close();return}
+  guests.set(guest.id,guest);guest.once('destroyed',()=>guests.delete(guest.id));
   const c=relay.context(source.id);const origins=new Set([source.url,source.browseUrl,...source.alternateUrls].filter(Boolean).map(u=>new URL(u).origin));const emit=data=>{if(!win.isDestroyed())win.webContents.send('media-source:event',{sourceId:source.id,guestId:guest.id,...data})};const seen=new Set();count++;
   guest.setWindowOpenHandler(({url})=>{if(url.startsWith('magnet:?'))emit({type:'magnet',magnet:url});else if(source.openNavigation&&/^https:\/\//.test(url))emit({type:'popup',url});return {action:'deny'}});
   // Only top-level navigation is restricted; sites embed their players from other hosts in frames.

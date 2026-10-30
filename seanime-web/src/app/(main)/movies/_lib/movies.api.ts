@@ -308,6 +308,10 @@ export type Movie_StreamSource = {
     url: (m: Movie_StreamRef) => string | undefined
     /** Element to click once the page is ready, when the site needs it to start the player */
     click?: string
+    /** The site's servers to try first (by name), when its default one is slow or often broken */
+    servers?: RegExp
+    /** Hosts whose streams are too slow to play (a site's own proxy): the next server is tried instead */
+    slowHosts?: RegExp
     timeout?: number
     /** For sites without predictable addresses: finds the page to play (usually through the site's search) */
     resolve?: (m: Movie_StreamRef, signal: AbortSignal) => Promise<string | undefined>
@@ -350,6 +354,16 @@ export const SERIES_STREAM_SOURCES: Movie_StreamSource[] = [
 ]
 
 /** kisskh's episode page starts its player by itself. */
+/** AsiaFlix names its pages after the title: /drama/lovely-runner/episode-1 */
+const asiaflixSlug = (title: string) => title.replace(/\s*\(\d{4}\)\s*$/, "").toLowerCase().normalize("NFKD").replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "")
+export const ASIAFLIX_STREAM_SOURCE: Movie_StreamSource = {
+    id: "asiaflix", name: "AsiaFlix", sourceId: "asiaflix", timeout: 45000,
+    // Its own "Asiaflix" servers go through a slow proxy, the "Primary" ones usually play straight from the video host
+    servers: /^primary\b/i,
+    slowHosts: /^hlsproxy[\w-]*\.asiaflix\./i,
+    url: m => m.drama && `https://asiaflix.net/drama/${asiaflixSlug(m.drama.title)}/episode-${m.episode ?? 1}`,
+}
+
 export const KISSKH_STREAM_SOURCE: Movie_StreamSource = {
     id: "kisskh", name: "kisskh", sourceId: "kisskh", timeout: 35000,
     url: m => m.drama && `https://kisskh.co/Drama/${encodeURIComponent(m.drama.title.replace(/[^\w\s-]/g, "").trim().replace(/\s+/g, "-"))}/Episode-${m.episode ?? 1}?id=${m.drama.id}&ep=${m.drama.episodeId}&page=0&pageSize=100`,
@@ -362,8 +376,8 @@ export type Movie_CapturedStream = {
 }
 
 /**
- * Runs inside the website. Starts its player: the site's own button first, then a click on the player itself,
- * then the next "Server N" button. Returns where to click, the clicks are sent as real input events.
+ * Runs inside the website. Starts its player: the site's own button first, then a click on the player itself
+ * (servers are switched by pageServers). Returns where to click, the clicks are sent as real input events.
  */
 function findPlayTarget(step: number, selector: string) {
     const visible = (e: Element) => {
@@ -393,15 +407,6 @@ function findPlayTarget(step: number, selector: string) {
             .find(b => visible(b) && /^(▶\s*)?(play|play now|watch|watch now|start watching|watch movie|stream now)$/i.test(label(b)))
         if (b) return target(b, "play")
     }
-    if (step >= 3) {
-        const s = [...document.querySelectorAll<HTMLElement>("button,a,[role=button],li")]
-            .find(b => visible(b) && /^(server|source|mirror)\s*\d+$/i.test(label(b)) && !b.dataset.seanimeTried)
-        if (s) {
-            s.dataset.seanimeTried = "1"
-            s.click()
-            return { what: "server" }
-        }
-    }
     const video = [...document.querySelectorAll("video")].find(visible)
     if (video) return target(video, "video")
     const area = (e: Element) => e.getBoundingClientRect().width * e.getBoundingClientRect().height
@@ -409,6 +414,102 @@ function findPlayTarget(step: number, selector: string) {
         .filter(e => e.getBoundingClientRect().width > 200 && e.getBoundingClientRect().height > 120)
         .sort((a, b) => area(b) - area(a))[0]
     return player ? target(player, player.tagName) : null
+}
+
+/**
+ * Runs a script in a hidden website page. It goes through the app's main process, which runs it in the page's main
+ * frame right away: the webview's own executeJavaScript waits for the page to finish loading, and pages full of
+ * ads never do.
+ */
+function runInPage<T = any>(view: any, code: string, timeout = 4000, allFrames = false) {
+    return new Promise<T>((resolve, reject) => {
+        let guestId: number
+        try {
+            guestId = view.getWebContentsId()
+        }
+        catch {
+            return reject(new Error("The page is not ready"))
+        }
+        const electron = window.electron as any
+        if (!electron?.emit || !electron?.on) {
+            const timer = setTimeout(() => reject(new Error("The page did not answer")), timeout)
+            view.executeJavaScript(code).then((r: T) => resolve(allFrames ? [r] as T : r), reject).finally(() => clearTimeout(timer))
+            return
+        }
+        const id = crypto.randomUUID()
+        const stop = electron.on("media-source:event", (event: any) => {
+            if (event?.type !== "run-result" || event.id !== id) return
+            clearTimeout(timer)
+            stop?.()
+            if (event.error) reject(new Error(event.error))
+            else resolve(event.result)
+        })
+        const timer = setTimeout(() => {
+            stop?.()
+            reject(new Error("The page did not answer"))
+        }, timeout)
+        electron.emit("media-source:run", { guestId, id, code, allFrames })
+    })
+}
+
+/**
+ * Runs inside the website. Finds the site's server list (a dropdown or "Server N" style buttons) and, when `pick`
+ * is a list position, switches to that server. Returns the server names and which one is selected (-1 for none).
+ */
+function pageServers(pick: number) {
+    const name = (e: Element) => ((e as HTMLElement).innerText || e.textContent || e.getAttribute("aria-label") || "").trim().replace(/\s+/g, " ")
+    const server = /server|source\s*\d|primary|backup|mirror|\bhost|\bcdn\b|vidplay|upcloud|megacloud|vidcloud|streamwish|filemoon|dood|mixdrop|streamtape|\bvoe\b|mp4upload|high quality/i
+    const notServer = /^(episode|season|ep|part|sort|language)\b/i
+    const select = [...document.querySelectorAll("select")].find(s => {
+        const o = [...s.options].filter(o => o.value !== "")
+        return o.length >= 2 && o.filter(o => server.test(name(o)) && !notServer.test(name(o))).length * 2 > o.length
+    })
+    if (select) {
+        const options = [...select.options].filter(o => o.value !== "")
+        if (pick >= 0 && options[pick]) {
+            select.value = options[pick].value
+            select.dispatchEvent(new Event("input", { bubbles: true }))
+            select.dispatchEvent(new Event("change", { bubbles: true }))
+        }
+        return { labels: options.map(name), active: options.findIndex(o => o.value === select.value) }
+    }
+    const visible = (e: Element) => e.getBoundingClientRect().width > 8 && e.getBoundingClientRect().height > 8
+    const seen = new Set<string>()
+    const buttons = [...document.querySelectorAll<HTMLElement>("button,a,[role=button],[role=tab],li,[data-server],[data-link]")]
+        .filter(b => {
+            const n = name(b)
+            if (!visible(b) || n.length > 40 || notServer.test(n) || !server.test(n) || b.querySelector("button,a,li") || seen.has(n)) return false
+            seen.add(n)
+            return true
+        })
+    if (buttons.length < 2) return { labels: [] as string[], active: -1 }
+    if (pick >= 0 && buttons[pick]) buttons[pick].click()
+    const active = pick >= 0 ? pick : buttons.findIndex(b => /\b(active|selected|current|on)\b/i.test(b.className) || b.getAttribute("aria-selected") === "true")
+    return { labels: buttons.map(name), active }
+}
+
+/** What video hosts show in their player when the file is gone */
+const DEAD_FILE = /file (is no longer available|was deleted|has been (deleted|removed)|not found)|video (not found|is unavailable|has been removed)|no longer available|this file (doesn't|does not) exist|sorry, (this|the) (video|file)/i
+const DEAD_FILE_CHECK = "(document.body ? document.body.innerText.slice(0, 400) : '')"
+
+export type Movie_StreamServers = {
+    /** The website's server names for this episode or movie */
+    labels: string[]
+    active: number
+    /** Switches the website to another server while it is still looking for the video */
+    pick: (index: number) => void
+}
+
+const serverKey = (sourceId: string) => "seanime-stream-server-" + sourceId
+
+/** The server last chosen on a website, tried first the next time it plays */
+export function rememberServer(sourceId: string, label?: string) {
+    try {
+        if (label) localStorage.setItem(serverKey(sourceId), label)
+        else localStorage.removeItem(serverKey(sourceId))
+    }
+    catch {
+    }
 }
 
 /**
@@ -431,7 +532,8 @@ async function pickStream(streams: Omit<Movie_CapturedStream, "subtitles">[]) {
     return ordered[0]
 }
 
-export function captureMovieStream(source: Movie_StreamSource, ref: Movie_StreamRef, signal?: AbortSignal) {
+export function captureMovieStream(source: Movie_StreamSource, ref: Movie_StreamRef, signal?: AbortSignal,
+    onServers?: (servers: Movie_StreamServers) => void) {
     return new Promise<Movie_CapturedStream>((resolve, reject) => {
         const url = source.url(ref)
         if (!url) return reject(new Error(`${source.name} can't find this movie`))
@@ -458,7 +560,10 @@ export function captureMovieStream(source: Movie_StreamSource, ref: Movie_Stream
         const finish = (error?: Error) => {
             if (done) return
             done = true
-            timers.forEach(clearTimeout)
+            timers.forEach(t => {
+                clearTimeout(t)
+                clearInterval(t)
+            })
             unsubscribe?.()
             signal?.removeEventListener("abort", onAbort)
             view.remove()
@@ -481,6 +586,14 @@ export function captureMovieStream(source: Movie_StreamSource, ref: Movie_Stream
                 subtitles.push({ src: event.url, type: /\.(ass|ssa|srt|vtt)(?:\.txt\d?)?(?:$|\?)/i.exec(label)?.[1] || "vtt", label: label || "Subtitles", language })
             }
             else if (event.type === "hls" || event.type === "video") {
+                if (source.slowHosts?.test(String(event.originalHost ?? ""))) {
+                    slowSeen = true
+                    if (!stream && !chosenByUser && servers.labels.length > 1) {
+                        switchServer((servers.active + 1) % servers.labels.length)
+                        lastSwitch = Date.now()
+                    }
+                    return
+                }
                 streams.push({ url: event.url, type: event.type })
                 if (stream) return
                 stream = streams[0]
@@ -499,17 +612,103 @@ export function captureMovieStream(source: Movie_StreamSource, ref: Movie_Stream
             }
         })
         const script = `(${findPlayTarget.toString()})`
-        ;[3500, 7000, 10500, 14000, 17500, 21000, 26000, 31000].forEach((at, step) => timers.push(setTimeout(async () => {
-            if (done || stream) return
+        // The player is poked every few seconds until it plays; a server switch starts the steps over
+        let clickStep = 0
+        let clickBusy = false
+        const clicks = setInterval(async () => {
+            if (done || stream) return clearInterval(clicks)
+            if (clickBusy) return
+            clickBusy = true
             try {
-                const p = await view.executeJavaScript(`${script}(${step},${JSON.stringify(source.click ?? "")})`)
-                if (p?.x === undefined) return
-                for (const type of ["mouseDown", "mouseUp"]) view.sendInputEvent({ type, x: p.x, y: p.y, button: "left", clickCount: 1 })
+                const p = await runInPage(view, `${script}(${clickStep++},${JSON.stringify(source.click ?? "")})`)
+                if (p?.x !== undefined) for (const type of ["mouseDown", "mouseUp"]) view.sendInputEvent({ type, x: p.x, y: p.y, button: "left", clickCount: 1 })
             }
             catch {
             }
-        }, at)))
-        timers.push(setTimeout(() => finish(new Error(`${source.name} did not return a video`)), source.timeout ?? 25000))
+            clickBusy = false
+        }, 3500)
+        timers.push(clicks)
+        let slowSeen = false
+        const noVideo = (what: string) => new Error(slowSeen ? `${what} only answered through its slow proxy, choose another server or source` : `${what} did not return a video`)
+        let deadline = setTimeout(() => finish(noVideo(source.name)), source.timeout ?? 25000)
+        timers.push(deadline)
+
+        // Sites list several servers per episode. The one remembered for this site is picked, then the next one each
+        // time a server gives nothing; picking one by hand stops that.
+        let servers = { labels: [] as string[], active: -1 }
+        let chosenByUser = false
+        const report = () => onServers?.({ ...servers, pick: i => switchServer(i, true) })
+        const runServers = async (pick: number) => {
+            try {
+                const r = await runInPage(view, `(${pageServers.toString()})(${pick})`)
+                if (r && Array.isArray(r.labels)) servers = { labels: r.labels.map(String), active: pick >= 0 ? pick : r.active }
+            }
+            catch {
+            }
+            report()
+        }
+        const switchServer = (i: number, byUser = false) => {
+            if (done || stream || i < 0 || i >= servers.labels.length) return
+            if (byUser) {
+                chosenByUser = true
+                rememberServer(source.id, servers.labels[i])
+                // A server picked by hand gets its own full wait
+                clearTimeout(deadline)
+                deadline = setTimeout(() => finish(noVideo(`${servers.labels[i]} on ${source.name}`)), source.timeout ?? 25000)
+                timers.push(deadline)
+            }
+            streams.length = 0
+            clickStep = 0
+            runServers(i)
+        }
+        // The server list can show up late on script-rendered pages, so it is looked for until it is there. A page
+        // that lists servers without picking one usually picks its own default soon, otherwise the first is used.
+        let foundAt = 0
+        let lastSwitch = 0
+        const serverStep = Math.max(10000, Math.floor((source.timeout ?? 25000) / 4))
+        const watchServers = setInterval(async () => {
+            if (done || stream) return clearInterval(watchServers)
+            if (!servers.labels.length) {
+                await runServers(-1)
+                if (!servers.labels.length) return
+                foundAt = lastSwitch = Date.now()
+                let remembered = -1
+                try {
+                    remembered = servers.labels.indexOf(localStorage.getItem(serverKey(source.id)) ?? "")
+                }
+                catch {
+                }
+                if (remembered < 0 && source.servers && !source.servers.test(servers.labels[servers.active] ?? "")) {
+                    remembered = servers.labels.findIndex(l => source.servers!.test(l))
+                }
+                if (remembered >= 0 && remembered !== servers.active) switchServer(remembered)
+                return
+            }
+            if (chosenByUser) return
+            // A server whose file is gone says so in its player, the next one is tried right away
+            let dead = false
+            if (servers.active >= 0 && Date.now() - lastSwitch > 2500) try {
+                const texts = await runInPage<(string | null)[]>(view, DEAD_FILE_CHECK, 3000, true)
+                dead = texts.some(t => !!t && DEAD_FILE.test(t))
+            }
+            catch {
+            }
+            if (done || stream) return
+            if (dead && servers.labels.length > 1) {
+                switchServer((servers.active + 1) % servers.labels.length)
+                lastSwitch = Date.now()
+            }
+            else if (servers.active < 0 && Date.now() - foundAt > 6000) {
+                await runServers(-1)
+                if (servers.active < 0) switchServer(0)
+                lastSwitch = Date.now()
+            }
+            else if (servers.labels.length > 1 && Date.now() - lastSwitch > serverStep) {
+                switchServer((servers.active + 1) % servers.labels.length)
+                lastSwitch = Date.now()
+            }
+        }, 2000)
+        timers.push(watchServers)
 
         // The permission call can stall, don't let it hold the source past its timeout
         const allow = window.electron.localServer.allowWebviewOrigin(new URL(url).origin)
@@ -545,7 +744,7 @@ export function findPageLink(pageUrl: string, sourceId: string, pick: (links: { 
         signal?.addEventListener("abort", onAbort)
         const poll = setInterval(async () => {
             try {
-                const links = await view.executeJavaScript(
+                const links = await runInPage(view,
                     "[...document.querySelectorAll('a[href]')].map(a=>({href:a.href,text:(a.innerText||a.title||'').trim()}))")
                 const url = pick(links)
                 if (url) finish(url)
@@ -652,12 +851,18 @@ export function listItemMeta(item: Movie_ListItem): Movie_Meta | undefined {
 /** Card ids of kisskh dramas, so they never collide with IMDb ids. */
 export const KISSKH_PREFIX = "kisskh:"
 
-export type Drama_Catalog = { country?: number, order?: number, search?: string }
+/** type: 1 TV series, 2 movies. status: 0 all, 1 ongoing, 2 completed. tag: a Dramaday genre tag id (Korean titles, newest first) */
+export type Drama_Catalog = { country?: number, order?: number, type?: number, status?: number, search?: string, tag?: number }
 export type Drama_Item = { id: string, provider: "kisskh", title: string, poster?: string, episodes?: number }
 export type Drama_Detail = {
     id: number, title: string, description?: string, country?: string, status?: string, type?: string, releaseDate?: string,
     thumbnail?: string, episodesCount?: number, episodes: { id: number, number: number, sub?: number }[]
 }
+
+/** Genre value that switches a series list to kisskh's Asian dramas */
+export const ASIAN_DRAMA_GENRE = "Asian Drama"
+/** Series genres with Asian Drama listed after Drama */
+export const SERIES_GENRES_WITH_DRAMAS: string[] = SERIES_GENRES.flatMap(g => g === "Drama" ? [g, ASIAN_DRAMA_GENRE] : [g])
 
 export const DRAMA_COUNTRIES = [
     { id: 0, name: "All" }, { id: 2, name: "Korean" }, { id: 1, name: "Chinese" }, { id: 3, name: "Japanese" },
@@ -669,7 +874,8 @@ export function dramaMeta(d: Drama_Item): Movie_Meta {
 }
 
 const fetchDramas = (c: Drama_Catalog, page = 1) => getJson<{ items: Drama_Item[], total: number }>(`${MEDIA_HELPER}/media/catalog?${new URLSearchParams({
-    provider: "kisskh", page: String(page), country: String(c.country ?? 0), order: String(c.order ?? 1), q: c.search ?? "",
+    provider: "kisskh", page: String(page), country: String(c.country ?? 0), order: String(c.order ?? 1), type: String(c.type ?? 1), status: String(c.status ?? 0), q: c.search ?? "",
+    genre: c.tag ? String(c.tag) : "",
 })}`)
 
 export function useDramaCatalog(c: Drama_Catalog, enabled = true) {
@@ -689,6 +895,32 @@ export function useInfiniteDramaCatalog(c: Drama_Catalog, enabled = true) {
         getNextPageParam: (last, pages) => (!c.search && last.length > 0) ? pages.length + 1 : undefined,
         enabled,
         staleTime: 1000 * 60 * 30,
+    })
+}
+
+const normalTitle = (t: string) => t.toLowerCase().normalize("NFKD").replace(/[^a-z0-9]+/g, " ").trim()
+
+/** The Cinemeta series a kisskh drama is, so the series websites can play it too. "Title Season 2" is season 2 of "Title". */
+export async function matchDrama(d: Drama_Detail): Promise<{ imdb: string, tmdb?: number, season: number } | undefined> {
+    const seasonMatch = d.title.match(/\s+Season\s+(\d+)\s*$/i)
+    const base = d.title.replace(/\s+Season\s+\d+\s*$/i, "").replace(/\s*\(\d{4}\)\s*$/, "").trim()
+    const year = Number(d.releaseDate?.slice(0, 4)) || undefined
+    const results = await fetchCatalog({ type: "series", catalog: "top", search: base })
+    const named = results.filter(m => normalTitle(m.name) === normalTitle(base))
+    // kisskh's date is when it was added, which can be a year off the first air date
+    const start = (m: Movie_Meta) => Number(m.releaseInfo?.slice(0, 4)) || 0
+    const best = (year && !seasonMatch && named.find(m => Math.abs(start(m) - year) <= 1)) || named[0]
+    if (!best) return undefined
+    const meta = await fetchMovieMeta(best.id, "series").catch(() => undefined)
+    return { imdb: best.id, tmdb: meta?.moviedb_id, season: seasonMatch ? Number(seasonMatch[1]) : 1 }
+}
+
+export function useDramaMatch(d: Drama_Detail | undefined) {
+    return useQuery({
+        queryKey: ["dramas-match", d?.id],
+        queryFn: () => matchDrama(d!).then(m => m ?? null),
+        enabled: !!d,
+        staleTime: 1000 * 60 * 60 * 24,
     })
 }
 

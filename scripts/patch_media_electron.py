@@ -28,4 +28,4 @@ def patch_preload(raw):
     # Lets the app tell direct-download sources where to save and start or cancel their downloads.
     emit='"macos-activation-policy-regular"'
     if text.count(emit)!=1:raise ValueError('Unexpected preload emit channel whitelist')
-    return text.replace(emit,emit+',\n                "media-source:download"',1).encode()
+    return text.replace(emit,emit+',\n                "media-source:download",\n                "media-source:run"',1).encode()

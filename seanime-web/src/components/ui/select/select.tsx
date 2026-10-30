@@ -171,6 +171,7 @@ export const Select = React.forwardRef<HTMLButtonElement, SelectProps>((props, r
                     onValueChange={handleOnValueChange}
                     onOpenChange={onOpenChange}
                     defaultValue={defaultValue}
+                    disabled={basicFieldProps.disabled}
                 >
 
                     <SelectPrimitive.Trigger
