@@ -42,12 +42,49 @@ const TAB_TRANSITION = {
 
 const CURRENT_YEAR = new Date().getFullYear()
 
+/** Each tab's filters and scroll position, so switching back to a tab shows it as it was left. */
+const tabMemory = new Map<MoviesTab, { params: string, scroll: number }>()
+
 export default function Page() {
 
     const router = useRouter()
     const searchParams = useSearchParams()
     const tab = (searchParams.get("tab") as MoviesTab) || "discover"
-    const setTab = (t: MoviesTab) => router.push(t === "discover" ? "/movies" : `/movies?tab=${t}`)
+    const pendingScroll = React.useRef<number | undefined>(undefined)
+    const setTab = (t: MoviesTab) => {
+        if (t === tab) return
+        const current = new URLSearchParams(searchParams)
+        current.delete("tab")
+        tabMemory.set(tab, { params: current.toString(), scroll: window.scrollY })
+        const saved = tabMemory.get(t)
+        const params = new URLSearchParams(saved?.params ?? "")
+        if (t !== "discover") params.set("tab", t)
+        pendingScroll.current = saved?.scroll ?? 0
+        router.push(`/movies${params.size ? `?${params.toString()}` : ""}`, { scroll: false })
+    }
+
+    // The new tab appears after the old one fades out and its rows may still be loading, so keep trying for a moment
+    React.useEffect(() => {
+        const target = pendingScroll.current
+        if (target === undefined) return
+        pendingScroll.current = undefined
+        const started = Date.now()
+        const stop = () => {
+            window.clearInterval(timer)
+            window.removeEventListener("wheel", stop)
+            window.removeEventListener("touchstart", stop)
+            window.removeEventListener("keydown", stop)
+        }
+        const timer = window.setInterval(() => {
+            window.scrollTo({ top: target, behavior: "auto" })
+            if ((Math.abs(window.scrollY - target) < 2 && Date.now() - started > 400) || Date.now() - started > 2000) stop()
+        }, 50)
+        // Stop as soon as the user scrolls themselves
+        window.addEventListener("wheel", stop, { passive: true })
+        window.addEventListener("touchstart", stop, { passive: true })
+        window.addEventListener("keydown", stop)
+        return stop
+    }, [tab])
 
     const [heroItems, setHeroItems] = React.useState<Movie_Meta[]>()
     const hidden = useHiddenMovies()
@@ -91,7 +128,7 @@ export default function Page() {
                     >
                         <div className="space-y-2 z-[5] relative">
                             <h2>Trending Right Now</h2>
-                            <MovieCarousel catalog={{ catalog: "top" }} withGenreSelector genreParam="genre" onData={d => !heroItems && setHeroItems(d)} />
+                            <MovieCarousel catalog={{ catalog: "top" }} withGenreSelector genreParam="trending" onData={d => !heroItems && setHeroItems(d)} />
                         </div>
                         <div className="space-y-2 z-[5] relative">
                             <h2>New in {CURRENT_YEAR}</h2>
