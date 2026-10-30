@@ -2,10 +2,20 @@ import { SiteBrowser } from "@/app/(main)/entry/_containers/online-download/onli
 import { sendDownloadAction } from "@/app/(main)/online-downloads/_lib/online-downloads"
 import { MovieDownloads } from "@/app/(main)/movies/_containers/movie-downloads"
 import {
+    clientMagnet,
+    engineAction,
+    fetchEngineTorrents,
+    fileEpisode,
     formatBytes,
+    largestPlayableFile,
+    Movie_EngineFile,
+    Movie_EngineTorrent,
+    playEngineFile,
     Series_SiteEpisode,
     Series_Torrent,
     seriesFolder,
+    SERIES_DOWNLOAD_SITES,
+    startEngineTorrent,
     startSeriesTorrent,
     useEngineTorrents,
     useMovieSettings,
@@ -15,13 +25,108 @@ import {
 } from "@/app/(main)/movies/_lib/movies.api"
 import { Button } from "@/components/ui/button"
 import { LoadingSpinner } from "@/components/ui/loading-spinner"
+import { Modal } from "@/components/ui/modal"
+import { ProgressBar } from "@/components/ui/progress-bar"
 import { StaticTabs } from "@/components/ui/tabs"
 import { Vaul, VaulContent } from "@/components/vaul"
 import React from "react"
-import { BiDownload, BiLinkExternal, BiSkipNext } from "react-icons/bi"
+import { BiDownload, BiLinkExternal, BiPlay, BiSkipNext } from "react-icons/bi"
 import { toast } from "sonner"
 
 const DRAMADAY = { id: "dramaday", origin: "https://dramaday.me", browseUrl: (t: string) => `https://dramaday.me/?s=${encodeURIComponent(t)}` }
+
+/** A series torrent being streamed. Without an episode (a pack from the Torrents tab) the person picks the file. */
+export type Series_TorrentStream = { hash: string, title: string, series: string, imdb?: string, season?: number, episode?: number, pack: boolean }
+
+export async function startSeriesStream(t: Series_Torrent, title: string, series: string, imdb?: string, season?: number, episode?: number): Promise<Series_TorrentStream> {
+    const { hash } = await startEngineTorrent(clientMagnet(t.hash, title), title, "stream")
+    return { hash: hash || t.hash, title, series, imdb, season, episode, pack: t.pack }
+}
+
+/** Waits for the torrent's details, then hands the episode's file to the player. */
+export function SeriesStreamModal({ streaming, onClose }: { streaming?: Series_TorrentStream, onClose: () => void }) {
+    const [torrent, setTorrent] = React.useState<Movie_EngineTorrent>()
+    const [error, setError] = React.useState<string>()
+    const [files, setFiles] = React.useState<Movie_EngineFile[]>()
+
+    const close = (played: boolean) => {
+        if (!played && streaming) engineAction("stop", streaming.hash).catch(() => {})
+        onClose()
+    }
+    const play = async (file: Movie_EngineFile) => {
+        const found = fileEpisode(file.name)
+        const season = streaming?.season ?? found?.season ?? undefined
+        const episode = streaming?.episode ?? found?.episode
+        const imdb = streaming?.imdb && season !== undefined && episode !== undefined ? `${streaming.imdb}:${season}:${episode}` : undefined
+        const title = episode !== undefined && season !== undefined
+            ? `${streaming!.series} - S${String(season).padStart(2, "0")}E${String(episode).padStart(2, "0")}` : streaming!.title
+        await playEngineFile(file, title, imdb)
+        close(true)
+    }
+
+    React.useEffect(() => {
+        setTorrent(undefined)
+        setError(undefined)
+        setFiles(undefined)
+        if (!streaming) return
+        let cancelled = false
+        let timer: ReturnType<typeof setTimeout>
+        let missing = 0
+        const poll = async () => {
+            try {
+                const t = (await fetchEngineTorrents()).find(x => x.hash.toLowerCase() === streaming.hash.toLowerCase())
+                if (cancelled) return
+                setTorrent(t)
+                if (!t && ++missing > 10) return setError("The torrent was stopped")
+                if (t?.error) return setError(t.error)
+                if (t?.ready) {
+                    const playable = t.files.filter(f => f.playable).sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }))
+                    if (!playable.length) return setError("No supported video files in this torrent")
+                    if (!streaming.pack) return await play(largestPlayableFile(t))
+                    if (streaming.episode === undefined) return setFiles(playable)
+                    const file = playable.find(f => {
+                        const e = fileEpisode(f.name)
+                        return e?.episode === streaming.episode && (e?.season === null || e?.season === streaming.season)
+                    })
+                    if (file) return await play(file)
+                    // The names do not say which episode is which
+                    return setFiles(playable)
+                }
+            }
+            catch (e: any) {
+                if (!cancelled) setError(e?.message ?? String(e))
+                return
+            }
+            timer = setTimeout(poll, 1500)
+        }
+        poll()
+        return () => {
+            cancelled = true
+            clearTimeout(timer)
+        }
+    }, [streaming?.hash, streaming?.episode])
+
+    return (
+        <Modal open={!!streaming} onOpenChange={v => !v && close(false)} title={files ? "Choose an episode" : "Preparing stream"} contentClass="max-w-xl">
+            <div className="space-y-4" data-series-stream-modal>
+                <p className="font-medium line-clamp-2">{streaming?.title}</p>
+                {error ? <p className="text-red-300">{error}</p> : files ? <div className="max-h-[50vh] overflow-y-auto space-y-1 pr-1">
+                    {files.map(f => <button
+                        key={f.url}
+                        className="w-full text-left text-sm rounded-md border px-3 py-2 hover:border-[--brand] truncate"
+                        onClick={() => play(f).catch((e: any) => setError(e?.message ?? String(e)))}
+                        data-series-stream-file
+                    >{f.name}</button>)}
+                </div> : <>
+                    <ProgressBar isIndeterminate={!torrent?.progress} value={Math.round((torrent?.progress ?? 0) * 100)} size="sm" />
+                    <p className="text-sm text-[--muted]">
+                        {!torrent ? "Starting torrent…" : `Finding peers and buffering… ${torrent.peers} peers · ${formatBytes(torrent.downloadSpeed)}/s`}
+                    </p>
+                </>}
+            </div>
+        </Modal>
+    )
+}
 
 /** A pack covers the season when its range includes it ("complete" packs cover every season) */
 const covers = (t: Series_Torrent, season: number) => t.pack && (t.season === null || (t.season <= season && season <= (t.last ?? t.season)))
@@ -31,7 +136,7 @@ const covers = (t: Series_Torrent, season: number) => t.pack && (t.season === nu
  * there is one, otherwise the episodes picked), and for dramas Dramaday's links, opened in the app so the user passes
  * the site's link pages; the file it gives is saved into the same folder.
  */
-export function SeriesDownloadDrawer({ open, onOpenChange, title, imdb, isDrama, season, seasons }: {
+export function SeriesDownloadDrawer({ open, onOpenChange, title, imdb, isDrama, season, seasons, onStream }: {
     open: boolean
     onOpenChange: (v: boolean) => void
     title: string
@@ -39,8 +144,9 @@ export function SeriesDownloadDrawer({ open, onOpenChange, title, imdb, isDrama,
     isDrama: boolean
     season: number
     seasons: number[]
+    onStream: (stream: Series_TorrentStream) => void
 }) {
-    const [tab, setTab] = React.useState<"torrents" | "sites" | "progress">("torrents")
+    const [tab, setTab] = React.useState<"torrents" | "sites" | "firefox" | "progress">("torrents")
     const settings = useMovieSettings().data
     const folder = seriesFolder(title)
     const dir = settings?.seriesDir ? `${settings.seriesDir}/${folder}` : ""
@@ -59,12 +165,17 @@ export function SeriesDownloadDrawer({ open, onOpenChange, title, imdb, isDrama,
                         items={[
                             { name: "Torrents", isCurrent: tab === "torrents", onClick: () => setTab("torrents") },
                             ...(isDrama ? [{ name: "Dramaday", isCurrent: tab === "sites", onClick: () => setTab("sites") }] : []),
+                            { name: "Websites", isCurrent: tab === "firefox", onClick: () => setTab("firefox") },
                             { name: "Downloading", isCurrent: tab === "progress", onClick: () => setTab("progress") },
                         ]}
                     />
                     <div className="flex-1 min-h-0 flex flex-col gap-3">
-                        {tab === "torrents" && <SeriesTorrents title={title} imdb={imdb} season={season} seasons={seasons} onStarted={() => setTab("progress")} />}
+                        {tab === "torrents" && <SeriesTorrents title={title} imdb={imdb} season={season} seasons={seasons} onStream={s => {
+                            onOpenChange(false)
+                            onStream(s)
+                        }} onStarted={() => setTab("progress")} />}
                         {tab === "sites" && <SeriesSiteLinks title={title} dir={dir} />}
+                        {tab === "firefox" && <SeriesFirefoxSites title={title} />}
                         {tab === "progress" && <div className="flex-1 overflow-y-auto pr-1">
                             <MovieDownloads filter={t => t.folder === folder} empty="No episodes of this series are downloading." />
                         </div>}
@@ -75,8 +186,8 @@ export function SeriesDownloadDrawer({ open, onOpenChange, title, imdb, isDrama,
     )
 }
 
-function SeriesTorrents({ title, imdb, season: initialSeason, seasons, onStarted }: {
-    title: string, imdb?: string, season: number, seasons: number[], onStarted: () => void
+function SeriesTorrents({ title, imdb, season: initialSeason, seasons, onStarted, onStream }: {
+    title: string, imdb?: string, season: number, seasons: number[], onStarted: () => void, onStream: (stream: Series_TorrentStream) => void
 }) {
     const [source, setSource] = useTorrentSource<"1337x" | "open">("series", "1337x")
     const { data, isLoading, isError, error } = useSeriesTorrents(imdb, title, true, source)
@@ -117,6 +228,11 @@ function SeriesTorrents({ title, imdb, season: initialSeason, seasons, onStarted
         }
     }
 
+    const stream = (t: Series_Torrent) => startSeriesStream(t, t.title, title, imdb, t.pack ? season : (t.season ?? season), t.episode ?? undefined)
+        .then(onStream).catch((e: any) => toast.error(e?.message ?? String(e)))
+    const streamButton = (t: Series_Torrent) => <Button size="sm" intent="white" leftIcon={<BiPlay />} disabled={active.has(t.hash)}
+        onClick={() => stream(t)} data-series-torrent-stream>Stream</Button>
+
     const free = episodes.filter(t => !active.has(t.hash))
     const allPicked = free.length > 0 && free.every(t => selected.has(t.hash))
     const count = free.filter(t => selected.has(t.hash)).length
@@ -156,8 +272,8 @@ function SeriesTorrents({ title, imdb, season: initialSeason, seasons, onStarted
                 {!!packs.length && <div className="space-y-2" data-series-packs>
                     <h4 className="font-semibold">Season packs</h4>
                     {packs.slice(0, 8).map(t => <TorrentRow key={t.hash} t={t} label={packLabel(t)} active={active.has(t.hash)}
-                        action={<Button size="sm" intent="primary" leftIcon={<BiDownload />} disabled={busy || active.has(t.hash)}
-                            onClick={() => start([t])} data-series-pack-download>Download</Button>} />)}
+                        action={<>{streamButton(t)}<Button size="sm" intent="primary" leftIcon={<BiDownload />} disabled={busy || active.has(t.hash)}
+                            onClick={() => start([t])} data-series-pack-download>Download</Button></>} />)}
                 </div>}
 
                 {!!episodes.length && <div className="space-y-2" data-series-episode-torrents>
@@ -177,16 +293,34 @@ function SeriesTorrents({ title, imdb, season: initialSeason, seasons, onStarted
                         </Button>
                     </div>
                     {episodes.map(t => <TorrentRow key={t.hash} t={t} label={`Episode ${t.episode}`} active={active.has(t.hash)}
-                        action={<input type="checkbox" className="w-4 h-4 accent-[--brand]" disabled={active.has(t.hash)}
+                        action={<>{streamButton(t)}<input type="checkbox" className="w-4 h-4 accent-[--brand]" disabled={active.has(t.hash)}
                             checked={selected.has(t.hash)}
                             onChange={() => setSelected(s => {
                                 const n = new Set(s)
                                 if (n.has(t.hash)) n.delete(t.hash)
                                 else n.add(t.hash)
                                 return n
-                            })} />} />)}
+                            })} /></>} />)}
                 </div>}
             </div>
+        </div>
+    )
+}
+
+/** Sites behind a human check, the person does the check and finds the series in Firefox */
+function SeriesFirefoxSites({ title }: { title: string }) {
+    const open = (site: { id: string, name: string }) => window.SeanimeMediaHub?.browse?.(site.id)
+        .then(() => toast.success(`${site.name} opened in Firefox`))
+        .catch((e: any) => toast.error(e?.message ?? String(e)))
+    return (
+        <div className="flex-1 overflow-y-auto pr-1 space-y-2" data-series-firefox-sites>
+            <p className="text-sm text-[--muted]">
+                These sites ask for a human check, so they open in Firefox. Search for {title} there. Their downloads are saved by Firefox and do not show under Downloading.
+            </p>
+            {SERIES_DOWNLOAD_SITES.map(site => <div key={site.id} className="flex items-center gap-3 rounded-md border p-3">
+                <span className="font-medium flex-1">{site.name}</span>
+                <Button size="sm" intent="white" leftIcon={<BiLinkExternal />} onClick={() => open(site)} data-series-firefox-site={site.id}>Open in Firefox</Button>
+            </div>)}
         </div>
     )
 }

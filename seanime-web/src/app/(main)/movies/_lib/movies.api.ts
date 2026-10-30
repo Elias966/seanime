@@ -266,7 +266,7 @@ export function useMovieMeta(id: string | undefined, type: Movie_Meta["type"] = 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 /** Which torrent source a kind of content uses, remembered for next time. 1337x is the default. */
-export function useTorrentSource<T extends string>(kind: "movies" | "series", fallback: T) {
+export function useTorrentSource<T extends string>(kind: "movies" | "series" | "series-play", fallback: T) {
     const key = `sea-torrent-source-${kind}`
     const [source, setSource] = React.useState<T>(() => {
         try {
@@ -1047,11 +1047,40 @@ export function startSeriesTorrent(hash: string, title: string, series: string) 
 /** A series release: one episode, or a pack of whole seasons (season..last, both missing for "complete" packs) */
 export type Series_Torrent = { hash: string, title: string, size: number, seeds: number, season: number | null, last?: number | null, episode: number | null, pack: boolean }
 
+/** Sites behind a human check that have series, they open in Firefox */
+export const SERIES_FIREFOX_SITES = [{ id: "mapple", name: "Mapple" }, { id: "duafile", name: "Duafile" }]
+
+/** Sites behind a human check to download from, they open in Firefox */
+export const SERIES_DOWNLOAD_SITES = [
+    { id: "cinema-of-the-world", name: "Cinema of the World" },
+    { id: "the-movie-channel", name: "the movie channel" },
+    ...SERIES_FIREFOX_SITES,
+]
+
+/** Season and episode in a file name, null for what it does not say */
+export function fileEpisode(name: string) {
+    const m = /\bS(\d{1,2})[ ._-]?E(\d{1,4})\b/i.exec(name) ?? /\b(\d{1,2})x(\d{2,3})\b/.exec(name)
+    if (m) return { season: Number(m[1]), episode: Number(m[2]) }
+    const e = /\b(?:E|EP|Episode)[ ._-]?(\d{1,4})\b/i.exec(name)
+    return e ? { season: null, episode: Number(e[1]) } : null
+}
+
+/** The best seeded single release of an episode, otherwise the best seeded pack that has its season */
+export function pickEpisodeTorrent(list: Series_Torrent[], season: number, episode: number) {
+    const best = (xs: Series_Torrent[]) => [...xs].sort((a, b) => b.seeds - a.seeds)[0]
+    return best(list.filter(t => !t.pack && t.episode === episode && (t.season === season || (t.season === null && season <= 1))))
+        ?? best(list.filter(t => t.pack && (t.season === null || (t.season <= season && season <= (t.last ?? t.season)))))
+}
+
+export function fetchSeriesTorrents(imdb: string | undefined, title: string, source: "1337x" | "open") {
+    return getJson<Series_Torrent[]>(`${MEDIA_HELPER}/media/series-torrents?${new URLSearchParams({ imdb: imdb ?? "", title, source })}`,
+        source === "1337x" ? { signal: AbortSignal.timeout(HUMAN_CHECK_WAIT) } : undefined)
+}
+
 export function useSeriesTorrents(imdb: string | undefined, title: string, enabled: boolean, source: "1337x" | "open" = "open") {
     return useQuery({
         queryKey: ["series-torrents", imdb, title, source],
-        queryFn: () => getJson<Series_Torrent[]>(`${MEDIA_HELPER}/media/series-torrents?${new URLSearchParams({ imdb: imdb ?? "", title, source })}`,
-            source === "1337x" ? { signal: AbortSignal.timeout(HUMAN_CHECK_WAIT) } : undefined),
+        queryFn: () => fetchSeriesTorrents(imdb, title, source),
         enabled: enabled && !!title,
         retry: source === "1337x" ? 0 : 1,
         staleTime: 1000 * 60 * 10,

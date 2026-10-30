@@ -28,8 +28,12 @@ import {
     useMovieMeta,
     useRelatedTitles,
     useSeriesFiles,
+    useTorrentSource,
+    fetchSeriesTorrents,
+    pickEpisodeTorrent,
+    SERIES_FIREFOX_SITES,
 } from "@/app/(main)/movies/_lib/movies.api"
-import { SeriesDownloadDrawer } from "@/app/(main)/series/_containers/series-downloads"
+import { SeriesDownloadDrawer, SeriesStreamModal, Series_TorrentStream, startSeriesStream } from "@/app/(main)/series/_containers/series-downloads"
 import { imageShimmer } from "@/components/shared/image-helpers"
 import { LuffyError } from "@/components/shared/luffy-error"
 import { PageWrapper } from "@/components/shared/page-wrapper"
@@ -264,8 +268,37 @@ function SeriesEpisodes({ meta, drama }: { meta: Movie_Meta, drama?: Drama_Detai
         return { imdb: meta.id, tmdb: meta.moviedb_id, title, season: v.season, episode: n }
     }
     // "auto" tries every website, starting with the one that worked last; picking one plays only from it
-    const [sourceId, setSourceId] = React.useState("auto")
+    // Series use 1337x unless another source was picked, dramas are rarely there and keep their own sites
+    const [dramaSourceId, setDramaSourceId] = React.useState("auto")
+    const [seriesSourceId, setSeriesSourceId] = useTorrentSource<string>("series-play", "1337x")
+    const sourceId = drama ? dramaSourceId : seriesSourceId
+    const setSourceId = drama ? setDramaSourceId : setSeriesSourceId
+    const firefoxSite = !drama && SERIES_FIREFOX_SITES.find(s => `firefox:${s.id}` === sourceId)
+    const [finding, setFinding] = React.useState<string>()
+    const [torrentStream, setTorrentStream] = React.useState<Series_TorrentStream>()
+    const playTorrent = async (v: Movie_Video) => {
+        const n = episodeNumber(v)
+        setFinding(v.id)
+        try {
+            const t = pickEpisodeTorrent(await fetchSeriesTorrents(meta.id, meta.name, "1337x"), v.season, n)
+            if (!t) return toast.error("1337x has no release of this episode, choose another source")
+            setTorrentStream(await startSeriesStream(t, refFor(v).title, meta.name, meta.id, v.season, n))
+        }
+        catch (e: any) {
+            toast.error(e?.message ?? String(e))
+        }
+        finally {
+            setFinding(undefined)
+        }
+    }
     const play = (v: Movie_Video) => {
+        if (!drama && sourceId === "1337x") return void playTorrent(v)
+        if (firefoxSite) {
+            window.SeanimeMediaHub?.browse?.(firefoxSite.id)
+                .then(() => toast.success(`${firefoxSite.name} opened in Firefox`))
+                .catch((e: any) => toast.error(e?.message ?? String(e)))
+            return
+        }
         const ref = refFor(v)
         const all = sourcesFor(ref)
         const picked = all.filter(s => s.id === sourceId)
@@ -287,7 +320,7 @@ function SeriesEpisodes({ meta, drama }: { meta: Movie_Meta, drama?: Drama_Detai
     const aired = (v: Movie_Video) => !v.released || isNaN(Date.parse(v.released)) || Date.parse(v.released) <= now
 
     if (!videos.length) return <LuffyError title={null}><p>No episodes are listed for this series yet.</p></LuffyError>
-    const canStream = drama || !!meta.moviedb_id
+    const canStream = drama || !!meta.moviedb_id || sourceId === "1337x" || !!firefoxSite
 
     return (
         <div className="space-y-4" data-series-episodes>
@@ -295,11 +328,16 @@ function SeriesEpisodes({ meta, drama }: { meta: Movie_Meta, drama?: Drama_Detai
                 <h3 className="text-xl font-semibold flex-1">Episodes</h3>
                 <Button intent="gray-subtle" size="sm" className="rounded-full" leftIcon={<BiDownload className="text-lg" />}
                     onClick={() => setDownloadOpen(true)} data-series-download-button>Download</Button>
-                {sourceChoices.length > 1 && <div className="w-48">
+                {(!drama || sourceChoices.length > 1) && <div className="w-48">
                     <Select
                         value={sourceId}
                         onValueChange={v => setSourceId(v || "auto")}
-                        options={[{ value: "auto", label: "Any source" }, ...sourceChoices.map(s => ({ value: s.id, label: s.name }))]}
+                        options={[
+                            ...(drama ? [] : [{ value: "1337x", label: "1337x" }]),
+                            { value: "auto", label: drama ? "Any source" : "Any website" },
+                            ...sourceChoices.map(s => ({ value: s.id, label: s.name })),
+                            ...(drama ? [] : SERIES_FIREFOX_SITES.map(s => ({ value: `firefox:${s.id}`, label: `${s.name} (Firefox)` }))),
+                        ]}
                         data-series-source-select
                     />
                 </div>}
@@ -313,7 +351,9 @@ function SeriesEpisodes({ meta, drama }: { meta: Movie_Meta, drama?: Drama_Detai
                 </div>}
             </div>
             <p className="text-sm text-[--muted]">
-                {canStream ? sourceId === "auto"
+                {!drama && sourceId === "1337x" ? "Play streams the episode's best seeded release from 1337x. Pick another source to change it."
+                    : firefoxSite ? `${firefoxSite.name} asks for a human check, so Play opens the site in Firefox.`
+                    : canStream ? sourceId === "auto"
                     ? "Play tries the streaming websites one by one until one plays, starting with the one that worked last. Pick a source to use only that one. A website's servers show while it looks for the episode, pick one if the first doesn't work."
                     : "Play uses only the chosen source. Its servers show while it looks for the episode; if none plays, choose another source or Any source."
                     : "No streaming website can find this series."}
@@ -360,7 +400,8 @@ function SeriesEpisodes({ meta, drama }: { meta: Movie_Meta, drama?: Drama_Detai
                                 size="sm"
                                 className="rounded-full flex-none"
                                 leftIcon={<BiPlay className="text-xl" />}
-                                disabled={!canStream || !out}
+                                disabled={!canStream || !out || !!finding}
+                                loading={finding === v.id}
                                 onClick={() => play(v)}
                                 data-series-episode-play
                             >
@@ -379,7 +420,9 @@ function SeriesEpisodes({ meta, drama }: { meta: Movie_Meta, drama?: Drama_Detai
                 isDrama={!!drama}
                 season={current || 1}
                 seasons={seasons}
+                onStream={setTorrentStream}
             />
+            <SeriesStreamModal streaming={torrentStream} onClose={() => setTorrentStream(undefined)} />
 
             {playing && <OnlineStreamModal
                 streaming={{ sources: playing.sources, key: playing.key }}
