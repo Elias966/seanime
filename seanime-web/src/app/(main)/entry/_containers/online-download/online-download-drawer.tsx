@@ -27,6 +27,13 @@ function safeFolder(name: string) {
     return name.replace(/[\\/:*?"<>|\x00-\x1f]/g, " ").replace(/\s+/g, " ").trim().slice(0, 120) || "Anime"
 }
 
+/** Dual-audio files count as both */
+function fileAudio(f: OnlineFile) {
+    const s = `${f.name} ${f.note ?? ""}`
+    if (/dual|multi[ -]?audio/i.test(s)) return ["sub", "dub"]
+    return /\bdub(bed)?\b/i.test(s) ? ["dub"] : ["sub"]
+}
+
 const baseName = (s: string) => s.replace(/\.[a-z0-9]{2,4}$/i, "").replace(/ \(\d+\)$/, "").toLowerCase()
 
 export function OnlineDownloadDrawer({ entry }: { entry: Anime_Entry }) {
@@ -36,6 +43,9 @@ export function OnlineDownloadDrawer({ entry }: { entry: Anime_Entry }) {
     const [lists, setLists] = React.useState<Record<string, FileList>>({})
     const [browsing, setBrowsing] = React.useState<string[]>([])
     const [filter, setFilter] = React.useState("")
+    const [audio, setAudio] = React.useState<"all" | "sub" | "dub">("all")
+    const [selected, setSelected] = React.useState<Set<string>>(new Set())
+    const [queueing, setQueueing] = React.useState(false)
     const downloads = useOnlineDownloads()
     const preparing = usePreparingDownloads()
 
@@ -73,12 +83,35 @@ export function OnlineDownloadDrawer({ entry }: { entry: Anime_Entry }) {
     const list = lists[siteId]
     const shown = (list?.files ?? [])
         .filter(f => !filter || f.name.toLowerCase().includes(filter.toLowerCase()) || String(f.episode) === filter.trim())
+        .filter(f => audio === "all" || fileAudio(f).includes(audio))
         .sort((a, b) => (b.episode ?? 0) - (a.episode ?? 0) || a.name.localeCompare(b.name))
 
     const download = async (f: OnlineFile) => {
         toast.info(`Preparing ${f.name}`)
         const ok = await startOnlineDownload(site, f, { title, mediaId: entry.mediaId, dir: folder || undefined })
         if (ok) toast.success("Download started. Follow it in Online downloads.")
+    }
+
+    // The selection is per site, so switching sites starts a new one
+    React.useEffect(() => setSelected(new Set()), [siteId])
+
+    const downloadSelected = async () => {
+        const files = shown.filter(f => selected.has(f.key) && !fileState(f))
+        if (!files.length) return
+        setQueueing(true)
+        toast.info(`Preparing ${files.length} file${files.length > 1 ? "s" : ""}`)
+        // One at a time: each file is found through the site's own pages
+        let started = 0
+        for (const f of files) {
+            if (await startOnlineDownload(site, f, { title, mediaId: entry.mediaId, dir: folder || undefined })) started++
+            setSelected(s => {
+                const n = new Set(s)
+                n.delete(f.key)
+                return n
+            })
+        }
+        setQueueing(false)
+        if (started) toast.success(`${started} download${started > 1 ? "s" : ""} started. Follow them in Online downloads.`)
     }
 
     const fileState = (f: OnlineFile) => {
@@ -114,6 +147,16 @@ export function OnlineDownloadDrawer({ entry }: { entry: Anime_Entry }) {
                                         <div className="flex items-center gap-2 flex-wrap">
                                             <p className="text-sm text-[--muted]">{site.about}</p>
                                             <div className="flex-1" />
+                                            <select
+                                                className="rounded-md bg-gray-900 border px-2 text-sm h-8"
+                                                value={audio}
+                                                onChange={e => setAudio(e.target.value as typeof audio)}
+                                                data-online-download-audio
+                                            >
+                                                <option value="all">Sub and dub</option>
+                                                <option value="sub">Sub only</option>
+                                                <option value="dub">Dub only</option>
+                                            </select>
                                             <input
                                                 className="w-44 rounded-md bg-gray-900 border px-2 text-sm h-8"
                                                 placeholder="Filter or episode"
@@ -124,6 +167,26 @@ export function OnlineDownloadDrawer({ entry }: { entry: Anime_Entry }) {
                                             <Button size="sm" intent="gray-subtle" leftIcon={<BiLinkExternal />}
                                                 onClick={() => setBrowsing(b => [...b, siteId])}>Browse {site.name}</Button>
                                         </div>
+
+                                        {!!shown.length && (() => {
+                                            const free = shown.filter(f => !fileState(f))
+                                            const all = free.length > 0 && free.every(f => selected.has(f.key))
+                                            const count = free.filter(f => selected.has(f.key)).length
+                                            return <div className="flex items-center gap-3 text-sm">
+                                                <label className="flex items-center gap-2 cursor-pointer select-none">
+                                                    <input
+                                                        type="checkbox" className="w-4 h-4 accent-[--brand]" checked={all} disabled={!free.length}
+                                                        onChange={() => setSelected(all ? new Set() : new Set(free.map(f => f.key)))}
+                                                        data-online-download-select-all
+                                                    />
+                                                    Select all{free.length ? ` (${free.length})` : ""}
+                                                </label>
+                                                <Button
+                                                    size="sm" intent="primary" leftIcon={<BiDownload />} disabled={!count} loading={queueing}
+                                                    onClick={downloadSelected} data-online-download-selected
+                                                >Download selected{count ? ` (${count})` : ""}</Button>
+                                            </div>
+                                        })()}
 
                                         <div className="flex-1 overflow-y-auto space-y-2 pr-1" data-online-download-files={siteId}>
                                             {list?.loading && !list.files.length && <div className="flex items-center gap-3 text-[--muted] py-6">
@@ -138,12 +201,24 @@ export function OnlineDownloadDrawer({ entry }: { entry: Anime_Entry }) {
                                                 return (
                                                     <div key={f.key} className="rounded-[--radius-md] border bg-[--paper] px-3 py-2 flex items-center gap-3"
                                                         data-online-download-file>
+                                                        <input
+                                                            type="checkbox" className="w-4 h-4 flex-none accent-[--brand]"
+                                                            checked={!state && selected.has(f.key)} disabled={!!state}
+                                                            onChange={() => setSelected(s => {
+                                                                const n = new Set(s)
+                                                                if (n.has(f.key)) n.delete(f.key)
+                                                                else n.add(f.key)
+                                                                return n
+                                                            })}
+                                                            data-online-download-check
+                                                        />
                                                         {f.episode !== undefined && <span className="text-lg font-bold w-12 text-center flex-none">{f.episode}</span>}
                                                         <div className="flex-1 min-w-0">
                                                             <p className="truncate text-sm" title={f.name}>{f.name}</p>
                                                             <div className="flex gap-1.5 flex-wrap text-xs text-[--muted] mt-0.5">
                                                                 {f.quality && <span className="px-1.5 rounded bg-gray-800 text-white">{f.quality}</span>}
                                                                 {f.size && <span>{f.size}</span>}
+                                                                <span className="px-1.5 rounded bg-gray-800">{fileAudio(f).length > 1 ? "Sub + Dub" : fileAudio(f)[0] === "dub" ? "Dub" : "Sub"}</span>
                                                                 {f.note && <span>· {f.note}</span>}
                                                             </div>
                                                         </div>
