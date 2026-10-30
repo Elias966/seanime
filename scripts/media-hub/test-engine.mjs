@@ -116,3 +116,17 @@ test('a stream stops by itself once the player stops reading, while it is being 
   const again=await fetch(base+'/media-file/'+hash+'/0',{headers:{Range:'bytes=0-255'}});assert.equal(again.status,206);assert.equal(engine.snapshot().length,1);await again.arrayBuffer();
  }finally{await engine.close();if(!seed.destroyed)await new Promise(resolve=>seed.destroy(resolve));fs.rmSync(directory,{recursive:true,force:true})}
 });
+
+test('hidden movies are kept after a restart until shown again',async()=>{
+ const directory=fs.mkdtempSync(path.join(os.tmpdir(),'seanime-torrent-test-'));
+ const start=async()=>{const engine=createEngine({directory,client:new WebTorrent({dht:false,tracker:false,utp:false})});engine.server.listen(0,'127.0.0.1');await once(engine.server,'listening');return {engine,base:'http://127.0.0.1:'+engine.server.address().port}};
+ const post=(base,body)=>fetch(base+'/torrents',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+ let {engine,base}=await start();
+ try{
+  assert.equal((await post(base,{action:'hide',item:{id:'tt0133093',name:'The Matrix',poster:'https://example.com/p.jpg',year:'1999'}})).status,200);
+  assert.equal((await post(base,{action:'hide',item:{id:'../etc'}})).status,400);
+  await engine.close();({engine,base}=await start());
+  let hidden=(await (await fetch(base+'/settings')).json()).hidden;assert.deepEqual(hidden.map(x=>[x.id,x.name,x.year]),[['tt0133093','The Matrix','1999']]);
+  hidden=(await (await post(base,{action:'unhide',id:'tt0133093'})).json()).hidden;assert.equal(hidden.length,0);
+ }finally{await engine.close();fs.rmSync(directory,{recursive:true,force:true})}
+});

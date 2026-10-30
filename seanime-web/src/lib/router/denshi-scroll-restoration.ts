@@ -36,5 +36,5 @@ function getScrollKey(location: ParsedLocation) {
 }
 
 function isRestorablePath(pathname: string) {
-    return pathname === "/search" || pathname === "/lists"
+    return pathname === "/search" || pathname === "/lists" || pathname === "/movies"
 }

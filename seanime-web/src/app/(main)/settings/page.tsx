@@ -17,6 +17,7 @@ import { PlaybackSettings } from "@/app/(main)/settings/_components/playback-set
 import { __settings_tabAtom } from "@/app/(main)/settings/_components/settings-page.atoms"
 import { SettingsIsDirty, SettingsSubmitButton } from "@/app/(main)/settings/_components/settings-submit-button"
 import { AnimeLibrarySettings } from "@/app/(main)/settings/_containers/anime-library-settings"
+import { HiddenMoviesSettings } from "@/app/(main)/settings/_containers/hidden-movies-settings"
 import { DebridSettings } from "@/app/(main)/settings/_containers/debrid-settings"
 import { FilecacheSettings } from "@/app/(main)/settings/_containers/filecache-settings"
 import { LogsSettings } from "@/app/(main)/settings/_containers/logs-settings"
@@ -55,6 +56,7 @@ import {
     LuBookOpen,
     LuCircleArrowOutUpRight,
     LuCirclePlay,
+    LuEyeOff,
     LuFileSearch,
     LuLibrary,
     LuMonitor,
@@ -204,6 +206,10 @@ export default function Page() {
                                         value="library"
                                         className="group"
                                     ><LuLibrary className="text-base mr-2 transition-transform duration-200" /> Local Anime Library</TabsTrigger>
+                                    <TabsTrigger
+                                        value="hidden-movies"
+                                        className="group"
+                                    ><LuEyeOff className="text-base mr-2 transition-transform duration-200" /> Hidden Movies</TabsTrigger>
                                 </Card>
 
                                 {/*<div className="text-sm lg:text-[--foreground] py-1.5 px-3 tracking-wide font-medium hidden lg:block">*/}
@@ -682,6 +688,18 @@ export default function Page() {
                                         />
 
                                         <AnimeLibrarySettings isPending={isPending} />
+
+                                    </TabsContent>
+
+                                    <TabsContent value="hidden-movies" className={tabContentClass}>
+
+                                        <SettingsPageHeader
+                                            title="Hidden Movies"
+                                            description="Movies you chose not to see on the movie pages"
+                                            icon={LuEyeOff}
+                                        />
+
+                                        <HiddenMoviesSettings />
 
                                     </TabsContent>
 

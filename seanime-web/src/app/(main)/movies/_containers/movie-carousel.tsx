@@ -1,9 +1,10 @@
 import { MediaEntryCardSkeleton } from "@/app/(main)/_features/media/_components/media-entry-card-skeleton"
 import { MediaGenreSelector } from "@/app/(main)/_features/media/_components/media-genre-selector"
 import { MovieEntryCard } from "@/app/(main)/movies/_components/movie-entry-card"
-import { MOVIE_GENRES, Movie_Meta, MovieCatalog, useMovieCatalog } from "@/app/(main)/movies/_lib/movies.api"
+import { MOVIE_GENRES, Movie_Meta, MovieCatalog, useHiddenMovies, useMovieCatalog } from "@/app/(main)/movies/_lib/movies.api"
 import { LuffyError } from "@/components/shared/luffy-error"
 import { Carousel, CarouselContent, CarouselDotButtons } from "@/components/ui/carousel"
+import { useRouter, useSearchParams } from "@/lib/navigation"
 import { useInView } from "motion/react"
 import React from "react"
 
@@ -15,6 +16,8 @@ type MovieCarouselProps = {
     onData?: (items: Movie_Meta[]) => void
     /** Only fetch once scrolled into view */
     lazy?: boolean
+    /** Keeps the chosen genre in this URL parameter, so going back to the page shows the same genre */
+    genreParam?: string
 }
 
 export function MovieCarousel(props: MovieCarouselProps) {
@@ -25,15 +28,28 @@ export function MovieCarousel(props: MovieCarouselProps) {
         excludeId,
         onData,
         lazy,
+        genreParam,
     } = props
+
+    const router = useRouter()
+    const searchParams = useSearchParams()
+    const hidden = useHiddenMovies()
 
     const ref = React.useRef<HTMLDivElement>(null)
     const isInView = useInView(ref, { once: true, margin: "200px" })
 
-    const [genre, setGenre] = React.useState<string | undefined>(catalog.genre)
+    const [localGenre, setLocalGenre] = React.useState<string | undefined>(catalog.genre)
+    const genre = genreParam ? searchParams.get(genreParam) ?? catalog.genre : localGenre
+    const setGenre = (g: string | undefined) => {
+        if (!genreParam) return setLocalGenre(g)
+        const params = new URLSearchParams(searchParams)
+        if (g) params.set(genreParam, g)
+        else params.delete(genreParam)
+        router.replace(`?${params.toString()}`, { scroll: false })
+    }
     const { data, isLoading, isError } = useMovieCatalog({ ...catalog, genre }, !lazy || isInView)
 
-    const items = React.useMemo(() => (data ?? []).filter(m => m.id !== excludeId), [data, excludeId])
+    const items = React.useMemo(() => (data ?? []).filter(m => m.id !== excludeId && !hidden.has(m.id)), [data, excludeId, hidden])
 
     React.useEffect(() => {
         if (data && onData) onData(data)

@@ -11,6 +11,7 @@ import {
     Movie_Meta,
     playLibraryItem,
     scanLibraryDownloads,
+    useHiddenMovies,
     useInfiniteMovieCatalog,
     useMovieLibrary,
     useMovieList,
@@ -49,10 +50,11 @@ export default function Page() {
     const setTab = (t: MoviesTab) => router.push(t === "discover" ? "/movies" : `/movies?tab=${t}`)
 
     const [heroItems, setHeroItems] = React.useState<Movie_Meta[]>()
+    const hidden = useHiddenMovies()
 
     return (
         <>
-            <MoviesPageHeader items={heroItems} />
+            <MoviesPageHeader items={React.useMemo(() => heroItems?.filter(m => !hidden.has(m.id)), [heroItems, hidden])} />
             <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
@@ -89,7 +91,7 @@ export default function Page() {
                     >
                         <div className="space-y-2 z-[5] relative">
                             <h2>Trending Right Now</h2>
-                            <MovieCarousel catalog={{ catalog: "top" }} withGenreSelector onData={d => !heroItems && setHeroItems(d)} />
+                            <MovieCarousel catalog={{ catalog: "top" }} withGenreSelector genreParam="genre" onData={d => !heroItems && setHeroItems(d)} />
                         </div>
                         <div className="space-y-2 z-[5] relative">
                             <h2>New in {CURRENT_YEAR}</h2>
@@ -145,18 +147,30 @@ export default function Page() {
 }
 
 function MoviesBrowse() {
+    const router = useRouter()
     const searchParams = useSearchParams()
+    const hidden = useHiddenMovies()
     const [query, setQuery] = React.useState(searchParams.get("q") ?? "")
     const search = useDebounce(query.trim(), 500)
-    const [genre, setGenre] = React.useState<string>()
+    // The genre and search live in the URL, so going back from a movie shows the same results
+    const genre = searchParams.get("genre") ?? undefined
+    const setParams = (change: Record<string, string | undefined>) => {
+        const params = new URLSearchParams(searchParams)
+        for (const [k, v] of Object.entries(change)) v ? params.set(k, v) : params.delete(k)
+        router.replace(`?${params.toString()}`, { scroll: false })
+    }
+    const setGenre = (g: string | undefined) => setParams({ genre: g })
+    React.useEffect(() => {
+        if (search !== (searchParams.get("q") ?? "")) setParams({ q: search || undefined })
+    }, [search])
 
     const { data, isLoading, fetchNextPage, hasNextPage, isFetchingNextPage, isError } = useInfiniteMovieCatalog(
         search ? { catalog: "top", search } : { catalog: "top", genre })
 
     const items = React.useMemo(() => {
         const seen = new Set<string>()
-        return (data?.pages.flat() ?? []).filter(m => !seen.has(m.id) && seen.add(m.id))
-    }, [data])
+        return (data?.pages.flat() ?? []).filter(m => !hidden.has(m.id) && !seen.has(m.id) && seen.add(m.id))
+    }, [data, hidden])
 
     return (
         <>
@@ -223,7 +237,7 @@ function MoviesMyList() {
     </LuffyError>
 
     return <MediaCardGrid>
-        {items.map(meta => <MovieEntryCard key={meta.id} meta={meta} showTrailer={false} />)}
+        {items.map(meta => <MovieEntryCard key={meta.id} meta={meta} showTrailer={false} hideable={false} />)}
     </MediaCardGrid>
 }
 
@@ -296,6 +310,7 @@ function MovieLibraryCard({ item }: { item: Movie_LibraryItem }) {
 
     return <MovieEntryCard
         meta={shown}
+        hideable={false}
         onWatch={() => playLibraryItem(item).catch((e: any) => toast.error(e?.message ?? String(e)))}
     />
 }

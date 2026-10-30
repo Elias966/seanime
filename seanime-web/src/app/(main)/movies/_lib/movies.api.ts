@@ -2,6 +2,7 @@ import { useSeaQuery } from "@/api/client/requests"
 import { API_ENDPOINTS } from "@/api/generated/endpoints"
 import { TorrentClient_Torrent } from "@/api/generated/types"
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import React from "react"
 
 /**
  * Movies data layer.
@@ -639,7 +640,10 @@ export type Movie_EngineSettings = {
     outside: number
     moving: { total: number, moved: number, done: boolean, error: string } | null
     external: string[]
+    hidden: Movie_HiddenItem[]
 }
+
+export type Movie_HiddenItem = { id: string, name: string, poster: string, year: string, at: number }
 
 export function useMovieSettings(refetchInterval: number | false = false) {
     return useQuery({
@@ -647,6 +651,23 @@ export function useMovieSettings(refetchInterval: number | false = false) {
         queryFn: () => getJson<Movie_EngineSettings>(`${TORRENT_ENGINE}/settings`),
         refetchInterval,
         retry: 1,
+    })
+}
+
+/** Movies hidden from the catalogs, kept by the torrent engine so they stay hidden after a restart. */
+export function useHiddenMovies() {
+    const { data } = useMovieSettings()
+    return React.useMemo(() => new Set((data?.hidden ?? []).map(x => x.id)), [data?.hidden])
+}
+
+export function useSetMovieHidden() {
+    const qc = useQueryClient()
+    return useMutation({
+        mutationFn: ({ meta, hidden }: { meta: Pick<Movie_Meta, "id" | "name" | "poster" | "year" | "releaseInfo" | "released">, hidden: boolean }) =>
+            postJson<{ hidden: Movie_HiddenItem[] }>(`${TORRENT_ENGINE}/torrents`, hidden
+                ? { action: "hide", item: { id: meta.id, name: meta.name, poster: moviePoster(meta.poster), year: movieYear(meta) } }
+                : { action: "unhide", id: meta.id }),
+        onSuccess: ({ hidden }) => qc.setQueryData<Movie_EngineSettings>(["movies-settings"], s => s && { ...s, hidden }),
     })
 }
 

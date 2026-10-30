@@ -137,7 +137,7 @@ export function createEngine(options={}){
   if(req.method==='OPTIONS'){res.writeHead(204,{'Access-Control-Allow-Methods':'GET, POST, OPTIONS','Access-Control-Allow-Headers':'Content-Type'});res.end();return}
   if(req.method==='GET'&&u.pathname==='/health')return json(200,{ok:true,revision:'media-engine-v2'});
   if(req.method==='GET'&&u.pathname==='/torrents')return json(200,snapshot());
-  if(req.method==='GET'&&u.pathname==='/settings')return json(200,{libraryDir:libraryDir(),defaultDir:directory,custom:libraryDir()!==path.resolve(directory),outside:outside().length,moving,external:external.map(x=>x.hash)});
+  if(req.method==='GET'&&u.pathname==='/settings')return json(200,{libraryDir:libraryDir(),defaultDir:directory,custom:libraryDir()!==path.resolve(directory),outside:outside().length,moving,external:external.map(x=>x.hash),hidden:Array.isArray(settings.hidden)?settings.hidden:[]});
   if(req.method==='GET'&&u.pathname==='/library-scan')return json(200,await scan());
   if(req.method==='GET'&&u.pathname==='/library')return json(200,library.filter(x=>{const p=libraryPath(x);return p&&fs.existsSync(p)}).map(x=>({...x,file:x.file||path.basename(x.path),url:'/library-file/'+x.hash})));
   const saved_=/^\/library-file\/([a-f0-9]{40})$/.exec(u.pathname);
@@ -153,6 +153,10 @@ export function createEngine(options={}){
    try{let raw='';for await(const chunk of req){raw+=chunk;if(raw.length>16384)throw Error('Request too large')};const v=JSON.parse(raw);
     if(v.action==='resume'){if(!/^[a-f0-9]{40}$/.test(v.hash)||!fs.existsSync(path.join(metadataDir,v.hash+'.torrent')))throw Error('Saved transfer unavailable');const hash=await add({magnet:'magnet:?xt=urn:btih:'+v.hash,title:v.title||'Saved media',mode:v.mode==='download'?'download':'stream',media:v.media});return json(200,{hash})}
     if(v.action==='library-add'){const x=verified.get(v.hash),media=cleanMedia(v.media);if(!x||!media)throw Error('Unknown download');if(!library.some(y=>y.hash===v.hash)){library.unshift({hash:v.hash,...media,release:x.release,path:x.path,size:x.size,added:Date.now()});saveLibrary()}return json(200,{ok:true})}
+    // Movies the user hid from the catalogs, kept until unhidden from the settings
+    if(v.action==='hide'||v.action==='unhide'){const id=String(v.id||v.item?.id||'');if(!/^tt\d{1,10}$/.test(id))throw Error('Unknown movie');const str=(x,n)=>typeof x==='string'?x.slice(0,n):'';
+     let hidden=(Array.isArray(settings.hidden)?settings.hidden:[]).filter(x=>x.id!==id);if(v.action==='hide')hidden.unshift({id,name:str(v.item?.name,200),poster:/^https:\/\//.test(v.item?.poster)?str(v.item.poster,500):'',year:str(String(v.item?.year??''),10),at:Date.now()});
+     settings.hidden=hidden.slice(0,5000);saveSettings();return json(200,{hidden:settings.hidden})}
     if(v.action==='set-library-dir'){
      const dir=typeof v.dir==='string'&&v.dir.trim()?path.resolve(v.dir.trim()):'';if(v.dir&&!path.isAbsolute(String(v.dir).trim()))throw Error('Choose a full folder path');
      if(moving&&!moving.done)throw Error('Wait for the movies being moved');if(dir)fs.mkdirSync(dir,{recursive:true});

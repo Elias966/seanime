@@ -22,6 +22,7 @@ import {
     movieYear,
     useMovieList,
     useSaveMovieToList,
+    useSetMovieHidden,
 } from "@/app/(main)/movies/_lib/movies.api"
 import { Button, IconButton } from "@/components/ui/button"
 import { Tooltip } from "@/components/ui/tooltip"
@@ -29,7 +30,8 @@ import { useRouter } from "@/lib/navigation"
 import { useSetAtom } from "jotai/react"
 import React, { useState } from "react"
 import { BiPlay } from "react-icons/bi"
-import { LuBookmark, LuBookmarkCheck } from "react-icons/lu"
+import { LuBookmark, LuBookmarkCheck, LuEyeOff } from "react-icons/lu"
+import { toast } from "sonner"
 
 type MovieEntryCardProps = {
     meta: Movie_Meta
@@ -37,6 +39,8 @@ type MovieEntryCardProps = {
     showTrailer?: boolean
     /** Replaces the Watch button's default (opening the movie page), e.g. to play a downloaded file */
     onWatch?: () => void
+    /** Shows the button that hides the movie from the catalogs */
+    hideable?: boolean
 }
 
 export function MovieEntryCard(props: MovieEntryCardProps) {
@@ -46,6 +50,7 @@ export function MovieEntryCard(props: MovieEntryCardProps) {
         containerClassName,
         showTrailer = true,
         onWatch,
+        hideable = true,
     } = props
 
     const router = useRouter()
@@ -141,7 +146,10 @@ export function MovieEntryCard(props: MovieEntryCardProps) {
                 </MediaEntryCardHoverPopupBody>
 
                 <MediaEntryCardHoverPopupFooter>
-                    <MovieListButton meta={meta} />
+                    <div className="flex items-center gap-1">
+                        <MovieListButton meta={meta} />
+                        {hideable && <MovieHideButton meta={meta} />}
+                    </div>
                     <MediaEntryAudienceScore meanScore={imdbToScore(meta.imdbRating)} />
                 </MediaEntryCardHoverPopupFooter>
             </MediaEntryCardHoverPopup>
@@ -166,6 +174,28 @@ export function MovieEntryCard(props: MovieEntryCardProps) {
 export function imdbToScore(rating?: string) {
     const n = parseFloat(rating ?? "")
     return Number.isFinite(n) && n > 0 ? Math.round(n * 10) : undefined
+}
+
+export function MovieHideButton({ meta }: { meta: Movie_Meta }) {
+    const { mutate, isPending } = useSetMovieHidden()
+    return (
+        <Tooltip
+            trigger={<IconButton
+                data-movie-hide-button
+                intent="gray-subtle"
+                icon={<LuEyeOff />}
+                rounded
+                size="sm"
+                loading={isPending}
+                onClick={() => mutate({ meta, hidden: true }, {
+                    onSuccess: () => toast.success(`${meta.name} is hidden. You can show it again in Settings, Hidden Movies.`),
+                    onError: (e: any) => toast.error(e?.message ?? "Could not hide the movie"),
+                })}
+            />}
+        >
+            Hide this movie
+        </Tooltip>
+    )
 }
 
 export function MovieListButton({ meta, size = "sm" }: { meta: Movie_Meta, size?: "sm" | "md" }) {
