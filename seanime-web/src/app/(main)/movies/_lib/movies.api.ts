@@ -127,6 +127,9 @@ export type Movie_EngineTorrent = {
     peers: number
     files: Movie_EngineFile[]
     media?: Movie_LibraryMedia
+    /** Series downloads: the folder under <library>/Series, and whether it waits for a free transfer */
+    folder?: string
+    queued?: boolean
 }
 
 declare global {
@@ -878,6 +881,22 @@ const fetchDramas = (c: Drama_Catalog, page = 1) => getJson<{ items: Drama_Item[
     genre: c.tag ? String(c.tag) : "",
 })}`)
 
+/** Prequels, sequels, spin-offs and titles of the same series or franchise, from Wikidata */
+export type Movie_Related = { imdb: string, name: string, relation: string, type: "movie" | "series", year: string }
+
+export function useRelatedTitles(imdb: string | undefined) {
+    return useQuery({
+        queryKey: ["related-titles", imdb],
+        queryFn: () => getJson<Movie_Related[]>(`${MEDIA_HELPER}/media/related?${new URLSearchParams({ imdb: imdb! })}`),
+        enabled: !!imdb && /^tt\d+$/.test(imdb),
+        retry: 1,
+        staleTime: 1000 * 60 * 60,
+    })
+}
+
+/** A drama's name without its season or part ("Hospital Playlist 2" -> "Hospital Playlist") */
+export const dramaBaseTitle = (t: string) => t.replace(/\s*[:(-]?\s*(season|part)\s*\d+\)?\s*$/i, "").replace(/\s+\d{1,2}$/, "").replace(/\s*\(\d{4}\)$/, "").trim()
+
 export function useDramaCatalog(c: Drama_Catalog, enabled = true) {
     return useQuery({
         queryKey: ["dramas-catalog", c],
@@ -978,6 +997,56 @@ export function startEngineTorrent(magnet: string, title: string, mode: "stream"
     return postJson<{ hash: string }>(`${TORRENT_ENGINE}/torrents`, { magnet, mode, title, media })
 }
 
+/** Same folder name the torrent engine uses for <library>/Series/<name> */
+export function seriesFolder(name: string) {
+    return name.replace(/[\\/:*?"<>|\x00-\x1f]/g, " ").replace(/\s+/g, " ").trim().replace(/^\.+|\.+$/g, "").slice(0, 120).trim()
+}
+
+export function startSeriesTorrent(hash: string, title: string, series: string) {
+    return postJson<{ hash: string }>(`${TORRENT_ENGINE}/torrents`, { magnet: clientMagnet(hash, title), mode: "download", title, folder: seriesFolder(series) })
+}
+
+/** A series release: one episode, or a pack of whole seasons (season..last, both missing for "complete" packs) */
+export type Series_Torrent = { hash: string, title: string, size: number, seeds: number, season: number | null, last?: number | null, episode: number | null, pack: boolean }
+
+export function useSeriesTorrents(imdb: string | undefined, title: string, enabled: boolean) {
+    return useQuery({
+        queryKey: ["series-torrents", imdb, title],
+        queryFn: () => getJson<Series_Torrent[]>(`${MEDIA_HELPER}/media/series-torrents?${new URLSearchParams({ imdb: imdb ?? "", title })}`),
+        enabled: enabled && !!title,
+        retry: 1,
+        staleTime: 1000 * 60 * 10,
+    })
+}
+
+export type Series_SiteLink = { host: string, url: string }
+export type Series_SiteEpisode = { label: string, episode: number | null, group: string, options: { quality: string, links: Series_SiteLink[] }[] }
+
+export function useSeriesSiteLinks(title: string, enabled: boolean) {
+    return useQuery({
+        queryKey: ["series-site-links", title],
+        queryFn: () => getJson<{ page: string | null, title?: string, episodes: Series_SiteEpisode[] }>(
+            `${MEDIA_HELPER}/media/series-links?${new URLSearchParams({ site: "dramaday", title })}`),
+        enabled: enabled && !!title,
+        retry: 1,
+        staleTime: 1000 * 60 * 10,
+    })
+}
+
+/** Episodes saved on disk for a series, from torrents and download sites */
+export type Series_File = { name: string, file: string, size: number, complete: boolean, season: number | null, episode: number | null, url: string }
+
+export function useSeriesFiles(series: string, refetchInterval: number | false = false) {
+    const folder = seriesFolder(series)
+    return useQuery({
+        queryKey: ["series-files", folder],
+        queryFn: () => getJson<Series_File[]>(`${TORRENT_ENGINE}/series-files?${new URLSearchParams({ folder })}`),
+        enabled: !!folder,
+        refetchInterval,
+        retry: 1,
+    })
+}
+
 export function engineAction(action: "stop" | "resume" | "restore" | "library-remove", hash?: string, title?: string, mode?: "stream" | "download") {
     return postJson<unknown>(`${TORRENT_ENGINE}/torrents`, { action, hash, title, mode })
 }
@@ -998,6 +1067,7 @@ export function useMovieLibrary(refetchInterval: number | false = false) {
 /** Where movie downloads are saved, chosen in Settings. Movies saved before in another folder can be moved there. */
 export type Movie_EngineSettings = {
     libraryDir: string
+    seriesDir: string
     defaultDir: string
     custom: boolean
     outside: number

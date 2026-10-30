@@ -1,5 +1,5 @@
 import {test} from 'node:test';import assert from 'node:assert/strict';import fs from 'node:fs';import os from 'node:os';import path from 'node:path';import {once} from 'node:events';
-import WebTorrent from 'webtorrent';import {parseRange,cleanMagnet,allowedOrigin,createEngine} from './torrent-engine.mjs';
+import WebTorrent from 'webtorrent';import {parseRange,cleanMagnet,allowedOrigin,createEngine,seriesFolder,episodeOf} from './torrent-engine.mjs';
 test('byte ranges support seeking, suffix ranges and reject out-of-bounds requests',()=>{
  assert.deepEqual(parseRange('bytes=20-29',100),{start:20,end:29,status:206});assert.deepEqual(parseRange('bytes=-10',100),{start:90,end:99,status:206});assert.deepEqual(parseRange('bytes=90-',100),{start:90,end:99,status:206});
  for(const r of ['bytes=100-','bytes=5-2','bytes=0-1,2-3','bytes=-','evil'])assert.equal(parseRange(r,100),null);
@@ -128,5 +128,31 @@ test('hidden movies are kept after a restart until shown again',async()=>{
   await engine.close();({engine,base}=await start());
   let hidden=(await (await fetch(base+'/settings')).json()).hidden;assert.deepEqual(hidden.map(x=>[x.id,x.name,x.year]),[['tt0133093','The Matrix','1999']]);
   hidden=(await (await post(base,{action:'unhide',id:'tt0133093'})).json()).hidden;assert.equal(hidden.length,0);
+ }finally{await engine.close();fs.rmSync(directory,{recursive:true,force:true})}
+});
+test('series episodes are listed from <library>/Series/<name>, parsed and served without leaving that folder',async()=>{
+ assert.equal(seriesFolder('../We/Best: Choi?'),'We Best Choi');assert.equal(seriesFolder('...'),null);
+ assert.deepEqual(episodeOf('Show.S02E05.1080p.mkv'),{season:2,episode:5});assert.deepEqual(episodeOf('Drama E07 720p.mp4'),{season:null,episode:7});assert.deepEqual(episodeOf('Show.Episode.12.mp4'),{season:null,episode:12});
+ const directory=fs.mkdtempSync(path.join(os.tmpdir(),'seanime-series-test-')),client=new WebTorrent({dht:false,tracker:false,utp:false}),engine=createEngine({directory,client});
+ try{
+  const dir=path.join(directory,'Series','My Show','Season 1');fs.mkdirSync(dir,{recursive:true});fs.writeFileSync(path.join(dir,'My.Show.S01E03.mkv'),Buffer.alloc(4096,7));fs.writeFileSync(path.join(directory,'secret.mp4'),'x');
+  engine.server.listen(0,'127.0.0.1');await once(engine.server,'listening');const base='http://127.0.0.1:'+engine.server.address().port;
+  const list=await(await fetch(base+'/series-files?folder=My%20Show')).json();assert.equal(list.length,1);assert.equal(list[0].episode,3);assert.equal(list[0].season,1);assert.ok(!('path' in list[0]));
+  const r=await fetch(base+list[0].url,{headers:{Range:'bytes=0-9'}});assert.equal(r.status,206);assert.equal((await r.arrayBuffer()).byteLength,10);
+  assert.equal((await fetch(base+'/series-file?folder=My%20Show&root=0&file=../../secret.mp4')).status,404);
+ }finally{await engine.close();fs.rmSync(directory,{recursive:true,force:true})}
+});
+test('series episodes past the transfer limit wait and start when a transfer stops',{timeout:20000},async()=>{
+ const directory=fs.mkdtempSync(path.join(os.tmpdir(),'seanime-queue-test-')),client=new WebTorrent({dht:false,tracker:false,utp:false,lsd:false}),engine=createEngine({directory,client});
+ try{
+  await engine.restore();const hashes=[];
+  for(let i=0;i<12;i++){const h=(i.toString(16).padStart(2,'0')).repeat(20);hashes.push(await engine.add({magnet:'magnet:?xt=urn:btih:'+h,title:'Ep '+i,mode:'download',folder:'Queue Show'}))}
+  let snap=engine.snapshot();assert.equal(snap.filter(t=>!t.queued).length,10);assert.deepEqual(snap.filter(t=>t.queued).map(t=>t.hash),hashes.slice(10));
+  assert.ok(fs.existsSync(path.join(directory,'Series','Queue Show')));
+  engine.server.listen(0,'127.0.0.1');await once(engine.server,'listening');const base='http://127.0.0.1:'+engine.server.address().port;
+  const post=body=>fetch(base+'/torrents',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+  assert.equal((await post({action:'stop',hash:hashes[11]})).status,200);assert.equal((await post({action:'stop',hash:hashes[0]})).status,200);
+  for(let i=0;i<50&&engine.snapshot().some(t=>t.hash===hashes[10]&&t.queued);i++)await new Promise(r=>setTimeout(r,50));
+  snap=engine.snapshot();assert.equal(snap.length,10);assert.ok(snap.some(t=>t.hash===hashes[10]&&!t.queued&&t.folder==='Queue Show'));
  }finally{await engine.close();fs.rmSync(directory,{recursive:true,force:true})}
 });

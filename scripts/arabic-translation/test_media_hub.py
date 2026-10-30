@@ -8,6 +8,7 @@ import urllib.parse as U
 import sys
 sys.path.insert(0,str(Path(__file__).resolve().parent.parent))
 from patch_media_electron import patch_main,GUARD
+import media_hub
 from media_hub import MediaHub,Page,hydra_items,torrent_rss,fetch,id_part
 
 class MediaTests(unittest.TestCase):
@@ -108,3 +109,19 @@ class MediaTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError,'requires verification'):fetch('https://anizone.to/anime')
 
 if __name__=='__main__':unittest.main()
+
+
+class SeriesDownloadTests(unittest.TestCase):
+    def test_release_names(self):
+        self.assertEqual(media_hub.release_episode('Show.S02E05.1080p'),{'season':2,'episode':5,'pack':False})
+        self.assertEqual(media_hub.release_episode('Show S01-S03 Complete')['last'],3)
+        self.assertTrue(media_hub.release_episode('Show Season 2 1080p')['pack'])
+        self.assertEqual(media_hub.release_episode('Drama E07 720p')['episode'],7)
+        self.assertIsNone(media_hub.release_episode('Show 1080p'))
+
+    def test_dramaday_table(self):
+        content='<table><tr><td>Episode</td><td>Quality</td><td>Download</td></tr><tr><td data-colspan="3">HDTV</td><td></td><td></td></tr><tr><td>01 </td><td>720p<br>540p</td><td><a href="https://dddrive.me/a">Google Drive</a> | <a href="https://ouo.io/b">MEGA</a><br><a href="https://cuty.io/c">Pixeldrain</a></td></tr></table>'
+        posts=[{'slug':'my-drama','link':'https://dramaday.me/my-drama/','title':{'rendered':'My Drama'},'content':{'rendered':content}}]
+        out=media_hub.dramaday_links(lambda url,*a:json.dumps(posts),'My Drama')
+        self.assertEqual(out['episodes'],[{'label':'01','episode':1,'group':'HDTV','options':[{'quality':'720p','links':[{'host':'Google Drive','url':'https://dddrive.me/a'},{'host':'MEGA','url':'https://ouo.io/b'}]},{'quality':'540p','links':[{'host':'Pixeldrain','url':'https://cuty.io/c'}]}]}])
+        self.assertEqual(media_hub.dramaday_links(lambda url,*a:json.dumps(posts),'Other Show')['episodes'],[])

@@ -3,11 +3,12 @@ import { MediaEntryAudienceScore, MediaEntryGenresList } from "@/app/(main)/_fea
 import { MediaEntryPageLoadingDisplay } from "@/app/(main)/_features/media/_components/media-entry-page-loading-display"
 import { MediaPageHeader, MediaPageHeaderDetailsContainer } from "@/app/(main)/_features/media/_components/media-page-header-components"
 import { ENTRY_VIEW_SHELL_TRANSITION } from "@/app/(main)/entry/_containers/entry-view-transition"
-import { imdbToScore, MovieListButton } from "@/app/(main)/movies/_components/movie-entry-card"
+import { imdbToScore, MovieEntryCard, MovieListButton } from "@/app/(main)/movies/_components/movie-entry-card"
 import { MovieCarousel } from "@/app/(main)/movies/_containers/movie-carousel"
 import { OnlineStreamModal, readLastSource } from "@/app/(main)/movies/_containers/online-stream-modal"
 import {
     Drama_Detail,
+    dramaBaseTitle,
     KISSKH_PREFIX,
     ASIAFLIX_STREAM_SOURCE,
     KISSKH_STREAM_SOURCE,
@@ -18,11 +19,17 @@ import {
     movieBackground,
     moviePoster,
     movieTrailerId,
+    playMovieUrl,
     SERIES_STREAM_SOURCES,
+    TORRENT_ENGINE,
+    useDramaCatalog,
     useDramaDetail,
     useDramaMatch,
     useMovieMeta,
+    useRelatedTitles,
+    useSeriesFiles,
 } from "@/app/(main)/movies/_lib/movies.api"
+import { SeriesDownloadDrawer } from "@/app/(main)/series/_containers/series-downloads"
 import { imageShimmer } from "@/components/shared/image-helpers"
 import { LuffyError } from "@/components/shared/luffy-error"
 import { PageWrapper } from "@/components/shared/page-wrapper"
@@ -34,7 +41,8 @@ import { Select } from "@/components/ui/select"
 import { useSearchParams } from "@/lib/navigation"
 import { motion } from "motion/react"
 import React from "react"
-import { BiPlay } from "react-icons/bi"
+import { BiDownload, BiPlay } from "react-icons/bi"
+import { toast } from "sonner"
 import { LuCalendar } from "react-icons/lu"
 
 const SERIES_LAST_SOURCE_KEY = "seanime-series-last-stream-source"
@@ -99,6 +107,8 @@ export default function Page() {
                 <PageWrapper className="relative 2xl:order-first pb-10 lg:min-h-[calc(100vh-10rem)] space-y-8" {...ENTRY_VIEW_SHELL_TRANSITION}>
                     <SeriesEpisodes meta={meta} drama={drama.data} />
 
+                    <SeriesRelated meta={meta} drama={drama.data} />
+
                     {!!genre && <div className="space-y-2 pt-6" data-series-entry-more-like-this>
                         <h2>More like this</h2>
                         <MovieCarousel catalog={{ type: "series", catalog: "top", genre }} excludeId={meta.id} lazy />
@@ -110,6 +120,39 @@ export default function Page() {
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+/** Prequels, sequels and spin-offs (Wikidata), and for dramas the other seasons and movies of the same name (kisskh) */
+function SeriesRelated({ meta, drama }: { meta: Movie_Meta, drama?: Drama_Detail }) {
+    const match = useDramaMatch(drama).data
+    const imdb = drama ? match?.imdb : meta.id
+    const related = useRelatedTitles(imdb).data ?? []
+    const base = drama ? dramaBaseTitle(drama.title) : ""
+    const seasons = useDramaCatalog({ search: base, type: 1 }, !!base).data ?? []
+    const movies = useDramaCatalog({ search: base, type: 2 }, !!base).data ?? []
+    const norm = (t: string) => t.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim()
+    const items = [
+        ...seasons.map(m => ({ meta: m, relation: "Season" })),
+        ...movies.map(m => ({ meta: m, relation: "Movie" })),
+    ].filter(x => x.meta.id !== meta.id && norm(x.meta.name).startsWith(norm(base)))
+        .concat(related.map(r => ({
+            meta: { id: r.imdb, type: r.type, name: r.name, year: r.year, poster: `https://images.metahub.space/poster/medium/${r.imdb}/img` } as Movie_Meta,
+            relation: r.relation,
+        })))
+        .filter((x, i, all) => all.findIndex(y => y.meta.id === x.meta.id) === i)
+
+    if (!items.length) return null
+    return (
+        <div className="space-y-2 pt-6" data-series-related>
+            <h2>Prequels and sequels</h2>
+            <div className="flex gap-4 overflow-x-auto pb-2">
+                {items.slice(0, 20).map(x => <div key={x.meta.id} className="flex-none w-[200px] md:w-[230px]" data-series-related-item={x.relation}>
+                    <p className="text-sm text-[--muted] font-medium mb-1">{x.relation}</p>
+                    <MovieEntryCard meta={x.meta} containerClassName="w-full" showTrailer={false} hideable={false} />
+                </div>)}
+            </div>
+        </div>
+    )
+}
 
 function SeriesMetaSection({ meta }: { meta: Movie_Meta }) {
     const trailerId = movieTrailerId(meta)
@@ -232,6 +275,14 @@ function SeriesEpisodes({ meta, drama }: { meta: Movie_Meta, drama?: Drama_Detai
     }
     const sourceChoices = allSources
 
+    // Episodes saved on disk (torrents and download sites) play from the file
+    const [downloadOpen, setDownloadOpen] = React.useState(false)
+    const files = useSeriesFiles(meta.name, downloadOpen ? 5000 : 20000).data
+    const fileFor = (v: Movie_Video) => {
+        const n = episodeNumber(v)
+        return files?.find(f => f.complete && f.episode === n && (f.season === null || f.season === v.season))
+    }
+
     const now = Date.now()
     const aired = (v: Movie_Video) => !v.released || isNaN(Date.parse(v.released)) || Date.parse(v.released) <= now
 
@@ -242,6 +293,8 @@ function SeriesEpisodes({ meta, drama }: { meta: Movie_Meta, drama?: Drama_Detai
         <div className="space-y-4" data-series-episodes>
             <div className="flex items-center gap-4 flex-wrap">
                 <h3 className="text-xl font-semibold flex-1">Episodes</h3>
+                <Button intent="gray-subtle" size="sm" className="rounded-full" leftIcon={<BiDownload className="text-lg" />}
+                    onClick={() => setDownloadOpen(true)} data-series-download-button>Download</Button>
                 {sourceChoices.length > 1 && <div className="w-48">
                     <Select
                         value={sourceId}
@@ -270,6 +323,7 @@ function SeriesEpisodes({ meta, drama }: { meta: Movie_Meta, drama?: Drama_Detai
                 {episodes.map(v => {
                     const n = episodeNumber(v)
                     const out = aired(v)
+                    const file = fileFor(v)
                     return (
                         <div
                             key={v.id}
@@ -289,7 +343,18 @@ function SeriesEpisodes({ meta, drama }: { meta: Movie_Meta, drama?: Drama_Detai
                                 <p className="font-medium line-clamp-1">{n}. {v.name || v.title || `Episode ${n}`}</p>
                                 {!!(v.overview || v.description) && <p className="text-xs text-[--muted] line-clamp-2">{v.overview || v.description}</p>}
                                 {!out && <p className="text-xs text-[--muted]">Airs {new Date(v.released!).toLocaleDateString()}</p>}
+                                {!!file && <p className="text-xs text-green-300" data-series-episode-downloaded>Downloaded</p>}
                             </div>
+                            {!!file && <Button
+                                intent="primary-subtle"
+                                size="sm"
+                                className="rounded-full flex-none"
+                                leftIcon={<BiPlay className="text-xl" />}
+                                onClick={() => playMovieUrl(TORRENT_ENGINE + file.url, refFor(v).title).catch((e: any) => toast.error(e?.message ?? String(e)))}
+                                data-series-episode-play-file
+                            >
+                                File
+                            </Button>}
                             <Button
                                 intent="gray-subtle"
                                 size="sm"
@@ -305,6 +370,16 @@ function SeriesEpisodes({ meta, drama }: { meta: Movie_Meta, drama?: Drama_Detai
                     )
                 })}
             </div>
+
+            <SeriesDownloadDrawer
+                open={downloadOpen}
+                onOpenChange={setDownloadOpen}
+                title={meta.name}
+                imdb={drama ? match?.imdb : meta.id}
+                isDrama={!!drama}
+                season={current || 1}
+                seasons={seasons}
+            />
 
             {playing && <OnlineStreamModal
                 streaming={{ sources: playing.sources, key: playing.key }}

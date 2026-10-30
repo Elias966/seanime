@@ -18,7 +18,7 @@ DRAMADAY = 'https://dramaday.me/wp-json/wp/v2/posts'
 PROVENANCE = {'movies':'https://rentry.org/megathread-movies-and-tv','anime':'https://rentry.org/megathread-anime'}
 
 def fetch(url, referer=None):
-    req=R.Request(url,headers={'User-Agent':'Mozilla/5.0 Seanime/3.10.4','Referer':referer or U.urlunsplit((*U.urlsplit(url)[:2], '/', '', '')),'Accept':'application/json,text/html,application/xml;q=0.9,*/*;q=0.8'})
+    req=R.Request(url,headers={'User-Agent':'Mozilla/5.0 Seanime/3.10.4'+(' (https://github.com/Elias966/seanime)' if url.startswith(WIKIDATA) else ''),'Referer':referer or U.urlunsplit((*U.urlsplit(url)[:2], '/', '', '')),'Accept':'application/json,text/html,application/xml;q=0.9,*/*;q=0.8'})
     with R.urlopen(req,timeout=18) as r:
         data=r.read(6*1024*1024+1)
         if len(data)>6*1024*1024:raise ValueError('Source response too large')
@@ -26,6 +26,112 @@ def fetch(url, referer=None):
         if re.search(r'<title>\s*(?:Just a moment|Attention Required)|cf-turnstile|g-recaptcha',text,re.I):
             raise ValueError('Source requires verification; it has been skipped')
         return text
+
+def _words(t):return re.findall(r'[a-z0-9]+',html.unescape(t).lower().replace("'",''))
+def release_episode(name):
+    """Season/episode of a release name. A pack has no episode, and covers seasons first..last"""
+    n=name.replace('_',' ').replace('.',' ')
+    m=re.search(r'\bS(\d{1,2})\s?E(\d{1,4})\b',n,re.I) or re.search(r'\b(\d{1,2})x(\d{2,3})\b',n)
+    if m:return {'season':int(m[1]),'episode':int(m[2]),'pack':False}
+    m=re.search(r'\bS(\d{1,2})\s?-\s?S?(\d{1,2})\b',n,re.I) or re.search(r'\bSeasons?\s?(\d{1,2})\s?(?:-|to)\s?(\d{1,2})\b',n,re.I)
+    if m:return {'season':int(m[1]),'last':int(m[2]),'episode':None,'pack':True}
+    m=re.search(r'\bS(\d{1,2})\b',n,re.I) or re.search(r'\bSeason\s?(\d{1,2})\b',n,re.I)
+    if m:return {'season':int(m[1]),'last':int(m[1]),'episode':None,'pack':True}
+    m=re.search(r'\b(?:E|EP|Episode)\s?(\d{1,4})\b',n,re.I)
+    if m:return {'season':None,'episode':int(m[1]),'pack':False}
+    if re.search(r'\b(?:complete|all seasons)\b',n,re.I):return {'season':None,'episode':None,'pack':True}
+    return None
+def series_torrents(fetcher,imdb,title):
+    want=_words(title);out={}
+    def named(n):
+        w=_words(n);return want and w[:len(want)]==want
+    if re.fullmatch(r'tt\d{5,10}',imdb or ''):
+        for page in range(1,4):
+            try:data=json.loads(fetcher('https://eztv1.xyz/api/get-torrents?'+U.urlencode({'imdb_id':imdb[2:],'limit':100,'page':page})))
+            except Exception:break
+            for t in data.get('torrents') or []:
+                h=str(t.get('hash','')).lower();ep=release_episode(t.get('filename') or t.get('title') or '')
+                if re.fullmatch('[a-f0-9]{40}',h) and ep and named(t.get('title') or ''):out[h]={'hash':h,'title':t.get('filename') or t['title'],'size':int(t.get('size_bytes') or 0),'seeds':int(t.get('seeds') or 0),**ep}
+            if page*100>=int(data.get('torrents_count') or 0):break
+    if want:
+        try:data=json.loads(fetcher('https://torrents-csv.com/service/search?'+U.urlencode({'q':' '.join(want),'size':100})))
+        except Exception:data={}
+        for t in data.get('torrents') or []:
+            h=str(t.get('infohash','')).lower();ep=release_episode(t.get('name',''))
+            if re.fullmatch('[a-f0-9]{40}',h) and ep and named(t.get('name','')) and h not in out:out[h]={'hash':h,'title':t['name'],'size':int(t.get('size_bytes') or 0),'seeds':int(t.get('seeders') or 0),**ep}
+    return sorted(out.values(),key=lambda x:(not x['pack'],x['season'] or 0,x['episode'] or 0,-x['seeds']))
+def dramaday_links(fetcher,title):
+    """Episode download links of a Dramaday drama, per release group and quality. The links go through the site's
+    shorteners, they are opened for the user and never followed here."""
+    want=_words(title)
+    posts=json.loads(fetcher(DRAMADAY+'?'+U.urlencode({'search':title[:120],'categories':3,'per_page':10,'_fields':'slug,title,link,content'})))
+    post=next((p for p in posts if _words(p['title']['rendered'])==want),None) or next((p for p in posts if _words(p['title']['rendered'])[:len(want)]==want),None)
+    if not post:return {'page':None,'episodes':[]}
+    text=post['content']['rendered'];group='';episodes=[]
+    for row in re.findall(r'<tr>(.*?)</tr>',text,re.S):
+        cells=re.findall(r'<td([^>]*)>(.*?)</td>',row,re.S)
+        if len(cells)<3:continue
+        label=re.sub(r'\s+',' ',html.unescape(re.sub(r'<br\s*/?>',' ',cells[0][1]))).strip()
+        if 'data-colspan' in cells[0][0]:group=label;continue
+        if not label or label.lower()=='episode':continue
+        qualities=[q.strip() for q in re.split(r'<br\s*/?>',html.unescape(re.sub(r'<(?!br)[^>]+>','',cells[1][1]))) if q.strip()]
+        lines=re.split(r'<br\s*/?>',cells[2][1]);options=[]
+        for i,line in enumerate(lines):
+            links=[{'host':re.sub(r'<[^>]+>','',html.unescape(t)).strip()[:40],'url':html.unescape(u)} for u,t in re.findall(r'<a[^>]+href="(https://[^"]+)"[^>]*>(.*?)</a>',line,re.S)]
+            if links:options.append({'quality':qualities[i] if i<len(qualities) else (qualities[-1] if qualities else ''),'links':links[:8]})
+        m=re.search(r'(\d{1,4})\s*$',label)
+        if options:episodes.append({'label':label,'episode':int(m[1]) if m and not re.search('special',label,re.I) else None,'group':group,'options':options})
+    return {'page':post.get('link'),'title':html.unescape(post['title']['rendered']),'episodes':episodes}
+
+WIKIDATA='https://www.wikidata.org/w/api.php'
+FILM_CLASSES={'Q11424','Q24869','Q506240','Q202866','Q24862','Q17517379'}
+def related_titles(fetcher,imdb):
+    """Prequels, sequels and spin-offs of an IMDb title from Wikidata ("follows", "followed by", "has spin-off",
+    "based on" and the other parts of the series it belongs to). Only entries with an IMDb id are kept."""
+    if not re.fullmatch(r'tt\d{5,10}',imdb or ''):return []
+    found=json.loads(fetcher(WIKIDATA+'?'+U.urlencode({'action':'query','list':'search','srsearch':'haswbstatement:P345='+imdb,'srlimit':1,'format':'json'})))['query']['search']
+    if not found:return []
+    qid=found[0]['title']
+    def entities(ids,props):
+        out={}
+        ids=[i for i in dict.fromkeys(ids) if re.fullmatch(r'Q\d+',i or '')]
+        for i in range(0,len(ids),40):out.update(json.loads(fetcher(WIKIDATA+'?'+U.urlencode({'action':'wbgetentities','ids':'|'.join(ids[i:i+40]),'props':props,'languages':'en','format':'json'}))).get('entities',{}))
+        return out
+    def values(e,p):return [x['mainsnak'].get('datavalue',{}).get('value',{}).get('id') for x in e.get('claims',{}).get(p,[]) if x.get('mainsnak',{}).get('snaktype')=='value']
+    me=entities([qid],'labels|claims').get(qid,{})
+    rel={}
+    for p,name in (('P155','Prequel'),('P156','Sequel'),('P2512','Spin-off'),('P144','Based on')):
+        for q in values(me,p):rel.setdefault(q,name)
+    # Titles that point back here: one that follows this one is a sequel (works "based on" it are left out, those
+    # are mostly parodies)
+    try:back=json.loads(fetcher(WIKIDATA+'?'+U.urlencode({'action':'query','list':'search','srsearch':'haswbstatement:P155=%s|P156=%s'%(qid,qid),'srlimit':30,'format':'json'})))['query']['search']
+    except Exception:back=[]
+    for q in [b['title'] for b in back]:rel.setdefault(q,'?')
+    series=values(me,'P179')
+    for part in entities(series,'claims').values():
+        for q in values(part,'P527'):rel.setdefault(q,'Same series')
+    # Other titles of the same franchise, and other adaptations of the book or game this one is based on
+    for p,f,name in [('P8345',f,'Same franchise') for f in values(me,'P8345')[:2]]+[('P144',f,'Same story') for f in values(me,'P144')[:2]]:
+        try:same=json.loads(fetcher(WIKIDATA+'?'+U.urlencode({'action':'query','list':'search','srsearch':'haswbstatement:%s=%s'%(p,f),'srlimit':20,'format':'json'})))['query']['search']
+        except Exception:same=[]
+        for b in same:rel.setdefault(b['title'],name)
+    rel.pop(qid,None)
+    # "follows" on a TV series is often only the show before it in the same time slot: kept when it is in the same
+    # series or shares the title's first words
+    mine=_words(me.get('labels',{}).get('en',{}).get('value',''))[:2];series=set(series)
+    out=[]
+    for q,e in entities(list(rel)[:40],'labels|claims').items():
+        if rel[q]=='?':rel[q]='Sequel' if qid in values(e,'P155') else 'Prequel'
+        if rel[q] in ('Prequel','Sequel') and not (series&set(values(e,'P179')) or (mine and _words(e.get('labels',{}).get('en',{}).get('value',''))[:len(mine)]==mine)):continue
+        ids=[x['mainsnak'].get('datavalue',{}).get('value') for x in e.get('claims',{}).get('P345',[])]
+        tt=next((i for i in ids if isinstance(i,str) and re.fullmatch(r'tt\d{5,10}',i)),None)
+        label=e.get('labels',{}).get('en',{}).get('value')
+        if not tt or tt==imdb or not label or 'Q7889' in values(e,'P31'):continue
+        dates=[x['mainsnak'].get('datavalue',{}).get('value',{}).get('time','') for x in e.get('claims',{}).get('P577',[])]
+        year=min((d[1:5] for d in dates if re.match(r'\+\d{4}',d)),default='')
+        out.append({'imdb':tt,'name':label,'relation':rel[q],'type':'movie' if FILM_CLASSES&set(values(e,'P31')) else 'series','year':year})
+    order={'Prequel':0,'Sequel':1,'Same series':2,'Spin-off':3,'Same franchise':4,'Same story':5,'Based on':6}
+    return sorted(out,key=lambda x:(order[x['relation']],x['year'] or '9999'))
 
 class Page(HTMLParser):
     def __init__(self,text):
@@ -168,6 +274,12 @@ class MediaHub:
             # Use the source's actual provider links, never generated guessed URLs.
             urls=list(dict.fromkeys(html.unescape(u) for u in re.findall(r'https://(?:www\.1src\.org|ythd\.org|vixsrc\.to|play\.xpass\.top)/[^\s<>"\x27]+',player)))
             return {'servers':[{'name':U.urlsplit(u).hostname,'url':u,'type':'embed'} for u in urls]}
+        if path=='/media/related':
+            imdb=arg('imdb')[:12];return self.cached('related:'+imdb,lambda:related_titles(self.fetcher,imdb),age=3*86400)
+        if path=='/media/series-torrents':return series_torrents(self.fetcher,arg('imdb')[:12],arg('title')[:160])
+        if path=='/media/series-links':
+            if arg('site','dramaday')!='dramaday':raise ValueError('Unknown download site')
+            return dramaday_links(self.fetcher,arg('title')[:160])
         if path=='/media/torrents':
             provider=arg('provider','nyaa');query=arg('q')[:180]
             if provider=='nyaa':return torrent_rss(self.fetcher(ROOTS['nyaa']+'/?'+U.urlencode({'page':'rss','q':query,'c':'1_2','f':'0'})))

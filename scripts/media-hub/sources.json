@@ -828,7 +828,8 @@
       },
       "reason": "Homepage reachable; media playback/download was not tested.",
       "browseUrl": "https://dramaday.me/",
-      "excluded": false
+      "excluded": false,
+      "openNavigation": true
     },
     {
       "id": "einthusan",

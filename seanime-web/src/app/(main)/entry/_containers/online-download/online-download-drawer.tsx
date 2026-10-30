@@ -254,7 +254,9 @@ export function OnlineDownloadDrawer({ entry }: { entry: Anime_Entry }) {
 }
 
 /** The site itself, for files the list does not show. Files downloaded from it are caught and saved the same way. */
-function SiteBrowser({ site, title, onClose }: { site: OnlineSite, title: string, onClose: () => void }) {
+export function SiteBrowser({ site, title, url, onClose, backLabel = "Back to the file list", children }: {
+    site: Pick<OnlineSite, "id" | "origin" | "browseUrl" | "adsAllowed">, title: string, url?: string, onClose: () => void, backLabel?: string, children?: React.ReactNode
+}) {
     const holder = React.useRef<HTMLDivElement>(null)
     const view = React.useRef<any>(null)
     const [popups, setPopups] = React.useState<string[]>([])
@@ -268,7 +270,7 @@ function SiteBrowser({ site, title, onClose }: { site: OnlineSite, title: string
         v.setAttribute("webpreferences", "contextIsolation=yes,sandbox=yes,nodeIntegration=no")
         // Without it the page's window.open never reaches the app; the app still denies the popup and only reports its address
         v.setAttribute("allowpopups", "")
-        v.setAttribute("src", site.browseUrl(title))
+        v.setAttribute("src", url ?? site.browseUrl(title))
         v.style.cssText = "width:100%;height:100%;border:0;background:#fff;"
         let guestId = -1
         v.addEventListener("dom-ready", () => {
@@ -291,13 +293,13 @@ function SiteBrowser({ site, title, onClose }: { site: OnlineSite, title: string
             off?.()
             v.remove()
         }
-    }, [site.id])
+    }, [site.id, url])
 
     const v = () => view.current
     return (
         <>
             <div className="flex items-center gap-2">
-                <Button size="sm" intent="gray-subtle" leftIcon={<BiListUl />} onClick={onClose}>Back to the file list</Button>
+                <Button size="sm" intent="gray-subtle" leftIcon={<BiListUl />} onClick={onClose}>{backLabel}</Button>
                 <IconButton size="sm" intent="gray-basic" icon={<BiArrowBack />} onClick={() => v()?.canGoBack() && v().goBack()} />
                 <IconButton size="sm" intent="gray-basic" icon={<BiArrowToRight />} onClick={() => v()?.canGoForward() && v().goForward()} />
                 <IconButton size="sm" intent="gray-basic" icon={<BiRefresh />} onClick={() => v()?.reload()} />
@@ -306,6 +308,7 @@ function SiteBrowser({ site, title, onClose }: { site: OnlineSite, title: string
                         v()?.loadURL(u)
                         setPopups([])
                     }}>Open {new URL(u).hostname}</Button>)}
+                {children}
             </div>
             <div ref={holder} className={cn("flex-1 min-h-0 rounded-md overflow-hidden border")} />
         </>

@@ -18,7 +18,7 @@ import { LuDownload, LuRefreshCw } from "react-icons/lu"
 import { toast } from "sonner"
 
 /** Torrents running in the local engine (streams and downloads). */
-export function MovieDownloads({ filter }: { filter?: (t: Movie_EngineTorrent) => boolean }) {
+export function MovieDownloads({ filter, empty }: { filter?: (t: Movie_EngineTorrent) => boolean, empty?: React.ReactNode }) {
     const { data, isError, refetch } = useEngineTorrents(2000)
 
     // The engine only resumes saved transfers once Downloads is opened, so launching Seanime never starts traffic on its own
@@ -32,7 +32,7 @@ export function MovieDownloads({ filter }: { filter?: (t: Movie_EngineTorrent) =
     </LuffyError>
 
     if (!torrents.length) return <LuffyError title={null}>
-        <p>Nothing downloading. Pick a movie and choose Download or Stream.</p>
+        <p>{empty ?? "Nothing downloading. Pick a movie and choose Download or Stream."}</p>
     </LuffyError>
 
     return (
@@ -64,6 +64,7 @@ function MovieDownloadRow({ torrent: t, onChange }: { torrent: Movie_EngineTorre
                     {t.mode === "download" ? "Download" : "Stream"}
                 </Badge>
                 {done && <Badge intent="success">Completed</Badge>}
+                {t.queued && <Badge intent="gray">Waiting for a free transfer</Badge>}
                 <Button
                     size="sm"
                     intent="white"
@@ -73,10 +74,10 @@ function MovieDownloadRow({ torrent: t, onChange }: { torrent: Movie_EngineTorre
                 >
                     Play
                 </Button>
-                <Tooltip trigger={<IconButton
+                {!t.queued && <Tooltip trigger={<IconButton
                     size="sm" intent="gray-subtle" icon={<LuRefreshCw />}
                     onClick={() => run(() => engineAction("resume", t.hash, t.title, t.mode))}
-                />}>Resume</Tooltip>
+                />}>Resume</Tooltip>}
                 <Tooltip trigger={<IconButton
                     size="sm" intent="alert-subtle" icon={<BiStop />}
                     onClick={() => run(() => engineAction("stop", t.hash))}

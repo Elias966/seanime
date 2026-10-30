@@ -21,14 +21,23 @@ export function cleanMagnet(raw){
 const mimeFor=name=>({'.mp4':'video/mp4','.m4v':'video/mp4','.webm':'video/webm','.mkv':'video/x-matroska','.srt':'text/plain','.vtt':'text/vtt'})[path.extname(name).toLowerCase()]||'application/octet-stream';
 const https_=v=>typeof v==='string'&&/^https:\/\//.test(v)?v.slice(0,500):undefined;
 export function cleanMedia(m){return m&&/^tt\d{5,10}$/.test(m.imdb)?{imdb:m.imdb,title:String(m.title||'').slice(0,180),year:String(m.year||'').slice(0,4),poster:https_(m.poster),background:https_(m.background)}:undefined}
+// Series downloads are kept in <library>/Series/<series name>
+export function seriesFolder(name){const n=String(name||'').replace(/[\\/:*?"<>|\x00-\x1f]/g,' ').replace(/\s+/g,' ').trim().replace(/^\.+|\.+$/g,'').slice(0,120).trim();return n||null}
+// Season and episode read from a file name: S01E02, 1x02, "Episode 2", E02
+export function episodeOf(name){const n=path.basename(name).replace(/\.[^.]+$/,'');let m=/\bS(\d{1,2})[ ._-]?E(\d{1,4})\b/i.exec(n)||/\b(\d{1,2})x(\d{2,3})\b/.exec(n);if(m)return {season:Number(m[1]),episode:Number(m[2])};
+ m=/\b(?:Episode|Ep|E)[ ._-]?(\d{1,4})\b/i.exec(n);if(m)return {season:null,episode:Number(m[1])};return {season:null,episode:null}}
 export function allowedOrigin(origin){if(!origin||origin==='app://-')return true;try{const u=new URL(origin);return ['http:','https:'].includes(u.protocol)&&['127.0.0.1','localhost','[::1]'].includes(u.hostname)}catch{return false}}
 export function createEngine(options={}){
  const directory=options.directory||path.join(process.env.XDG_DATA_HOME||path.join(os.homedir(),'.local/share'),'seanime','media-hub','torrents');fs.mkdirSync(directory,{recursive:true});
  const client=options.client||new WebTorrent({maxConns:40,utp:false});const jobs=new Map();client.on('error',()=>{});
- const metadataDir=path.join(directory,'metadata');fs.mkdirSync(metadataDir,{recursive:true});
+ const metaLengths=new Map(); const metadataDir=path.join(directory,'metadata');fs.mkdirSync(metadataDir,{recursive:true});
  const savedFile=path.join(directory,'jobs.json');let saved=[];try{saved=JSON.parse(fs.readFileSync(savedFile,'utf8'))}catch{}
- function snapshot(){for(const j of jobs.values())record(j);return [...jobs.values()].map(({torrent:t,mode,title,error,media})=>({hash:t.infoHash,title:title||t.name||'Resolving metadata…',mode,error,media,ready:t.ready,progress:t.progress||0,downloaded:t.downloaded||0,length:t.length||0,downloadSpeed:t.downloadSpeed||0,peers:t.numPeers||0,files:t.files?.map((f,i)=>({index:i,name:f.name,length:f.length,playable:/\.(mp4|m4v|webm|mkv|mov)$/i.test(f.name),url:'/media-file/'+t.infoHash+'/'+i}))||[]}))}
- function persist(){fs.writeFileSync(savedFile+'.tmp',JSON.stringify([...jobs.values()].map(j=>({magnet:j.torrent.magnetURI,mode:j.mode,title:j.title,media:j.media,dir:j.torrent.path}))));fs.renameSync(savedFile+'.tmp',savedFile)}
+ // Series episodes past the transfer limit wait their turn, they start as other downloads finish
+ const waitingFile=path.join(directory,'waiting.json');let waiting=[];try{waiting=JSON.parse(fs.readFileSync(waitingFile,'utf8')).filter(w=>/^[a-f0-9]{40}$/.test(w.hash))}catch{}
+ function saveWaiting(){fs.writeFileSync(waitingFile+'.tmp',JSON.stringify(waiting));fs.renameSync(waitingFile+'.tmp',waitingFile)}
+ let pumping=false;async function pump(){if(pumping||!restored)return;pumping=true;try{while(jobs.size<10&&waiting.length){const w=waiting.shift();saveWaiting();try{await add(w)}catch{}}}finally{pumping=false}}
+ function snapshot(){for(const j of jobs.values())record(j);const queued=waiting.filter(w=>!jobs.has(w.hash)).map(w=>({hash:w.hash,title:w.title,mode:'download',queued:true,folder:w.folder,ready:false,progress:0,downloaded:0,length:0,downloadSpeed:0,peers:0,files:[]}));return [...jobs.values()].map(({torrent:t,mode,title,error,media,folder})=>({hash:t.infoHash,title:title||t.name||'Resolving metadata…',mode,error,media,folder,ready:t.ready,progress:t.progress||0,downloaded:t.downloaded||0,length:t.length||0,downloadSpeed:t.downloadSpeed||0,peers:t.numPeers||0,files:t.files?.map((f,i)=>({index:i,name:f.name,length:f.length,playable:/\.(mp4|m4v|webm|mkv|mov)$/i.test(f.name),url:'/media-file/'+t.infoHash+'/'+i}))||[]})).concat(queued)}
+ function persist(){fs.writeFileSync(savedFile+'.tmp',JSON.stringify([...jobs.values()].map(j=>({magnet:j.torrent.magnetURI,mode:j.mode,title:j.title,media:j.media,folder:j.folder,dir:j.torrent.path}))));fs.renameSync(savedFile+'.tmp',savedFile)}
  // Finished movie downloads are kept in library.json, they stay playable from disk after the transfer is stopped.
  const libraryFile=path.join(directory,'library.json');let library=[];try{library=JSON.parse(fs.readFileSync(libraryFile,'utf8'))}catch{}
  function saveLibrary(){fs.writeFileSync(libraryFile+'.tmp',JSON.stringify(library));fs.renameSync(libraryFile+'.tmp',libraryFile)}
@@ -113,7 +122,7 @@ export function createEngine(options={}){
   return found;
  })().finally(()=>{scanning=undefined})}
  // Finished movie downloads do not seed: the transfer is stopped and the files stay on disk
- async function stopFinished(hash){const j=jobs.get(hash);if(!j||j.mode!=='download'||j.torrent.progress<1)return;jobs.delete(hash);persist();try{await client.remove(hash)}catch{}}
+ async function stopFinished(hash){const j=jobs.get(hash);if(!j||j.mode!=='download'||j.torrent.progress<1)return;jobs.delete(hash);persist();try{await client.remove(hash)}catch{}pump()}
  async function add(value){
   let metadata;const media=cleanMedia(value.media);
   if(value.torrentUrl){
@@ -122,11 +131,15 @@ export function createEngine(options={}){
   }
   const parsed=await parseTorrent(metadata||cleanMagnet(value.magnet));
   const magnet=cleanMagnet('magnet:?xt=urn:btih:'+parsed.infoHash+'&dn='+encodeURIComponent(value.title||parsed.name||'Media')),found=await client.get(magnet);if(found){const j=jobs.get(found.infoHash);if(j&&media)j.media=media;if(value.mode==='download'&&j){j.mode='download';const select=()=>found.select(0,found.pieces.length-1,0);if(found.ready)select();else found.once('ready',select);persist()}return found.infoHash}
-  if(jobs.size>=10)throw Error('Stop an existing transfer before adding another');
+  if(jobs.size>=10){
+   if(value.mode!=='download'||value.folder===undefined)throw Error('Stop an existing transfer before adding another');
+   const folder=seriesFolder(value.folder);if(!folder)throw Error('Invalid series name');
+   if(!waiting.some(w=>w.hash===parsed.infoHash)){if(waiting.length>=500)throw Error('Too many episodes are waiting');waiting.push({hash:parsed.infoHash,magnet,mode:'download',title:String(value.title||'').slice(0,180),folder});saveWaiting()}return parsed.infoHash}
   const stored=path.join(metadataDir,parsed.infoHash+'.torrent');if(!metadata&&fs.existsSync(stored))metadata=fs.readFileSync(stored);
   if(metadata){const p=await parseTorrent(metadata);if(p.infoHash!==parsed.infoHash)throw Error('Cached metadata does not match this torrent');p.urlList=[];p.announce=['udp://tracker.opentrackr.org:1337/announce','udp://open.stealth.si:80/announce'];metadata=toTorrentFile(p)}
-  const dir=typeof value.dir==='string'&&roots().includes(path.resolve(value.dir))?path.resolve(value.dir):value.mode==='download'?libraryDir():directory;fs.mkdirSync(dir,{recursive:true});
-  const t=client.add(metadata||magnet,{path:dir,deselect:value.mode!=='download'});const job={torrent:t,mode:value.mode==='download'?'download':'stream',title:String(value.title||'').slice(0,180),media,error:'',used:Date.now()};t.on('error',()=>{});if(!t.infoHash)await new Promise((resolve,reject)=>{t.once('infoHash',resolve);t.once('error',reject)});jobs.set(t.infoHash,job);
+  const folder=value.mode==='download'&&value.folder!==undefined?seriesFolder(value.folder):undefined;if(value.folder!==undefined&&value.mode==='download'&&!folder)throw Error('Invalid series name');
+  const dir=folder?path.join(libraryDir(),'Series',folder):typeof value.dir==='string'&&roots().includes(path.resolve(value.dir))?path.resolve(value.dir):value.mode==='download'?libraryDir():directory;fs.mkdirSync(dir,{recursive:true});
+  const t=client.add(metadata||magnet,{path:dir,deselect:value.mode!=='download'});const job={torrent:t,mode:value.mode==='download'?'download':'stream',title:String(value.title||'').slice(0,180),media,folder,error:'',used:Date.now()};t.on('error',()=>{});if(!t.infoHash)await new Promise((resolve,reject)=>{t.once('infoHash',resolve);t.once('error',reject)});jobs.set(t.infoHash,job);
   t.on('error',()=>{job.error='Torrent connection failed'});t.on('done',()=>{record(job);if(job.mode==='download')setImmediate(()=>stopFinished(t.infoHash))});t.once('ready',()=>{try{fs.writeFileSync(path.join(metadataDir,t.infoHash+'.torrent'),t.torrentFile)}catch{}if(job.mode==='stream')for(const f of t.files)f.deselect();persist()});persist();return t.infoHash;
  }
  const server=http.createServer(async(req,res)=>{
@@ -135,10 +148,33 @@ export function createEngine(options={}){
   if(origin)res.setHeader('Access-Control-Allow-Origin',origin);res.setHeader('Vary','Origin');res.setHeader('X-Content-Type-Options','nosniff');
   function json(status,value){const b=JSON.stringify(value);res.writeHead(status,{'Content-Type':'application/json','Content-Length':Buffer.byteLength(b),'Cache-Control':'no-store'});res.end(b)}
   if(req.method==='OPTIONS'){res.writeHead(204,{'Access-Control-Allow-Methods':'GET, POST, OPTIONS','Access-Control-Allow-Headers':'Content-Type'});res.end();return}
-  if(req.method==='GET'&&u.pathname==='/health')return json(200,{ok:true,revision:'media-engine-v2'});
+  if(req.method==='GET'&&u.pathname==='/health')return json(200,{ok:true,revision:'media-engine-v3'});
   if(req.method==='GET'&&u.pathname==='/torrents')return json(200,snapshot());
-  if(req.method==='GET'&&u.pathname==='/settings')return json(200,{libraryDir:libraryDir(),defaultDir:directory,custom:libraryDir()!==path.resolve(directory),outside:outside().length,moving,external:external.map(x=>x.hash),hidden:Array.isArray(settings.hidden)?settings.hidden:[]});
+  if(req.method==='GET'&&u.pathname==='/settings')return json(200,{libraryDir:libraryDir(),seriesDir:path.join(libraryDir(),'Series'),defaultDir:directory,custom:libraryDir()!==path.resolve(directory),outside:outside().length,moving,external:external.map(x=>x.hash),hidden:Array.isArray(settings.hidden)?settings.hidden:[]});
   if(req.method==='GET'&&u.pathname==='/library-scan')return json(200,await scan());
+  // Episodes saved for a series: torrents and files from the download sites, in every library folder used so far
+  // A stopped, unfinished episode stays on disk: it is complete only once its size matches the torrent's
+  async function torrentLengths(){
+   for(const n of fs.readdirSync(metadataDir).filter(n=>/^[a-f0-9]{40}\.torrent$/.test(n)&&!metaLengths.has(n))){
+    try{const meta=await parseTorrent(fs.readFileSync(path.join(metadataDir,n)));metaLengths.set(n,meta.files.map(f=>[f.path,f.length]))}catch{metaLengths.set(n,[])}}
+   const out=new Map();for(const files of metaLengths.values())for(const [f,l] of files){const k=path.basename(f);out.set(k,Math.max(out.get(k)||0,l))}return out}
+  function seriesFiles(name){
+   const folder=seriesFolder(name);if(!folder)return [];const found=[];
+   for(const r of roots()){const base=path.join(r,'Series',folder),walk=(dir,depth)=>{let list;try{list=fs.readdirSync(dir,{withFileTypes:true})}catch{return}for(const e of list){const f=path.join(dir,e.name);
+    if(e.isDirectory()){if(depth<3)walk(f,depth+1)}else if(e.isFile()&&isVideo(e.name)&&!/\bsample\b/i.test(e.name)){const st=fs.statSync(f),rel=path.relative(base,f);if(found.some(x=>x.path===f))continue;
+     found.push({path:f,name:e.name,file:rel,size:st.size,complete:allocated(st),...episodeOf(e.name),url:'/series-file?'+new URLSearchParams({folder,root:String(roots().indexOf(r)),file:rel})})}}};walk(base,0)}
+   return found}
+  if(req.method==='GET'&&u.pathname==='/series-files'){const busy=new Set([...jobs.values()].filter(j=>j.torrent.progress<1).flatMap(j=>j.torrent.files?.map(f=>path.resolve(j.torrent.path,f.path))??[]));
+   const lengths=await torrentLengths(),key=p=>path.basename(p);
+   return json(200,seriesFiles(u.searchParams.get('folder')).map(({path:p,...x})=>({...x,complete:x.complete&&!busy.has(p)&&(!lengths.has(key(p))||lengths.get(key(p))===x.size)})))}
+  if(u.pathname==='/series-file'&&(req.method==='GET'||req.method==='HEAD')){
+   const folder=seriesFolder(u.searchParams.get('folder')),r=roots()[Number(u.searchParams.get('root'))],base=folder&&r&&path.join(r,'Series',folder),p=base&&path.resolve(base,String(u.searchParams.get('file')||''));
+   let size;try{if(!p||!inside(p,base)||!isVideo(p))throw 0;size=fs.statSync(p).size}catch{return json(404,{error:'File not found'})}
+   const range=parseRange(req.headers.range,size);if(!range){res.writeHead(416,{'Content-Range':'bytes */'+size});res.end();return}
+   const headers={'Content-Type':mimeFor(p),'Content-Length':range.end-range.start+1,'Accept-Ranges':'bytes','Cache-Control':'no-store'};if(range.status===206)headers['Content-Range']=`bytes ${range.start}-${range.end}/${size}`;
+   res.writeHead(range.status,headers);if(req.method==='HEAD'){res.end();return}
+   const stream=fs.createReadStream(p,{start:range.start,end:range.end});stream.on('error',()=>res.destroy());res.on('close',()=>stream.destroy());stream.pipe(res);return;
+  }
   if(req.method==='GET'&&u.pathname==='/library')return json(200,library.filter(x=>{const p=libraryPath(x);return p&&fs.existsSync(p)}).map(x=>({...x,file:x.file||path.basename(x.path),url:'/library-file/'+x.hash})));
   const saved_=/^\/library-file\/([a-f0-9]{40})$/.exec(u.pathname);
   if(saved_&&(req.method==='GET'||req.method==='HEAD')){
@@ -175,7 +211,8 @@ export function createEngine(options={}){
     if(v.action==='library-remove'){library=library.filter(x=>x.hash!==v.hash);saveLibrary();return json(200,{ok:true})}
     if(v.action==='restore'){await restore();return json(200,{ok:true})}
     if(v.action==='stop'){
-     const job=jobs.get(v.hash);if(!job)throw Error('Unknown transfer');await client.remove(v.hash);jobs.delete(v.hash);persist();return json(200,{ok:true});
+     if(waiting.some(w=>w.hash===v.hash)){waiting=waiting.filter(w=>w.hash!==v.hash);saveWaiting();return json(200,{ok:true})}
+     const job=jobs.get(v.hash);if(!job)throw Error('Unknown transfer');await client.remove(v.hash);jobs.delete(v.hash);persist();pump();return json(200,{ok:true});
     }
     const hash=await add(v);return json(200,{hash});
    }catch(e){return json(400,{error:e.message||'Could not add torrent'})}
@@ -200,11 +237,11 @@ export function createEngine(options={}){
  // A stopped stream starts again when the player asks for it within 30 minutes (resuming after a long pause)
  const sleeping=new Map();
  async function wake(hash){const v=sleeping.get(hash);if(!v||Date.now()-v.at>1800000||jobs.has(hash))return;sleeping.delete(hash);try{await add(v);const t=jobs.get(hash)?.torrent;if(t&&!t.ready)await Promise.race([new Promise(r=>t.once('ready',r)),new Promise(r=>setTimeout(r,30000))])}catch{}}
- const streamIdle=options.streamIdleMs??5000,idleTimer=setInterval(()=>{for(const [hash,j] of jobs)if(j.mode==='stream'&&!j.open&&Date.now()-j.used>(j.played?streamIdle:Math.max(streamIdle,600000))){if(j.played)sleeping.set(hash,{magnet:j.torrent.magnetURI,mode:'stream',title:j.title,media:j.media,at:Date.now()});jobs.delete(hash);persist();Promise.resolve().then(()=>client.remove(hash)).catch(()=>{})}},Math.min(1000,streamIdle/4));idleTimer.unref?.();
+ const streamIdle=options.streamIdleMs??5000,idleTimer=setInterval(()=>{for(const [hash,j] of jobs)if(j.mode==='stream'&&!j.open&&Date.now()-j.used>(j.played?streamIdle:Math.max(streamIdle,600000))){if(j.played)sleeping.set(hash,{magnet:j.torrent.magnetURI,mode:'stream',title:j.title,media:j.media,at:Date.now()});jobs.delete(hash);persist();Promise.resolve().then(()=>client.remove(hash)).catch(()=>{}).then(pump)}},Math.min(1000,streamIdle/4));idleTimer.unref?.();
  // Only unfinished downloads are resumed after a restart. Streams were for watching at that moment, restarting them
  // would download the movie again in the background, and movies already in the library are never fetched twice.
  const inLibrary=v=>{try{const hash=new URL(v.magnet).searchParams.get('xt').split(':').pop().toLowerCase();return library.some(x=>x.hash===hash)}catch{return false}};
- let restored=false;const restore=async()=>{if(restored)return;restored=true;for(const v of saved.filter(v=>v.mode==='download'&&!inLibrary(v)).slice(0,10))try{await add(v)}catch{}};
+ let restored=false;const restore=async()=>{if(restored)return;restored=true;for(const v of saved.filter(v=>v.mode==='download'&&!inLibrary(v)).slice(0,10))try{await add(v)}catch{}await pump()};
  return {server,client,add,snapshot,restore,close:()=>new Promise(resolve=>{clearInterval(idleTimer);server.close(()=>client.destroy(resolve))})};
 }
 if(process.argv[1]&&fileURLToPath(import.meta.url)===path.resolve(process.argv[1])){

@@ -160,7 +160,9 @@ export function useScanAfterUnpack() {
         let saved: { mediaId: number, files: string[] }[] = []
         // Several downloads finishing together share one scan
         const listener = (e: { mediaId: number, files?: string[] }) => {
-            if (e.mediaId && e.files?.length) saved.push({ mediaId: e.mediaId, files: e.files })
+            // Series downloads (no anime) are not in the anime library
+            if (!e.mediaId) return
+            if (e.files?.length) saved.push({ mediaId: e.mediaId, files: e.files })
             window.clearTimeout(timer)
             timer = window.setTimeout(() => {
                 const batch = saved
