@@ -91,3 +91,11 @@ test('movies move to the chosen library folder and other clients\' downloads joi
   assert.deepEqual((await settings()).external,[]);assert.equal((await (await fetch(base+'/library-scan')).json()).length,0);
  }finally{await engine.close();fs.rmSync(directory,{recursive:true,force:true})}
 });
+test('after a restart only unfinished downloads resume, streams and saved movies are not fetched again',{timeout:25000},async()=>{
+ const directory=fs.mkdtempSync(path.join(os.tmpdir(),'seanime-torrent-test-')),h=c=>c.repeat(40),magnet=c=>'magnet:?xt=urn:btih:'+h(c)+'&dn=Movie';
+ fs.writeFileSync(path.join(directory,'jobs.json'),JSON.stringify([{magnet:magnet('a'),mode:'stream',title:'Streamed'},{magnet:magnet('b'),mode:'download',title:'Saved'},{magnet:magnet('c'),mode:'download',title:'Unfinished'}]));
+ fs.writeFileSync(path.join(directory,'library.json'),JSON.stringify([{hash:h('b'),imdb:'tt0114709',title:'Toy Story',file:'Toy Story/movie.mp4',size:1}]));
+ const engine=createEngine({directory,client:new WebTorrent({dht:false,tracker:false,utp:false})});
+ try{await engine.restore();assert.deepEqual(engine.snapshot().map(t=>t.hash),[h('c')])}
+ finally{await engine.close();fs.rmSync(directory,{recursive:true,force:true})}
+});

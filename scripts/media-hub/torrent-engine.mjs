@@ -188,7 +188,10 @@ export function createEngine(options={}){
  });
  // Restore transfers only after the user explicitly opens Downloads, avoiding
  // unsolicited network activity or downloads merely from launching Seanime.
- let restored=false;const restore=async()=>{if(restored)return;restored=true;for(const v of saved.slice(0,10))try{await add(v)}catch{}};
+ // Only unfinished downloads are resumed after a restart. Streams were for watching at that moment, restarting them
+ // would download the movie again in the background, and movies already in the library are never fetched twice.
+ const inLibrary=v=>{try{const hash=new URL(v.magnet).searchParams.get('xt').split(':').pop().toLowerCase();return library.some(x=>x.hash===hash)}catch{return false}};
+ let restored=false;const restore=async()=>{if(restored)return;restored=true;for(const v of saved.filter(v=>v.mode==='download'&&!inLibrary(v)).slice(0,10))try{await add(v)}catch{}};
  return {server,client,add,snapshot,restore,close:()=>new Promise(resolve=>{server.close(()=>client.destroy(resolve))})};
 }
 if(process.argv[1]&&fileURLToPath(import.meta.url)===path.resolve(process.argv[1])){
