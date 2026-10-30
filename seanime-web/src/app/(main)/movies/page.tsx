@@ -5,7 +5,7 @@ import { MoviesPageHeader } from "@/app/(main)/movies/_components/movies-page-he
 import { MovieCarousel } from "@/app/(main)/movies/_containers/movie-carousel"
 import { MovieDownloads } from "@/app/(main)/movies/_containers/movie-downloads"
 import {
-    listItemImdb,
+    listItemMeta,
     MOVIE_GENRES,
     Movie_LibraryItem,
     Movie_Meta,
@@ -247,20 +247,14 @@ function MoviesBrowse() {
 function MoviesMyList() {
     const { data, isLoading, isError } = useMovieList()
 
+    // Series have their own list in the Series tab
     const items = React.useMemo<Movie_Meta[]>(() => {
         const seen = new Set<string>()
         return (data ?? []).flatMap(item => {
-            const id = listItemImdb(item)
-            if (!id || seen.has(id)) return []
-            seen.add(id)
-            return [{
-                id,
-                type: "movie" as const,
-                name: item.title,
-                poster: item.poster || `https://images.metahub.space/poster/medium/${id}/img`,
-                background: item.background,
-                year: item.year ? String(item.year) : undefined,
-            }]
+            const meta = listItemMeta(item)
+            if (!meta || meta.type !== "movie" || seen.has(meta.id)) return []
+            seen.add(meta.id)
+            return [meta]
         }).reverse()
     }, [data])
 

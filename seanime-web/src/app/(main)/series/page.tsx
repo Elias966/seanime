@@ -1,0 +1,357 @@
+import { MediaCardGrid } from "@/app/(main)/_features/media/_components/media-card-grid"
+import { MediaGenreSelector } from "@/app/(main)/_features/media/_components/media-genre-selector"
+import { MovieEntryCard } from "@/app/(main)/movies/_components/movie-entry-card"
+import { MoviesPageHeader } from "@/app/(main)/movies/_components/movies-page-header"
+import { MovieCarousel } from "@/app/(main)/movies/_containers/movie-carousel"
+import {
+    DRAMA_COUNTRIES,
+    fetchMovieMeta,
+    listItemMeta,
+    Movie_Meta,
+    SERIES_GENRES,
+    useHiddenMovies,
+    useInfiniteDramaCatalog,
+    useInfiniteMovieCatalog,
+    useMovieList,
+} from "@/app/(main)/movies/_lib/movies.api"
+import { LuffyError } from "@/components/shared/luffy-error"
+import { PageWrapper } from "@/components/shared/page-wrapper"
+import { Button } from "@/components/ui/button"
+import { LoadingSpinner } from "@/components/ui/loading-spinner"
+import { Switch } from "@/components/ui/switch"
+import { StaticTabs } from "@/components/ui/tabs"
+import { TextInput } from "@/components/ui/text-input"
+import { useDebounce } from "@/hooks/use-debounce"
+import { useRouter, useSearchParams } from "@/lib/navigation"
+import { useQueries } from "@tanstack/react-query"
+import { AnimatePresence, motion } from "motion/react"
+import React from "react"
+import { FiSearch } from "react-icons/fi"
+
+type SeriesTab = "discover" | "browse" | "list"
+
+const TAB_TRANSITION = {
+    initial: { opacity: 0, y: 60 },
+    animate: { opacity: 1, y: 0 },
+    exit: { opacity: 0, scale: 0.99 },
+    transition: { duration: 0.35 },
+}
+
+const CURRENT_YEAR = new Date().getFullYear()
+/** Cinemeta calls cartoons "Animation" */
+const CARTOONS = "Animation"
+const ASIAN_KEY = "seanime-series-asian-drama"
+
+const tabMemory = new Map<string, { params: string, scroll: number }>()
+
+export default function Page() {
+
+    const router = useRouter()
+    const searchParams = useSearchParams()
+    const tab = (searchParams.get("tab") as SeriesTab) || "discover"
+    // Asian Drama swaps the Cinemeta catalog for kisskh's, remembered for next time
+    const asian = searchParams.has("asian") ? searchParams.get("asian") === "1" : readAsian()
+    const pendingScroll = React.useRef<number | undefined>(undefined)
+
+    const go = (t: SeriesTab, a: boolean) => {
+        const key = `${tab}:${asian}`
+        const current = new URLSearchParams(searchParams)
+        current.delete("tab")
+        current.delete("asian")
+        tabMemory.set(key, { params: current.toString(), scroll: window.scrollY })
+        const saved = tabMemory.get(`${t}:${a}`)
+        const params = new URLSearchParams(saved?.params ?? "")
+        if (t !== "discover") params.set("tab", t)
+        params.set("asian", a ? "1" : "0")
+        pendingScroll.current = saved?.scroll ?? 0
+        router.push(`/series?${params.toString()}`, { scroll: false })
+    }
+    const setTab = (t: SeriesTab) => t !== tab && go(t, asian)
+    const setAsian = (a: boolean) => {
+        try {
+            localStorage.setItem(ASIAN_KEY, a ? "1" : "0")
+        }
+        catch {
+        }
+        go(tab, a)
+    }
+
+    React.useEffect(() => {
+        const target = pendingScroll.current
+        if (target === undefined) return
+        pendingScroll.current = undefined
+        const started = Date.now()
+        const timer = window.setInterval(() => {
+            window.scrollTo({ top: target, behavior: "auto" })
+            if ((Math.abs(window.scrollY - target) < 2 && Date.now() - started > 400) || Date.now() - started > 2000) window.clearInterval(timer)
+        }, 50)
+        return () => window.clearInterval(timer)
+    }, [tab, asian])
+
+    const [heroItems, setHeroItems] = React.useState<{ asian: boolean, items: Movie_Meta[] }>()
+    const hidden = useHiddenMovies()
+    const onHero = (items: Movie_Meta[]) => heroItems?.asian !== asian && setHeroItems({ asian, items })
+
+    return (
+        <>
+            <MoviesPageHeader items={React.useMemo(() => heroItems?.asian === asian ? heroItems.items.filter(m => !hidden.has(m.id)) : undefined,
+                [heroItems, hidden, asian])} />
+            <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.5, delay: 0.6 }}
+                className="p-4 sm:p-8 space-y-10 pb-10 relative z-[4]"
+                data-series-page-container
+            >
+                <div className="lg:absolute w-full lg:-top-10 left-0 flex gap-4 p-4 items-center justify-center flex-wrap" data-series-page-header-tabs-container>
+                    <div className="max-w-fit border rounded-full overflow-hidden">
+                        <StaticTabs
+                            className="h-full py-0"
+                            triggerClass="px-4 py-2 h-full rounded-full border-transparent"
+                            pillClass="rounded-full border-transparent"
+                            items={[
+                                { name: "Series", isCurrent: tab === "discover", onClick: () => setTab("discover") },
+                                { name: "Browse", isCurrent: tab === "browse", onClick: () => setTab("browse") },
+                                { name: "My List", isCurrent: tab === "list", onClick: () => setTab("list") },
+                            ]}
+                        />
+                    </div>
+                    {tab !== "list" && <div className="border rounded-full px-4 py-1.5 bg-[--background]/60" data-series-asian-toggle>
+                        <Switch label="Asian Drama" value={asian} onValueChange={setAsian} fieldClass="w-fit flex-none" />
+                    </div>}
+                </div>
+
+                <AnimatePresence mode="wait" initial={false}>
+                    {tab === "discover" && !asian && <PageWrapper key="discover" className="relative pb-10 pt-4 space-y-8" {...TAB_TRANSITION}>
+                        <Row title="Trending Right Now"><MovieCarousel catalog={{ type: "series", catalog: "top" }} withGenreSelector genreParam="trending"
+                                                                       onData={onHero} /></Row>
+                        <Row title={`New in ${CURRENT_YEAR}`}><MovieCarousel catalog={{ type: "series", catalog: "year", genre: String(CURRENT_YEAR) }} lazy /></Row>
+                        <Row title="Cartoons"><MovieCarousel catalog={{ type: "series", catalog: "top", genre: CARTOONS }} lazy /></Row>
+                        <Row title="Drama"><MovieCarousel catalog={{ type: "series", catalog: "top", genre: "Drama" }} lazy /></Row>
+                        <Row title="Comedy"><MovieCarousel catalog={{ type: "series", catalog: "top", genre: "Comedy" }} lazy /></Row>
+                        <Row title="Crime"><MovieCarousel catalog={{ type: "series", catalog: "top", genre: "Crime" }} lazy /></Row>
+                        <Row title="Sci-Fi & Fantasy"><MovieCarousel catalog={{ type: "series", catalog: "top", genre: "Sci-Fi" }} lazy /></Row>
+                        <Row title="Reality TV"><MovieCarousel catalog={{ type: "series", catalog: "top", genre: "Reality-TV" }} lazy /></Row>
+                        <Row title="Last Year's Best"><MovieCarousel catalog={{ type: "series", catalog: "year", genre: String(CURRENT_YEAR - 1) }} lazy /></Row>
+                    </PageWrapper>}
+
+                    {tab === "discover" && asian && <PageWrapper key="discover-asian" className="relative pb-10 pt-4 space-y-8" {...TAB_TRANSITION}>
+                        <Row title="Popular Asian Dramas"><MovieCarousel catalog={{ type: "series" }} dramas={{ order: 1 }} onData={onHero} /></Row>
+                        <Row title="Recently Updated"><MovieCarousel catalog={{ type: "series" }} dramas={{ order: 2 }} lazy /></Row>
+                        {DRAMA_COUNTRIES.filter(c => c.id).slice(0, 5).map(c => <Row key={c.id} title={`${c.name} Dramas`}>
+                            <MovieCarousel catalog={{ type: "series" }} dramas={{ country: c.id, order: 1 }} lazy />
+                        </Row>)}
+                    </PageWrapper>}
+
+                    {tab === "browse" && <PageWrapper key={`browse-${asian}`} className="relative pb-10 pt-4 space-y-6" {...TAB_TRANSITION}>
+                        {asian ? <DramaBrowse /> : <SeriesBrowse />}
+                    </PageWrapper>}
+
+                    {tab === "list" && <PageWrapper key="list" className="relative pb-10 pt-4 space-y-6" {...TAB_TRANSITION}>
+                        <h2>My List</h2>
+                        <SeriesMyList />
+                    </PageWrapper>}
+                </AnimatePresence>
+            </motion.div>
+        </>
+    )
+}
+
+function readAsian() {
+    try {
+        return localStorage.getItem(ASIAN_KEY) === "1"
+    }
+    catch {
+        return false
+    }
+}
+
+function Row({ title, children }: { title: string, children: React.ReactNode }) {
+    return <div className="space-y-2 z-[5] relative">
+        <h2>{title}</h2>
+        {children}
+    </div>
+}
+
+function useUrlParams() {
+    const router = useRouter()
+    const searchParams = useSearchParams()
+    const setParams = (change: Record<string, string | undefined>) => {
+        const params = new URLSearchParams(searchParams)
+        for (const [k, v] of Object.entries(change)) v ? params.set(k, v) : params.delete(k)
+        router.replace(`?${params.toString()}`, { scroll: false })
+    }
+    return { searchParams, setParams }
+}
+
+function useSearchBox() {
+    const { searchParams, setParams } = useUrlParams()
+    const [query, setQuery] = React.useState(searchParams.get("q") ?? "")
+    const search = useDebounce(query.trim(), 500)
+    React.useEffect(() => {
+        if (search !== (searchParams.get("q") ?? "")) setParams({ q: search || undefined })
+    }, [search])
+    return { query, setQuery, search, searchParams, setParams }
+}
+
+function SearchBox({ value, onChange, placeholder }: { value: string, onChange: (v: string) => void, placeholder: string }) {
+    return <div className="max-w-2xl mx-auto">
+        <TextInput leftIcon={<FiSearch />} placeholder={placeholder} value={value} onValueChange={onChange} className="rounded-full" autoFocus />
+    </div>
+}
+
+function Results({ items, isLoading, isError, hasNextPage, isFetchingNextPage, fetchNextPage, empty }: {
+    items: Movie_Meta[], isLoading: boolean, isError: boolean, hasNextPage?: boolean, isFetchingNextPage?: boolean, fetchNextPage?: () => void,
+    empty?: string
+}) {
+    if (isLoading) return <div className="flex justify-center py-10"><LoadingSpinner /></div>
+    if (isError) return <LuffyError title={null}><p>Could not load series, check your connection.</p></LuffyError>
+    if (!items.length && empty) return <p className="text-[--muted] text-center py-4">{empty}</p>
+    return <>
+        <MediaCardGrid>
+            {items.map(meta => <MovieEntryCard key={meta.id} meta={meta} />)}
+        </MediaCardGrid>
+        {hasNextPage && <div className="flex justify-center">
+            <Button intent="gray-subtle" className="rounded-full" loading={isFetchingNextPage} onClick={() => fetchNextPage?.()}>
+                Load more
+            </Button>
+        </div>}
+    </>
+}
+
+const unique = (metas: Movie_Meta[], hidden: Set<string>) => {
+    const seen = new Set<string>()
+    return metas.filter(m => !hidden.has(m.id) && !seen.has(m.id) && seen.add(m.id))
+}
+
+function SeriesBrowse() {
+    const hidden = useHiddenMovies()
+    const { query, setQuery, search, searchParams, setParams } = useSearchBox()
+    const genre = searchParams.get("genre") ?? undefined
+    const setGenre = (g: string | undefined) => setParams({ genre: g })
+
+    const catalog = useInfiniteMovieCatalog(search ? { type: "series", catalog: "top", search } : { type: "series", catalog: "top", genre })
+    const items = React.useMemo(() => unique(catalog.data?.pages.flat() ?? [], hidden), [catalog.data, hidden])
+
+    return (
+        <>
+            <SearchBox value={query} onChange={setQuery} placeholder="Search series and cartoons…" />
+
+            {!search && <MediaGenreSelector
+                items={[
+                    { name: "All", isCurrent: !genre, onClick: () => setGenre(undefined) },
+                    { name: "Cartoons", isCurrent: genre === CARTOONS, onClick: () => setGenre(CARTOONS) },
+                    ...SERIES_GENRES.filter(g => g !== CARTOONS).map(g => ({ name: g, isCurrent: genre === g, onClick: () => setGenre(g) })),
+                ]}
+            />}
+
+            {search ? <SearchSections items={items} isLoading={catalog.isLoading} isError={catalog.isError} />
+                : <Results
+                    items={items}
+                    isLoading={catalog.isLoading}
+                    isError={catalog.isError}
+                    hasNextPage={catalog.hasNextPage}
+                    isFetchingNextPage={catalog.isFetchingNextPage}
+                    fetchNextPage={catalog.fetchNextPage}
+                />}
+        </>
+    )
+}
+
+/** Search results split into series and cartoons. Search results carry no genres, so each one's details are loaded. */
+function SearchSections({ items, isLoading, isError }: { items: Movie_Meta[], isLoading: boolean, isError: boolean }) {
+    const metas = useQueries({
+        queries: items.map(m => ({
+            queryKey: ["movies-meta", m.id, "series"],
+            queryFn: () => fetchMovieMeta(m.id, "series"),
+            staleTime: 1000 * 60 * 60,
+        })),
+    })
+    const loading = isLoading || metas.some(q => q.isLoading)
+    const full = items.map((m, i) => metas[i]?.data ?? m)
+    const isCartoon = (m: Movie_Meta) => (m.genres ?? m.genre ?? []).includes(CARTOONS)
+    const cartoons = full.filter(isCartoon)
+    const series = full.filter(m => !isCartoon(m))
+
+    if (loading || isError) return <Results items={[]} isLoading={loading} isError={isError} />
+    if (!full.length) return <LuffyError title={null}><p>Nothing found.</p></LuffyError>
+    return <>
+        <div className="space-y-4" data-series-search-series>
+            <h2>Series</h2>
+            <Results items={series} isLoading={false} isError={false} empty="No series match this search." />
+        </div>
+        <div className="space-y-4" data-series-search-cartoons>
+            <h2>Cartoons</h2>
+            <Results items={cartoons} isLoading={false} isError={false} empty="No cartoons match this search." />
+        </div>
+    </>
+}
+
+function DramaBrowse() {
+    const hidden = useHiddenMovies()
+    const { query, setQuery, search, searchParams, setParams } = useSearchBox()
+    const country = Number(searchParams.get("country") ?? 0) || 0
+    const order = Number(searchParams.get("order") ?? 1) || 1
+
+    const catalog = useInfiniteDramaCatalog(search ? { search } : { country, order })
+    const items = React.useMemo(() => unique(catalog.data?.pages.flat() ?? [], hidden), [catalog.data, hidden])
+
+    return (
+        <>
+            <SearchBox value={query} onChange={setQuery} placeholder="Search Asian dramas…" />
+
+            {!search && <>
+                <MediaGenreSelector
+                    items={DRAMA_COUNTRIES.map(c => ({
+                        name: c.name,
+                        isCurrent: country === c.id,
+                        onClick: () => setParams({ country: c.id ? String(c.id) : undefined }),
+                    }))}
+                />
+                <MediaGenreSelector
+                    items={[{ id: 1, name: "Popular" }, { id: 2, name: "Recently updated" }, { id: 3, name: "New" }].map(o => ({
+                        name: o.name,
+                        isCurrent: order === o.id,
+                        onClick: () => setParams({ order: o.id === 1 ? undefined : String(o.id) }),
+                    }))}
+                />
+            </>}
+
+            <Results
+                items={items}
+                isLoading={catalog.isLoading}
+                isError={catalog.isError}
+                hasNextPage={catalog.hasNextPage}
+                isFetchingNextPage={catalog.isFetchingNextPage}
+                fetchNextPage={catalog.fetchNextPage}
+                empty="Nothing found."
+            />
+        </>
+    )
+}
+
+function SeriesMyList() {
+    const { data, isLoading, isError } = useMovieList()
+
+    const items = React.useMemo(() => {
+        const seen = new Set<string>()
+        return (data ?? []).flatMap(item => {
+            const meta = listItemMeta(item)
+            if (!meta || meta.type !== "series" || seen.has(meta.id)) return []
+            seen.add(meta.id)
+            return [meta]
+        }).reverse()
+    }, [data])
+
+    if (isLoading) return <div className="flex justify-center py-10"><LoadingSpinner /></div>
+    if (isError) return <LuffyError title="Media helper unavailable">
+        <p>Restart Seanime to load your list.</p>
+    </LuffyError>
+    if (!items.length) return <LuffyError title={null}>
+        <p>Your list is empty. Use the bookmark button on a series to save it here.</p>
+    </LuffyError>
+
+    return <MediaCardGrid>
+        {items.map(meta => <MovieEntryCard key={meta.id} meta={meta} showTrailer={false} hideable={false} />)}
+    </MediaCardGrid>
+}

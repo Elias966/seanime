@@ -202,7 +202,7 @@ function MovieHeaderMetadata({ meta, isTransitioning, onHoverChange }: {
     onHoverChange: (hovering: boolean) => void
 }) {
     const router = useRouter()
-    const link = movieLink(meta.id)
+    const link = movieLink(meta.id, meta.type)
     const genres = meta.genres ?? meta.genre ?? []
     const year = movieYear(meta)
 

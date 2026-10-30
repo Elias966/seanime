@@ -12,6 +12,7 @@ import urllib.request as R
 import xml.etree.ElementTree as ET
 
 ROOTS = {'yts':'https://yts.lt', 'hydra':'https://hydrahd.gd', 'anizone':'https://anizone.to', 'nyaa':'https://nyaa.si', 'animetosho':'https://animetosho.org'}
+KISSKH = 'https://kisskh.co/api/DramaList/'
 PROVENANCE = {'movies':'https://rentry.org/megathread-movies-and-tv','anime':'https://rentry.org/megathread-anime'}
 
 def fetch(url, referer=None):
@@ -118,8 +119,18 @@ class MediaHub:
                 if provider=='anizone':
                     url=ROOTS['anizone']+'/anime?'+U.urlencode({'search':query,'page':page})
                     return {'items':[anime_item(a) for a in anizone_items(self.fetcher(url)) if not a.get('is_unsafe')],'page':page}
+                if provider=='kisskh':
+                    # East and South Asian dramas from kisskh's own API (country 0 all, 1 China, 2 Korea, 3 Japan...; order 1 popular, 2 recently updated, 3 new)
+                    if query:data=json.loads(self.fetcher(KISSKH+'Search?'+U.urlencode({'q':query,'type':0})));total=len(data)
+                    else:
+                        data=json.loads(self.fetcher(KISSKH+'List?'+U.urlencode({'page':page,'type':0,'sub':0,'country':int(arg('country','0')),'status':0,'order':int(arg('order','1')),'pageSize':30})))
+                        total=data.get('totalCount',0);data=data.get('data',[])
+                    return {'items':[{'id':str(a['id']),'provider':'kisskh','title':a.get('title',''),'poster':a.get('thumbnail',''),'episodes':a.get('episodesCount'),'type':'series'} for a in data if a.get('id')],'total':total,'page':page}
                 raise ValueError('Unknown catalog')
             return self.cached('catalog:'+json.dumps(q,sort_keys=True),load)
+        if path=='/media/drama':
+            drama=id_part(arg('id'))
+            return self.cached('drama:'+drama,lambda:json.loads(self.fetcher(KISSKH+'Drama/'+drama+'?isq=false')))
         if path=='/media/episodes':
             slug=id_part(arg('id'));text=self.fetcher(ROOTS['anizone']+'/anime/'+slug,ROOTS['anizone']+'/anime')
             for a in Page(text).arrays:
@@ -181,7 +192,7 @@ class MediaHub:
 
     def save(self,value):
         item=value.get('item');action=value.get('action','save')
-        if not isinstance(item,dict) or item.get('provider')not in ('yts','hydra','anizone','cinemeta'):raise ValueError('Invalid library item')
+        if not isinstance(item,dict) or item.get('provider')not in ('yts','hydra','anizone','cinemeta','kisskh'):raise ValueError('Invalid library item')
         key=item['provider']+':'+id_part(item.get('id',''))
         with self.lock:
             if action=='remove':self.library.pop(key,None)

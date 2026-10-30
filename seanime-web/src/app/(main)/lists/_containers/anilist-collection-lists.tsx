@@ -3,6 +3,7 @@ import { useGetAniListStats } from "@/api/hooks/anilist.hooks"
 import { AnilistAnimeEntryList } from "@/app/(main)/_features/anime/_components/anilist-media-entry-list"
 import { useServerStatus } from "@/app/(main)/_hooks/use-server-status"
 import { AnilistStats } from "@/app/(main)/lists/_containers/anilist-stats"
+import { MovieSeriesLists } from "@/app/(main)/lists/_containers/movie-series-lists"
 import {
     __myLists_selectedTypeAtom,
     __myListsSearch_paramsAtom,
@@ -41,11 +42,18 @@ import { RiSignalTowerLine } from "react-icons/ri"
 import { TbSwords } from "react-icons/tb"
 
 const selectedIndexAtom = atom("-")
+/** The Movies & Series tab, kept apart from the AniList list type */
+const moviesTabAtom = atom(false)
 const watchListSearchInputAtom = atom<string>("")
 
 export function AnilistCollectionLists() {
     const serverStatus = useServerStatus()
-    const [pageType, setPageType] = useAtom(__myLists_selectedTypeAtom)
+    const [pageType, setAnilistType] = useAtom(__myLists_selectedTypeAtom)
+    const [moviesTab, setMoviesTab] = useAtom(moviesTabAtom)
+    const setPageType = (t: typeof pageType) => {
+        setMoviesTab(false)
+        setAnilistType(t)
+    }
     const [selectedIndex, setSelectedIndex] = useAtom(selectedIndexAtom)
     const searchInput = useAtomValue(watchListSearchInputAtom)
     const debouncedSearchInput = useDebounce(searchInput, 500)
@@ -87,15 +95,16 @@ export function AnilistCollectionLists() {
                     triggerClass="px-4 py-2 h-full rounded-full"
                     pillClass="rounded-full border-transparent"
                     items={[
-                        { name: "Anime", isCurrent: pageType === "anime", onClick: () => setPageType("anime") },
+                        { name: "Anime", isCurrent: !moviesTab && pageType === "anime", onClick: () => setPageType("anime") },
                         ...[serverStatus?.settings?.library?.enableManga && {
                             name: "Manga",
-                            isCurrent: pageType === "manga",
+                            isCurrent: !moviesTab && pageType === "manga",
                             onClick: () => setPageType("manga"),
                         }],
+                        { name: "Movies & Series", isCurrent: moviesTab, onClick: () => setMoviesTab(true) },
                         ...[!serverStatus?.user?.isSimulated && {
                             name: "Stats",
-                            isCurrent: pageType === "stats",
+                            isCurrent: !moviesTab && pageType === "stats",
                             onClick: () => setPageType("stats"),
                         }],
                     ].filter(Boolean)}
@@ -104,7 +113,14 @@ export function AnilistCollectionLists() {
 
 
             <AnimatePresence mode="wait" initial={false} data-anilist-collection-lists-content>
-                {pageType !== "stats" && <PageWrapper
+                {moviesTab && <PageWrapper
+                    key="movies"
+                    {...{ initial: { opacity: 0 }, animate: { opacity: 1 }, exit: { opacity: 0 }, transition: { duration: 0.35 } }}
+                >
+                    <MovieSeriesLists />
+                </PageWrapper>}
+
+                {!moviesTab && pageType !== "stats" && <PageWrapper
                     key="lists"
                     className="space-y-6"
                     {...{
@@ -155,7 +171,7 @@ export function AnilistCollectionLists() {
                     </div>
                 </PageWrapper>}
 
-                {pageType === "stats" && !serverStatus?.user?.isSimulated && <PageWrapper
+                {!moviesTab && pageType === "stats" && !serverStatus?.user?.isSimulated && <PageWrapper
                     key="stats"
                     className="space-y-6"
                     {...{

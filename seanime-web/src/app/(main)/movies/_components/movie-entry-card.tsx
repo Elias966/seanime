@@ -58,7 +58,7 @@ export function MovieEntryCard(props: MovieEntryCardProps) {
     const setActionPopupHover = useSetAtom(__mediaEntryCard_hoveredPopupId)
 
     const numericId = React.useMemo(() => movieNumericId(meta.id), [meta.id])
-    const link = movieLink(meta.id)
+    const link = movieLink(meta.id, meta.type)
     const year = movieYear(meta)
     const genres = meta.genres ?? meta.genre ?? []
 
@@ -122,7 +122,7 @@ export function MovieEntryCard(props: MovieEntryCardProps) {
                     <MediaEntryCardHoverPopupTitleSection
                         title={meta.name}
                         year={year}
-                        format={meta.runtime || "MOVIE"}
+                        format={meta.runtime || (meta.type === "series" ? "TV" : "MOVIE")}
                         link={link}
                     />
 
@@ -164,7 +164,7 @@ export function MovieEntryCard(props: MovieEntryCardProps) {
             <MediaEntryCardTitleSection
                 title={meta.name}
                 year={year}
-                format="MOVIE"
+                format={meta.type === "series" ? "TV" : "MOVIE"}
             />
 
         </MediaEntryCardContainer>
@@ -202,8 +202,8 @@ export function MovieListButton({ meta, size = "sm" }: { meta: Movie_Meta, size?
     const { data: list } = useMovieList()
     const { mutate, isPending } = useSaveMovieToList()
 
-    const saved = !!list?.some(i => i.id === meta.id || i.imdb === meta.id)
     const item = metaToListItem(meta)
+    const saved = !!list?.some(i => (i.provider === item.provider && i.id === item.id) || i.imdb === meta.id)
 
     return (
         <Tooltip

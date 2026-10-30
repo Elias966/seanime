@@ -23,11 +23,30 @@ export const MOVIE_GENRES = [
     "History", "Horror", "Mystery", "Romance", "Sci-Fi", "Sport", "Thriller", "War", "Western",
 ] as const
 
+/** Cinemeta's series genres. "Cartoons" are its Animation genre. */
+export const SERIES_GENRES = [
+    "Action", "Adventure", "Animation", "Comedy", "Crime", "Documentary", "Drama", "Family", "Fantasy", "History", "Horror",
+    "Mystery", "Reality-TV", "Romance", "Sci-Fi", "Talk-Show", "Thriller", "War", "Western",
+] as const
+
+export type Movie_Video = {
+    id: string
+    name?: string
+    title?: string
+    season: number
+    episode?: number
+    number?: number
+    released?: string
+    thumbnail?: string
+    overview?: string
+    description?: string
+}
+
 export type Movie_Meta = {
     id: string
     imdb_id?: string
     moviedb_id?: number
-    type: "movie"
+    type: "movie" | "series"
     name: string
     poster?: string
     background?: string
@@ -47,6 +66,9 @@ export type Movie_Meta = {
     awards?: string
     trailers?: { source: string, type: string }[]
     trailerStreams?: { ytId: string, title?: string }[]
+    /** Series only: every episode */
+    videos?: Movie_Video[]
+    status?: string
 }
 
 export type Movie_YtsTorrent = {
@@ -73,7 +95,7 @@ export type Movie_YtsItem = {
 }
 
 export type Movie_ListItem = {
-    provider: "cinemeta" | "yts" | "hydra" | "anizone"
+    provider: "cinemeta" | "yts" | "hydra" | "anizone" | "kisskh"
     id: string
     imdb?: string
     title: string
@@ -167,8 +189,9 @@ export function movieNumericId(id: string) {
     return -(n || 1)
 }
 
-export function movieLink(id: string) {
-    return `/movies/entry?id=${encodeURIComponent(id)}`
+export function movieLink(id: string, type: Movie_Meta["type"] = "movie") {
+    if (id.startsWith(KISSKH_PREFIX)) return `/series/entry?drama=${encodeURIComponent(id.slice(KISSKH_PREFIX.length))}`
+    return `/${type === "series" ? "series" : "movies"}/entry?id=${encodeURIComponent(id)}`
 }
 
 export function formatBytes(bytes: number) {
@@ -182,14 +205,14 @@ export function formatBytes(bytes: number) {
 // Cinemeta
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-export type MovieCatalog = { catalog?: "top" | "year", genre?: string, search?: string }
+export type MovieCatalog = { type?: "movie" | "series", catalog?: "top" | "year", genre?: string, search?: string }
 
-function catalogUrl({ catalog = "top", genre, search }: MovieCatalog, skip = 0) {
+function catalogUrl({ type = "movie", catalog = "top", genre, search }: MovieCatalog, skip = 0) {
     const extras: string[] = []
     if (search) extras.push(`search=${encodeURIComponent(search)}`)
     if (genre) extras.push(`genre=${encodeURIComponent(genre)}`)
     if (skip) extras.push(`skip=${skip}`)
-    return `${CINEMETA}/catalog/movie/${catalog}${extras.length ? "/" + extras.join("&") : ""}.json`
+    return `${CINEMETA}/catalog/${type}/${catalog}${extras.length ? "/" + extras.join("&") : ""}.json`
 }
 
 async function fetchCatalog(c: MovieCatalog, skip = 0) {
@@ -218,14 +241,16 @@ export function useInfiniteMovieCatalog(c: MovieCatalog, enabled = true) {
     })
 }
 
-export function useMovieMeta(id: string | undefined) {
+export async function fetchMovieMeta(id: string, type: Movie_Meta["type"] = "movie") {
+    const data = await getJson<{ meta?: Movie_Meta }>(`${CINEMETA}/meta/${type}/${id}.json`)
+    if (!data.meta?.name) throw new Error(type === "series" ? "Series not found" : "Movie not found")
+    return data.meta
+}
+
+export function useMovieMeta(id: string | undefined, type: Movie_Meta["type"] = "movie") {
     return useQuery({
-        queryKey: ["movies-meta", id],
-        queryFn: async () => {
-            const data = await getJson<{ meta?: Movie_Meta }>(`${CINEMETA}/meta/movie/${id}.json`)
-            if (!data.meta?.name) throw new Error("Movie not found")
-            return data.meta
-        },
+        queryKey: ["movies-meta", id, type],
+        queryFn: () => fetchMovieMeta(id!, type),
         enabled: !!id,
         staleTime: 1000 * 60 * 60,
     })
@@ -267,7 +292,13 @@ export function useMovieHydraMatches(title: string | undefined) {
 }
 
 /** What the streaming websites need to find a movie. */
-export type Movie_StreamRef = { imdb?: string, tmdb?: number, title: string, year?: number, hydraId?: string }
+export type Movie_StreamRef = {
+    imdb?: string, tmdb?: number, title: string, year?: number, hydraId?: string
+    /** Series episodes */
+    season?: number, episode?: number
+    /** kisskh episodes: the drama and episode ids */
+    drama?: { id: string, episodeId: number, title: string }
+}
 
 export type Movie_StreamSource = {
     id: string
@@ -306,6 +337,25 @@ export const MOVIE_STREAM_SOURCES: Movie_StreamSource[] = [
     { id: "cinezo", name: "Cinezo", sourceId: "cinezo", url: tmdbUrl(t => `https://cinezo.st/watch/movie/${t}`) },
     { id: "vidlink", name: "VidLink", sourceId: "bingeflix", url: tmdbUrl(t => `https://vidlink.pro/movie/${t}`) },
 ]
+
+const tvUrl = (fn: (tmdb: number, s: number, e: number) => string) => (m: Movie_StreamRef) =>
+    m.tmdb && m.season !== undefined && m.episode !== undefined ? fn(m.tmdb, m.season, m.episode) : undefined
+
+/** The same websites, for a series episode (by TMDB id, season and episode). */
+export const SERIES_STREAM_SOURCES: Movie_StreamSource[] = [
+    { id: "vixsrc", name: "VixSrc", sourceId: "hydrahd", url: tvUrl((t, s, e) => `https://vixsrc.to/tv/${t}/${s}/${e}?autoplay=true`) },
+    { id: "vidlink", name: "VidLink", sourceId: "bingeflix", url: tvUrl((t, s, e) => `https://vidlink.pro/tv/${t}/${s}/${e}`) },
+    { id: "rive", name: "Rive", sourceId: "rive", url: tvUrl((t, s, e) => `https://www.rivestream.app/watch?type=tv&id=${t}&season=${s}&episode=${e}`) },
+    { id: "xpass", name: "XPass", sourceId: "hydrahd", url: tvUrl((t, s, e) => `https://play.xpass.top/e/tv/${t}/${s}/${e}?autostart=true`) },
+    { id: "cinezo", name: "Cinezo", sourceId: "cinezo", url: tvUrl((t, s, e) => `https://cinezo.st/watch/tv/${t}/${s}/${e}`) },
+    { id: "latestmovies", name: "LatestMovies", sourceId: "latestmovies", url: tvUrl((t, s, e) => `https://latestmovies.net/watch/tv/${t}/${s}/${e}`) },
+]
+
+/** kisskh's episode page starts its player by itself. */
+export const KISSKH_STREAM_SOURCE: Movie_StreamSource = {
+    id: "kisskh", name: "kisskh", sourceId: "kisskh", timeout: 35000,
+    url: m => m.drama && `https://kisskh.co/Drama/${encodeURIComponent(m.drama.title.replace(/[^\w\s-]/g, "").trim().replace(/\s+/g, "-"))}/Episode-${m.episode ?? 1}?id=${m.drama.id}&ep=${m.drama.episodeId}&page=0&pageSize=100`,
+}
 
 export type Movie_CapturedStream = {
     url: string
@@ -551,6 +601,15 @@ export function useSaveMovieToList() {
 }
 
 export function metaToListItem(meta: Movie_Meta): Movie_ListItem {
+    if (meta.id.startsWith(KISSKH_PREFIX)) return {
+        provider: "kisskh",
+        id: meta.id.slice(KISSKH_PREFIX.length),
+        title: meta.name,
+        poster: meta.poster,
+        year: movieYear(meta),
+        type: "series",
+        addedAt: Date.now(),
+    }
     return {
         provider: "cinemeta",
         id: meta.id,
@@ -559,7 +618,7 @@ export function metaToListItem(meta: Movie_Meta): Movie_ListItem {
         poster: moviePoster(meta.poster),
         background: meta.background,
         year: movieYear(meta),
-        type: "movie",
+        type: meta.type,
         addedAt: Date.now(),
     }
 }
@@ -568,6 +627,80 @@ export function metaToListItem(meta: Movie_Meta): Movie_ListItem {
 export function listItemImdb(item: Movie_ListItem) {
     if (item.provider === "cinemeta") return item.id
     return item.imdb?.startsWith("tt") ? item.imdb : undefined
+}
+
+/** A list item as card data (Cinemeta and kisskh items, the ones without an IMDb id are skipped). */
+export function listItemMeta(item: Movie_ListItem): Movie_Meta | undefined {
+    if (item.provider === "kisskh") return {
+        id: KISSKH_PREFIX + item.id, type: "series", name: item.title, poster: item.poster, background: item.poster,
+        year: item.year ? String(item.year) : undefined,
+    }
+    const id = listItemImdb(item)
+    if (!id) return undefined
+    return {
+        id,
+        type: item.type === "series" ? "series" : "movie",
+        name: item.title,
+        poster: item.poster || `https://images.metahub.space/poster/medium/${id}/img`,
+        background: item.background,
+        year: item.year ? String(item.year) : undefined,
+    }
+}
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// kisskh (East / South Asian dramas, through the media helper since its API has no CORS headers)
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+/** Card ids of kisskh dramas, so they never collide with IMDb ids. */
+export const KISSKH_PREFIX = "kisskh:"
+
+export type Drama_Catalog = { country?: number, order?: number, search?: string }
+export type Drama_Item = { id: string, provider: "kisskh", title: string, poster?: string, episodes?: number }
+export type Drama_Detail = {
+    id: number, title: string, description?: string, country?: string, status?: string, type?: string, releaseDate?: string,
+    thumbnail?: string, episodesCount?: number, episodes: { id: number, number: number, sub?: number }[]
+}
+
+export const DRAMA_COUNTRIES = [
+    { id: 0, name: "All" }, { id: 2, name: "Korean" }, { id: 1, name: "Chinese" }, { id: 3, name: "Japanese" },
+    { id: 4, name: "Hong Kong" }, { id: 5, name: "Thai" }, { id: 6, name: "Taiwanese" }, { id: 7, name: "Philippine" },
+] as const
+
+export function dramaMeta(d: Drama_Item): Movie_Meta {
+    return { id: KISSKH_PREFIX + d.id, type: "series", name: d.title, poster: d.poster, background: d.poster }
+}
+
+const fetchDramas = (c: Drama_Catalog, page = 1) => getJson<{ items: Drama_Item[], total: number }>(`${MEDIA_HELPER}/media/catalog?${new URLSearchParams({
+    provider: "kisskh", page: String(page), country: String(c.country ?? 0), order: String(c.order ?? 1), q: c.search ?? "",
+})}`)
+
+export function useDramaCatalog(c: Drama_Catalog, enabled = true) {
+    return useQuery({
+        queryKey: ["dramas-catalog", c],
+        queryFn: async () => (await fetchDramas(c)).items.map(dramaMeta),
+        enabled,
+        staleTime: 1000 * 60 * 30,
+    })
+}
+
+export function useInfiniteDramaCatalog(c: Drama_Catalog, enabled = true) {
+    return useInfiniteQuery({
+        queryKey: ["dramas-catalog-infinite", c],
+        queryFn: async ({ pageParam }) => (await fetchDramas(c, pageParam)).items.map(dramaMeta),
+        initialPageParam: 1,
+        getNextPageParam: (last, pages) => (!c.search && last.length > 0) ? pages.length + 1 : undefined,
+        enabled,
+        staleTime: 1000 * 60 * 30,
+    })
+}
+
+export function useDramaDetail(id: string | undefined) {
+    return useQuery({
+        queryKey: ["dramas-detail", id],
+        queryFn: () => getJson<Drama_Detail>(`${MEDIA_HELPER}/media/drama?${new URLSearchParams({ id: id! })}`),
+        enabled: !!id,
+        staleTime: 1000 * 60 * 30,
+    })
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -829,7 +962,7 @@ export async function fetchMovieSubtitles(imdb?: string, release = ""): Promise<
     let request = subtitleLists.get(imdb)
     if (!request) {
         request = (async () => {
-            const res = await fetch(`${OPENSUBTITLES}/subtitles/movie/${imdb}.json`, { signal: AbortSignal.timeout(8000) })
+            const res = await fetch(`${OPENSUBTITLES}/subtitles/${imdb.includes(":") ? "series" : "movie"}/${imdb}.json`, { signal: AbortSignal.timeout(8000) })
             if (!res.ok) throw new Error(`OpenSubtitles ${res.status}`)
             const data = await res.json() as { subtitles?: OpenSubtitle[] }
             return Array.isArray(data?.subtitles) ? data.subtitles : []

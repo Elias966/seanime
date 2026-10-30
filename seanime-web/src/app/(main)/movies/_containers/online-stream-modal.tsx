@@ -23,7 +23,9 @@ async function streamFromSource(source: Movie_StreamSource, ref: Movie_StreamRef
         const stream = await captureMovieStream(found ? { ...source, url: () => found } : source, ref, signal)
         if (signal.aborted) return
         onStarting()
-        await playCapturedStream(stream, ref.title, signal, ref.imdb)
+        // OpenSubtitles finds a series episode by "tt…:season:episode"
+        const subtitleId = ref.imdb && ref.season !== undefined ? `${ref.imdb}:${ref.season}:${ref.episode}` : ref.imdb
+        await playCapturedStream(stream, ref.title, signal, subtitleId)
         return undefined
     }
     catch (e: any) {
