@@ -577,6 +577,19 @@ export function ytsMagnet(hash: string, title: string) {
     return `magnet:?xt=urn:btih:${hash}&dn=${encodeURIComponent(title)}`
 }
 
+// Other torrent clients need trackers to find peers quickly, a bare hash can wait a long time for metadata
+const CLIENT_TRACKERS = [
+    "udp://tracker.opentrackr.org:1337/announce",
+    "udp://open.stealth.si:80/announce",
+    "udp://tracker.torrent.eu.org:451/announce",
+    "udp://exodus.desync.com:6969/announce",
+    "udp://open.demonii.com:1337/announce",
+    "https://tracker.opentrackr.org:443/announce",
+]
+
+export const clientMagnet = (hash: string, title: string) =>
+    ytsMagnet(hash, title) + CLIENT_TRACKERS.map(t => `&tr=${encodeURIComponent(t)}`).join("")
+
 export const fetchEngineTorrents = () => getJson<Movie_EngineTorrent[]>(`${TORRENT_ENGINE}/torrents`)
 
 export function useEngineTorrents(refetchInterval: number | false = 2000) {
@@ -651,7 +664,7 @@ type SeaFetch = ReturnType<typeof useSeaQuery>["seaFetch"]
 export async function downloadWithTorrentClient(seaFetch: SeaFetch, magnet: string, hash: string, title: string, media: Movie_LibraryMedia) {
     const { dir } = await postJson<{ dir: string }>(`${TORRENT_ENGINE}/torrents`, { action: "external-add", hash, media, release: title })
     try {
-        await seaFetch(API_ENDPOINTS.TORRENT_CLIENT.TorrentClientAction.endpoint, "POST", { action: "add-magnet", magnet, dir })
+        await seaFetch(API_ENDPOINTS.TORRENT_CLIENT.TorrentClientAction.endpoint, "POST", { action: "add-magnet", magnet, dir, noSeed: true })
     }
     catch (e: any) {
         await postJson(`${TORRENT_ENGINE}/torrents`, { action: "external-remove", hash }).catch(() => {})
@@ -660,14 +673,20 @@ export async function downloadWithTorrentClient(seaFetch: SeaFetch, magnet: stri
 }
 
 /** Adds movies the torrent client has finished to the Library. */
-async function syncClientDownloads(seaFetch: SeaFetch) {
+export async function syncClientDownloads(seaFetch: SeaFetch) {
     const { external } = await getJson<Movie_EngineSettings>(`${TORRENT_ENGINE}/settings`)
     if (!external.length) return
-    const torrents = await seaFetch<TorrentClient_Torrent[]>(API_ENDPOINTS.TORRENT_CLIENT.GetActiveTorrentList.endpoint, "GET")
+    // Finished torrents are often stopped by the client, so the full list is used
+    const torrents = await seaFetch<TorrentClient_Torrent[]>(API_ENDPOINTS.TORRENT_CLIENT.GetActiveTorrentList.endpoint + "?all=true", "GET")
+    await postJson(`${TORRENT_ENGINE}/torrents`, { action: "external-sync", present: (torrents ?? []).map(t => t.hash.toLowerCase()) })
     for (const t of torrents ?? []) {
         const hash = t.hash.toLowerCase()
         if (external.includes(hash) && t.progress >= 1 && t.contentPath) {
             await postJson(`${TORRENT_ENGINE}/torrents`, { action: "external-done", hash, path: t.contentPath }).catch(() => {})
+            // Torrent clients that ignored the no-seeding limit are stopped here
+            if (t.status === "seeding") {
+                await seaFetch(API_ENDPOINTS.TORRENT_CLIENT.TorrentClientAction.endpoint, "POST", { action: "pause", hash: t.hash }).catch(() => {})
+            }
         }
     }
 }

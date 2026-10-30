@@ -27,4 +27,10 @@ type AddTorrentsOptions struct {
 	FirstLastPiecePrio bool `json:"firstLastPiecePrio,omitempty"`
 	// Tags for the torrent, split by ','
 	Tags string `json:"tags,omitempty"`
+	// Share ratio limit, "0" stops the torrent as soon as it finishes
+	RatioLimit string `json:"ratioLimit,omitempty"`
+	// Seeding time limit in minutes
+	SeedingTimeLimit string `json:"seedingTimeLimit,omitempty"`
+	// What happens when a share limit is reached (qBittorrent 5), e.g. "Stop"
+	ShareLimitAction string `json:"shareLimitAction,omitempty"`
 }

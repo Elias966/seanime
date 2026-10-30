@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 	"seanime/internal/api/anilist"
 	"seanime/internal/database/db_bridge"
 	"seanime/internal/database/models"
@@ -14,6 +13,7 @@ import (
 	"seanime/internal/torrent_clients/torrent_client"
 	torrentrepo "seanime/internal/torrents/torrent"
 	"seanime/internal/util"
+	"strings"
 
 	"github.com/goccy/go-json"
 	"github.com/labstack/echo/v4"
@@ -32,9 +32,14 @@ func (h *Handler) HandleGetActiveTorrentList(c echo.Context) error {
 		category = &v
 	}
 	sort := c.QueryParam("sort")
+	// all=true also returns stopped and finished torrents (the movie library looks for its finished downloads)
+	list := h.App.TorrentClientRepository.GetActiveTorrents
+	if c.QueryParam("all") == "true" {
+		list = h.App.TorrentClientRepository.GetList
+	}
 
 	// Get torrent list
-	res, err := h.App.TorrentClientRepository.GetActiveTorrents(&torrent_client.GetListOptions{
+	res, err := list(&torrent_client.GetListOptions{
 		Category: category,
 		Sort:     sort,
 	})
@@ -51,7 +56,7 @@ func (h *Handler) HandleGetActiveTorrentList(c echo.Context) error {
 		if !ok {
 			return h.RespondWithError(c, errors.New("could not start torrent client, verify your settings"))
 		}
-		res, err = h.App.TorrentClientRepository.GetActiveTorrents(&torrent_client.GetListOptions{
+		res, err = list(&torrent_client.GetListOptions{
 			Category: category,
 			Sort:     sort,
 		})
@@ -81,6 +86,7 @@ func (h *Handler) HandleTorrentClientAction(c echo.Context) error {
 		DownloadLimit int    `json:"downloadLimit,omitempty"`
 		UploadLimit   int    `json:"uploadLimit,omitempty"`
 		Magnet        string `json:"magnet,omitempty"`
+		NoSeed        bool   `json:"noSeed,omitempty"`
 	}
 
 	var b body
@@ -154,7 +160,11 @@ func (h *Handler) HandleTorrentClientAction(c echo.Context) error {
 				return h.RespondWithError(c, errors.New("could not contact torrent client, verify your settings or make sure it's running"))
 			}
 		}
-		if err := h.App.TorrentClientRepository.AddMagnets([]string{b.Magnet}, b.Dir); err != nil {
+		add := h.App.TorrentClientRepository.AddMagnets
+		if b.NoSeed {
+			add = h.App.TorrentClientRepository.AddMagnetsWithoutSeeding
+		}
+		if err := add([]string{b.Magnet}, b.Dir); err != nil {
 			return h.RespondWithError(c, err)
 		}
 	case "pause-all", "resume-all", "force-start", "queue-up", "queue-down", "move-storage", "recheck", "reannounce", "add-tracker", "remove-tracker", "set-file-priority", "set-sequential", "rename", "set-limits":

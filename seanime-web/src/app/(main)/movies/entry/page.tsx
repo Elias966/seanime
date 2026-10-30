@@ -34,6 +34,8 @@ import {
     useMovieSettings,
     useMovieTorrents,
     ytsMagnet,
+    clientMagnet,
+    syncClientDownloads,
 } from "@/app/(main)/movies/_lib/movies.api"
 import { imageShimmer } from "@/components/shared/image-helpers"
 import { LuffyError } from "@/components/shared/luffy-error"
@@ -254,6 +256,10 @@ function MovieTorrentSection({ meta }: { meta: Movie_Meta }) {
     const serverStatus = useServerStatus()
     const { seaFetch } = useSeaQuery()
     const { data: movieSettings, refetch: refetchMovieSettings } = useMovieSettings()
+    // Forget movies that were removed from the torrent client, so they can be sent again
+    React.useEffect(() => {
+        syncClientDownloads(seaFetch).then(() => refetchMovieSettings()).catch(() => {})
+    }, [])
     const clientName = ({ [TORRENT_CLIENT.QBITTORRENT]: "qBittorrent", [TORRENT_CLIENT.TRANSMISSION]: "Transmission" } as Record<string, string>)[
         serverStatus?.settings?.torrent?.defaultTorrentClient ?? ""]
     const [streaming, setStreaming] = React.useState<{ hash: string, title: string, imdb: string }>()
@@ -282,7 +288,7 @@ function MovieTorrentSection({ meta }: { meta: Movie_Meta }) {
         const title = releaseTitle(meta, t)
         setBusy(t.hash)
         try {
-            await downloadWithTorrentClient(seaFetch, ytsMagnet(t.hash, title), t.hash.toLowerCase(), title, metaToLibraryMedia(meta))
+            await downloadWithTorrentClient(seaFetch, clientMagnet(t.hash, title), t.hash.toLowerCase(), title, metaToLibraryMedia(meta))
             toast.success(`Sent to ${clientName}, the movie will appear in your Library when it finishes`)
             refetchMovieSettings()
         }

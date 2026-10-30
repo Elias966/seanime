@@ -53,10 +53,13 @@ export function createEngine(options={}){
  let moving=null;
  async function moveItem(from,to){try{await fs.promises.rename(from,to)}catch(e){if(e.code!=='EXDEV')throw e;await fs.promises.cp(from,to,{recursive:true,errorOnExist:true,force:false});await fs.promises.rm(from,{recursive:true,force:true})}}
  // Moves saved movies (their whole release folder) into the current library folder
- const outside=()=>library.filter(x=>{const p=libraryPath(x);return p&&!inside(p,libraryDir())&&!jobs.has(x.hash)});
+ // A finished download that is still seeding is moved too, its transfer is stopped first (the files are kept)
+ const busy=h=>{const j=jobs.get(h);return !!j&&!(j.mode==='download'&&j.torrent.progress>=1)};
+ const outside=()=>library.filter(x=>{const p=libraryPath(x);return p&&!inside(p,libraryDir())&&!busy(x.hash)});
  function moveLibrary(){
   if(moving&&!moving.done)return;const target=libraryDir(),items=outside();moving={total:items.length,moved:0,done:false,error:''};
   (async()=>{fs.mkdirSync(target,{recursive:true});for(const x of items){try{
+   if(jobs.has(x.hash)){await client.remove(x.hash);jobs.delete(x.hash);persist()}
    const p=libraryPath(x),root=roots().find(r=>inside(p,r)&&r!==target)||roots().find(r=>inside(p,r)),top=path.relative(root,p).split(path.sep)[0],from=path.join(root,top),to=path.join(target,top),moved=path.join(to,path.relative(from,p));
    if(fs.existsSync(from)){if(fs.existsSync(to))throw Error(`"${top}" is already in the new folder`);await moveItem(from,to)}else if(!fs.existsSync(moved))throw Error(`"${x.title}" was not found`);
    x.path=moved;delete x.file;saveLibrary();moving.moved++;
@@ -109,6 +112,8 @@ export function createEngine(options={}){
   for(const v of roots().flatMap(r=>looseVideos(r,covered)))if(!library.some(x=>x.hash===v.hash)){verified.set(v.hash,v);found.push({hash:v.hash,release:v.release,size:v.size})}
   return found;
  })().finally(()=>{scanning=undefined})}
+ // Finished movie downloads do not seed: the transfer is stopped and the files stay on disk
+ async function stopFinished(hash){const j=jobs.get(hash);if(!j||j.mode!=='download'||j.torrent.progress<1)return;jobs.delete(hash);persist();try{await client.remove(hash)}catch{}}
  async function add(value){
   let metadata;const media=cleanMedia(value.media);
   if(value.torrentUrl){
@@ -122,7 +127,7 @@ export function createEngine(options={}){
   if(metadata){const p=await parseTorrent(metadata);if(p.infoHash!==parsed.infoHash)throw Error('Cached metadata does not match this torrent');p.urlList=[];p.announce=['udp://tracker.opentrackr.org:1337/announce','udp://open.stealth.si:80/announce'];metadata=toTorrentFile(p)}
   const dir=typeof value.dir==='string'&&roots().includes(path.resolve(value.dir))?path.resolve(value.dir):value.mode==='download'?libraryDir():directory;fs.mkdirSync(dir,{recursive:true});
   const t=client.add(metadata||magnet,{path:dir,deselect:value.mode!=='download'});const job={torrent:t,mode:value.mode==='download'?'download':'stream',title:String(value.title||'').slice(0,180),media,error:''};t.on('error',()=>{});if(!t.infoHash)await new Promise((resolve,reject)=>{t.once('infoHash',resolve);t.once('error',reject)});jobs.set(t.infoHash,job);
-  t.on('error',()=>{job.error='Torrent connection failed'});t.on('done',()=>record(job));t.once('ready',()=>{try{fs.writeFileSync(path.join(metadataDir,t.infoHash+'.torrent'),t.torrentFile)}catch{}if(job.mode==='stream')for(const f of t.files)f.deselect();persist()});persist();return t.infoHash;
+  t.on('error',()=>{job.error='Torrent connection failed'});t.on('done',()=>{record(job);if(job.mode==='download')setImmediate(()=>stopFinished(t.infoHash))});t.once('ready',()=>{try{fs.writeFileSync(path.join(metadataDir,t.infoHash+'.torrent'),t.torrentFile)}catch{}if(job.mode==='stream')for(const f of t.files)f.deselect();persist()});persist();return t.infoHash;
  }
  const server=http.createServer(async(req,res)=>{
   const u=new URL(req.url,'http://127.0.0.1'),origin=req.headers.origin;
@@ -154,12 +159,14 @@ export function createEngine(options={}){
      const old=libraryDir();settings={...settings,libraryDir:dir||undefined,previous:[...new Set([...(settings.previous||[]),old])].filter(d=>d!==path.resolve(directory)&&d!==(dir||path.resolve(directory)))};saveSettings();
      return json(200,{ok:true,libraryDir:libraryDir(),outside:outside().length})}
     if(v.action==='move-library'){moveLibrary();return json(200,{ok:true,moving})}
-    if(v.action==='external-add'){const media=cleanMedia(v.media);if(!/^[a-f0-9]{40}$/.test(v.hash)||!media)throw Error('Invalid movie');external=[{hash:v.hash,media,release:String(v.release||media.title).slice(0,180)},...external.filter(x=>x.hash!==v.hash)].slice(0,100);saveExternal();return json(200,{ok:true,dir:libraryDir()})}
+    if(v.action==='external-add'){const media=cleanMedia(v.media);if(!/^[a-f0-9]{40}$/.test(v.hash)||!media)throw Error('Invalid movie');external=[{hash:v.hash,media,release:String(v.release||media.title).slice(0,180),added:Date.now()},...external.filter(x=>x.hash!==v.hash)].slice(0,100);saveExternal();return json(200,{ok:true,dir:libraryDir()})}
     if(v.action==='external-done'){
      const x=external.find(x=>x.hash===v.hash);if(!x)throw Error('Unknown download');const p=typeof v.path==='string'&&path.isAbsolute(v.path)?path.resolve(v.path):'';
      if(!p||!roots().some(r=>inside(p,r)))throw Error('The download is outside the movie library folder');
      const file=largestVideo(p);if(!file||!roots().some(r=>inside(file,r)))throw Error('No video found in the download');const st=fs.statSync(file);if(!allocated(st))throw Error('The download is not finished');
      if(!library.some(y=>y.hash===x.hash))library.unshift({hash:x.hash,...x.media,release:x.release,path:file,size:st.size,added:Date.now()});saveLibrary();external=external.filter(y=>y.hash!==x.hash);saveExternal();return json(200,{ok:true})}
+    // Movies removed from the torrent client are forgotten, so they can be sent again (new ones get a minute to show up)
+    if(v.action==='external-sync'){const present=new Set(Array.isArray(v.present)?v.present.map(h=>String(h).toLowerCase()):[]);const before=external.length;external=external.filter(x=>present.has(x.hash)||Date.now()-(x.added||0)<60000);if(external.length!==before)saveExternal();return json(200,{ok:true})}
     if(v.action==='external-remove'){external=external.filter(x=>x.hash!==v.hash);saveExternal();return json(200,{ok:true})}
     if(v.action==='library-remove'){library=library.filter(x=>x.hash!==v.hash);saveLibrary();return json(200,{ok:true})}
     if(v.action==='restore'){await restore();return json(200,{ok:true})}

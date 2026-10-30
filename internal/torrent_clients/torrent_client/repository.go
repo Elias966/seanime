@@ -352,6 +352,15 @@ func (r *Repository) GetActiveTorrents(opts *GetListOptions) ([]*Torrent, error)
 }
 
 func (r *Repository) AddMagnets(magnets []string, dest string) error {
+	return r.addMagnets(magnets, dest, false)
+}
+
+// AddMagnetsWithoutSeeding adds magnets that stop as soon as they finish downloading (used for movies).
+func (r *Repository) AddMagnetsWithoutSeeding(magnets []string, dest string) error {
+	return r.addMagnets(magnets, dest, true)
+}
+
+func (r *Repository) addMagnets(magnets []string, dest string, noSeed bool) error {
 	r.logger.Trace().Any("magnets", magnets).Msg("torrent client: Adding magnets")
 
 	if len(magnets) == 0 {
@@ -362,20 +371,36 @@ func (r *Repository) AddMagnets(magnets []string, dest string) error {
 	var err error
 	switch r.provider {
 	case QbittorrentClient:
-		err = r.qBittorrentClient.Torrent.AddURLs(magnets, &qbittorrent_model.AddTorrentsOptions{
+		opts := &qbittorrent_model.AddTorrentsOptions{
 			Savepath: dest,
 			Tags:     r.qBittorrentClient.Tags,
 			Category: r.qBittorrentClient.Category,
-		})
+		}
+		if noSeed {
+			opts.RatioLimit, opts.SeedingTimeLimit, opts.ShareLimitAction = "0", "0", "Stop"
+		}
+		err = r.qBittorrentClient.Torrent.AddURLs(magnets, opts)
 	case TransmissionClient:
 		for _, magnet := range magnets {
-			_, err = r.transmission.Client.TorrentAdd(context.Background(), transmissionrpc.TorrentAddPayload{
+			var added transmissionrpc.Torrent
+			added, err = r.transmission.Client.TorrentAdd(context.Background(), transmissionrpc.TorrentAddPayload{
 				Filename:    &magnet,
 				DownloadDir: &dest,
 			})
 			if err != nil {
 				r.logger.Err(err).Msg("torrent client: Error while adding magnets (Transmission)")
 				break
+			}
+			if noSeed && added.ID != nil {
+				ratio, mode := 0.0, transmissionrpc.SeedRatioModeCustom
+				if err = r.transmission.Client.TorrentSet(context.Background(), transmissionrpc.TorrentSetPayload{
+					IDs:            []int64{*added.ID},
+					SeedRatioLimit: &ratio,
+					SeedRatioMode:  &mode,
+				}); err != nil {
+					r.logger.Err(err).Msg("torrent client: Error while turning off seeding (Transmission)")
+					break
+				}
 			}
 		}
 	case SeanimeClient:
