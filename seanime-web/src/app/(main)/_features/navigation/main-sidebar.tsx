@@ -28,7 +28,7 @@ import { openTab } from "@/lib/helpers/browser"
 import { usePathname, useRouter } from "@/lib/navigation"
 import { ANILIST_OAUTH_URL, ANILIST_PIN_URL } from "@/lib/server/config"
 import { TORRENT_CLIENT, TORRENT_PROVIDER } from "@/lib/server/settings"
-import { isActiveDownload, useOnlineDownloads } from "@/app/(main)/online-downloads/_lib/online-downloads"
+import { isActiveDownload, useOnlineDownloads, useScanAfterUnpack } from "@/app/(main)/online-downloads/_lib/online-downloads"
 import { WSEvents } from "@/lib/server/ws-events"
 import { useThemeSettings } from "@/lib/theme/theme-hooks"
 import { __isDesktop__, __isElectronDesktop__ } from "@/types/constants"
@@ -176,6 +176,7 @@ function SidebarNavigation({ isCollapsed, containerRef }: { isCollapsed: boolean
     const autoDownloaderQueueCount = useAutoDownloaderQueueCount()
 
     const onlineDownloadCount = useOnlineDownloads().filter(isActiveDownload).length
+    useScanAfterUnpack()
 
     // Torrents
     const [activeTorrentCount, setActiveTorrentCount] = React.useState({ downloading: 0, paused: 0, seeding: 0 })

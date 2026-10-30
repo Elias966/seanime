@@ -1,3 +1,4 @@
+import { useScanLocalFiles } from "@/api/hooks/scan.hooks"
 import React from "react"
 
 /** A file download run by the desktop app for one of the direct-download websites. */
@@ -15,9 +16,13 @@ export type OnlineDownload = {
     started: number
     finished?: number
     error?: string
+    /** Season archives are unpacked into their folder once downloaded */
+    extract?: { state: "extracting", done: number, total: number } | { state: "done", episodes: number } | { state: "failed", error: string }
+    /** Name of the archive that was unpacked and deleted */
+    archive?: string
 }
 
-export type OnlineDownloadAction = "start" | "dir" | "list" | "cancel" | "pause" | "resume" | "retry" | "remove" | "clear" | "folder" | "open"
+export type OnlineDownloadAction = "start" | "dir" | "list" | "cancel" | "pause" | "resume" | "retry" | "remove" | "clear" | "folder" | "open" | "unpack"
 
 export function sendDownloadAction(action: OnlineDownloadAction, payload: Record<string, unknown> = {}) {
     window.electron?.emit?.("media-source:download", { action, ...payload })
@@ -27,11 +32,13 @@ export function sendDownloadAction(action: OnlineDownloadAction, payload: Record
 let downloads: Record<string, OnlineDownload> = {}
 const listeners = new Set<() => void>()
 let attached = false
+const unpackedListeners = new Set<(e: { mediaId: number, dir: string }) => void>()
 
 function attach() {
     if (attached || typeof window === "undefined" || !window.electron?.on) return
     attached = true
     window.electron.on("media-source:event", (event: any) => {
+        if (event?.type === "unpacked") return unpackedListeners.forEach(l => l(event))
         if (event?.type === "download" && typeof event.id === "string") downloads = { ...downloads, [event.id]: event }
         else if (event?.type === "downloads" && Array.isArray(event.list)) downloads = Object.fromEntries(event.list.map((d: OnlineDownload) => [d.id, d]))
         else return
@@ -138,4 +145,25 @@ export function usePreparingDownloads() {
         return () => void preparingListeners.delete(l)
     }, () => preparing, () => preparing)
     return React.useMemo(() => Object.values(all).sort((a, b) => b.started - a.started), [all])
+}
+
+/** Scans the anime library after a downloaded season archive was unpacked into it, so its episodes show up. */
+export function useScanAfterUnpack() {
+    const { mutate: scan } = useScanLocalFiles()
+    const scanRef = React.useRef(scan)
+    scanRef.current = scan
+    React.useEffect(() => {
+        attach()
+        let timer: number | undefined
+        // Several seasons finishing together share one scan
+        const listener = () => {
+            window.clearTimeout(timer)
+            timer = window.setTimeout(() => scanRef.current({ enhanced: false, enhanceWithOfflineDatabase: false, skipLockedFiles: true, skipIgnoredFiles: true }), 3000)
+        }
+        unpackedListeners.add(listener)
+        return () => {
+            window.clearTimeout(timer)
+            unpackedListeners.delete(listener)
+        }
+    }, [])
 }

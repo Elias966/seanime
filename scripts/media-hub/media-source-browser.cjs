@@ -1,5 +1,5 @@
 /* Isolated source browsing and capability-scoped media relay. GPL-3.0. */
-const http=require('node:http'),https=require('node:https'),dns=require('node:dns').promises,net=require('node:net'),crypto=require('node:crypto'),fs=require('node:fs'),path=require('node:path');
+const http=require('node:http'),https=require('node:https'),dns=require('node:dns').promises,net=require('node:net'),crypto=require('node:crypto'),fs=require('node:fs'),path=require('node:path'),{extractArchive,ARCHIVE}=require('./archive-extract.cjs');
 function publicIP(ip){
  if(ip.startsWith('::ffff:'))return publicIP(ip.slice(7));
  if(net.isIP(ip)===4){const[a,b]=ip.split('.').map(Number);return !(a===0||a===10||a===127||a>=224||a===169&&b===254||a===172&&b>=16&&b<=31||a===192&&(b===168||b===0)||a===100&&b>=64&&b<=127||a===198&&(b===18||b===19))}
@@ -90,10 +90,21 @@ function attachDownloads(win,registry){
  // The list is kept between runs for the Online downloads page. Electron writes straight to the final file,
  // so one still running when the app closed is only a partial file and is removed.
  const store=path.join(app.getPath('userData'),'online-downloads.json');
- try{for(const r of JSON.parse(fs.readFileSync(store,'utf8'))){if(!r||typeof r.id!=='string'||typeof r.path!=='string')continue;if(r.state==='progressing'||r.state==='paused'||r.state==='interrupted'){r.state='failed';if(r.path)fs.rm(r.path,{force:true},()=>{})}records.set(r.id,{...r,speed:0})}}catch{}
+ try{for(const r of JSON.parse(fs.readFileSync(store,'utf8'))){if(!r||typeof r.id!=='string'||typeof r.path!=='string')continue;if(r.state==='progressing'||r.state==='paused'||r.state==='interrupted'){r.state='failed';if(r.path)fs.rm(r.path,{force:true},()=>{})}if(r.extract?.state==='extracting')r.extract={state:'failed',error:'Unpacking stopped when the app closed'};records.set(r.id,{...r,speed:0})}}catch{}
  let saveTimer;const save=()=>{clearTimeout(saveTimer);saveTimer=setTimeout(()=>fs.writeFile(store,JSON.stringify([...records.values()].slice(-300)),()=>{}),500)};
  const send=d=>{if(!win.isDestroyed())win.webContents.send('media-source:event',d)};
  const sendList=()=>send({type:'downloads',list:[...records.values()]});
+ // A finished season archive is unpacked into its folder. The archive is deleted only after every file checked out
+ // and episodes were found; downloads that went into the anime library then ask the app to scan it.
+ const unpacking=new Set();
+ const unpack=r=>{
+  if(unpacking.has(r.id)||!r.path||!ARCHIVE.test(r.path)||!fs.existsSync(r.path))return;unpacking.add(r.id);
+  const archive=r.path,dir=path.dirname(archive);let sent=0;r.extract={state:'extracting',done:0,total:0};send({type:'download',...r});save();
+  extractArchive(archive,dir,(done,total)=>{r.extract={state:'extracting',done,total};if(Date.now()-sent>500){sent=Date.now();send({type:'download',...r})}})
+   .then(videos=>{fs.rmSync(archive,{force:true});r.extract={state:'done',episodes:videos.length};r.archive=path.basename(archive);r.path=dir;send({type:'download',...r});if(r.library)send({type:'unpacked',id:r.id,mediaId:r.mediaId,dir})})
+   .catch(e=>{r.extract={state:'failed',error:e.message};send({type:'download',...r})})
+   .finally(()=>{unpacking.delete(r.id);save()});
+ };
  const okDir=d=>typeof d==='string'&&path.isAbsolute(d)&&!d.includes('\0');
  const start=(sourceId,url,meta,referer)=>{const u=new URL(url);if(u.protocol!=='https:')return;if(pending.size>50)pending.delete(pending.keys().next().value);pending.set(u.href,meta);partition(sourceId).downloadURL(u.href,referer?{headers:{Referer:referer}}:undefined)};
  for(const source of sources)partition(source.id).on('will-download',(e,item)=>{
@@ -104,13 +115,13 @@ function attachDownloads(win,registry){
   const meta={...dirs.get(source.id),...asked};
   const dir=meta.dir||path.join(app.getPath('downloads'),'Seanime');try{fs.mkdirSync(dir,{recursive:true})}catch{}
   const file=freePath(dir,name),id=crypto.randomUUID();item.setSavePath(file);items.set(id,item);
-  const r={id,sourceId:source.id,name:path.basename(file),path:file,url:chain[0],referer:meta.referer||'',title:meta.title||'',mediaId:meta.mediaId||0,received:0,total:item.getTotalBytes(),state:'progressing',speed:0,started:Date.now()};records.set(id,r);
+  const r={id,sourceId:source.id,name:path.basename(file),path:file,url:chain[0],referer:meta.referer||'',title:meta.title||'',mediaId:meta.mediaId||0,library:!!meta.dir,received:0,total:item.getTotalBytes(),state:'progressing',speed:0,started:Date.now()};records.set(id,r);
   let last=0,lastBytes=0,lastAt=Date.now();
   const report=state=>{const now=Date.now(),got=item.getReceivedBytes();if(now-lastAt>=500){r.speed=Math.max(0,(got-lastBytes)*1000/(now-lastAt));lastBytes=got;lastAt=now}Object.assign(r,{received:got,total:item.getTotalBytes(),state});if(state!=='progressing')r.speed=0;send({type:'download',...r})};
   reports.set(id,report);report('progressing');save();
   item.on('updated',(_,state)=>{const now=Date.now();if(state==='progressing'&&!item.isPaused()&&now-last<700)return;last=now;report(state==='interrupted'?'interrupted':item.isPaused()?'paused':'progressing')});
   // A cancelled or failed download leaves a partial file, which is removed.
-  item.once('done',(_,state)=>{items.delete(id);reports.delete(id);r.finished=Date.now();report(state);save();if(state!=='completed')fs.rm(file,{force:true},()=>{})});
+  item.once('done',(_,state)=>{items.delete(id);reports.delete(id);r.finished=Date.now();report(state);save();if(state!=='completed')fs.rm(file,{force:true},()=>{});else unpack(r)});
  });
  ipcMain.on('media-source:download',(e,msg)=>{
   if(e.sender!==win.webContents||!msg||typeof msg!=='object')return;const source=sources.find(s=>s.id===msg.sourceId);
@@ -119,6 +130,7 @@ function attachDownloads(win,registry){
    if(msg.action==='dir'&&source&&okDir(msg.dir))dirs.set(source.id,{dir:path.normalize(msg.dir),title:String(msg.title||'').slice(0,200),mediaId:Number(msg.mediaId)||0});
    else if(msg.action==='start'&&source){const referer=typeof msg.referer==='string'&&/^https:\/\//.test(msg.referer)?msg.referer:'';start(source.id,msg.url,{...(okDir(msg.dir)&&{dir:path.normalize(msg.dir)}),title:String(msg.title||'').slice(0,200),mediaId:Number(msg.mediaId)||0,referer},referer)}
    else if(msg.action==='list')sendList();
+   else if(msg.action==='unpack'&&r?.state==='completed'&&r.extract?.state==='failed')unpack(r);
    else if(msg.action==='cancel')item?.cancel();
    else if(msg.action==='pause'&&item){item.pause();reports.get(id)?.('paused')}
    else if(msg.action==='resume'&&item?.canResume()){item.resume();reports.get(id)?.('progressing')}

@@ -12,7 +12,7 @@ import { cn } from "@/components/ui/core/styling"
 import { LoadingSpinner } from "@/components/ui/loading-spinner"
 import { Tooltip } from "@/components/ui/tooltip"
 import React from "react"
-import { BiFolderOpen, BiPause, BiPlay, BiRefresh, BiTrash, BiX } from "react-icons/bi"
+import { BiArchiveOut, BiFolderOpen, BiPause, BiPlay, BiRefresh, BiTrash, BiX } from "react-icons/bi"
 
 const siteName = (id: string) => ONLINE_SITES.find(s => s.id === id)?.name || id
 
@@ -35,6 +35,9 @@ export function OnlineDownloadRow({ d, showTitle }: { d: OnlineDownload, showTit
     const pct = d.total ? Math.min(100, d.received / d.total * 100) : d.state === "completed" ? 100 : 0
     const running = d.state === "progressing"
     const eta = running && d.speed > 0 && d.total ? formatEta((d.total - d.received) / d.speed) : ""
+    const ex = d.state === "completed" ? d.extract : undefined
+    const unpacking = ex?.state === "extracting"
+    const unpackPct = unpacking && ex.total ? Math.min(100, ex.done / ex.total * 100) : 0
 
     return (
         <div className="rounded-[--radius-md] border bg-[--paper] p-3 space-y-2" data-online-download-item={d.state}>
@@ -54,23 +57,27 @@ export function OnlineDownloadRow({ d, showTitle }: { d: OnlineDownload, showTit
                     {(d.state === "paused" || d.state === "interrupted") && <Action label="Resume" icon={<BiPlay />} onClick={act("resume")} />}
                     {(running || d.state === "paused" || d.state === "interrupted") &&
                         <Action label="Cancel" icon={<BiX />} intent="alert-basic" onClick={act("cancel")} />}
-                    {d.state === "completed" && <Action label="Open" icon={<BiPlay />} onClick={act("open")} />}
+                    {ex?.state === "failed" && <Action label="Unpack again" icon={<BiArchiveOut />} onClick={act("unpack")} />}
+                    {d.state === "completed" && !unpacking && <Action label="Open" icon={<BiPlay />} onClick={act("open")} />}
                     {(d.state === "failed" || d.state === "cancelled") && <Action label="Retry" icon={<BiRefresh />} onClick={act("retry")} />}
                     {d.path && <Action label="Show in folder" icon={<BiFolderOpen />} onClick={act("folder")} />}
-                    {!running && d.state !== "paused" && d.state !== "interrupted" &&
+                    {!running && !unpacking && d.state !== "paused" && d.state !== "interrupted" &&
                         <Action label="Remove from list" icon={<BiTrash />} onClick={act("remove")} />}
                 </div>
             </div>
             <div className="h-1.5 rounded bg-gray-800 overflow-hidden">
                 <div
                     className={cn("h-full transition-[width]",
-                        d.state === "completed" ? "bg-green-500" : running ? "bg-[--brand]" : d.state === "paused" || d.state === "interrupted"
+                        unpacking ? "bg-[--brand]" : d.state === "completed" ? "bg-green-500" : running ? "bg-[--brand]" : d.state === "paused" || d.state === "interrupted"
                             ? "bg-yellow-500" : "bg-red-500")}
-                    style={{ width: `${d.state === "failed" || d.state === "cancelled" ? 100 : Math.max(pct, running ? 2 : 0)}%` }}
+                    style={{ width: `${unpacking ? Math.max(unpackPct, 2) : d.state === "failed" || d.state === "cancelled" ? 100 : Math.max(pct, running ? 2 : 0)}%` }}
                 />
             </div>
             <p className="text-xs text-[--muted]">
-                {STATE_LABEL[d.state] || d.state}
+                {unpacking ? `Unpacking${ex.total ? ` ${unpackPct.toFixed(0)}%` : "…"}`
+                    : ex?.state === "done" ? `Unpacked ${ex.episodes} ${ex.episodes === 1 ? "episode" : "episodes"}, ${d.archive || "the archive"} was deleted`
+                        : STATE_LABEL[d.state] || d.state}
+                {ex?.state === "failed" ? ` · Could not unpack: ${ex.error}` : ""}
                 {d.total || d.received ? ` · ${formatBytes(d.received)}${d.total ? ` / ${formatBytes(d.total)} (${pct.toFixed(0)}%)` : ""}` : ""}
                 {running && d.speed > 0 ? ` · ${formatBytes(d.speed)}/s` : ""}
                 {eta ? ` · ${eta} left` : ""}
