@@ -1117,6 +1117,9 @@ Style: Default, Roboto Medium,24,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0
         }
 
         // Check if it's not the same as target language
+        // A track already in the target language is shown as it is
+        if (detectTrackLanguage(trackToTranslate.info) === this.shouldTranslate) return
+
         const t = Object.values(this.fileTracks).find(t => detectTrackLanguage(t.info) === this.shouldTranslate)
         if (t && t.info.index !== trackNumber) {
             subtitleLog.info(`Track ${t.info} is already in target language`, trackNumber, ", selecting it instead")
