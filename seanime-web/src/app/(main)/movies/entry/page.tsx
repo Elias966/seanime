@@ -32,7 +32,9 @@ import {
     useMovieLibrary,
     useMovieMeta,
     useMovieSettings,
+    useMovie1337xTorrents,
     useMovieTorrents,
+    useTorrentSource,
     ytsMagnet,
     clientMagnet,
     syncClientDownloads,
@@ -250,7 +252,10 @@ function releaseTitle(meta: Movie_Meta, t: Movie_YtsTorrent) {
 }
 
 function MovieTorrentSection({ meta }: { meta: Movie_Meta }) {
-    const { data: yts, isLoading, isError } = useMovieTorrents(meta.id)
+    const [source, setSource] = useTorrentSource<"1337x" | "yts">("movies", "1337x")
+    const x1337 = useMovie1337xTorrents(source === "1337x" ? meta.name : undefined, movieYear(meta))
+    const ytsQuery = useMovieTorrents(source === "yts" ? meta.id : undefined)
+    const { isLoading, isError, error } = source === "1337x" ? x1337 : ytsQuery
     const { data: library } = useMovieLibrary()
     const { data: active } = useEngineTorrents(3000)
     const serverStatus = useServerStatus()
@@ -265,8 +270,8 @@ function MovieTorrentSection({ meta }: { meta: Movie_Meta }) {
     const [streaming, setStreaming] = React.useState<{ hash: string, title: string, imdb: string }>()
     const [busy, setBusy] = React.useState<string>()
 
-    const torrents = React.useMemo(() => [...(yts?.torrents ?? [])].sort((a, b) => qualityRank(b.quality) - qualityRank(a.quality) || b.seeds - a.seeds),
-        [yts])
+    const torrents = React.useMemo(() => [...((source === "1337x" ? x1337.data : ytsQuery.data?.torrents) ?? [])].sort((a, b) => qualityRank(b.quality) - qualityRank(a.quality) || b.seeds - a.seeds),
+        [source, x1337.data, ytsQuery.data])
 
     async function start(t: Movie_YtsTorrent, mode: "stream" | "download") {
         const title = releaseTitle(meta, t)
@@ -305,9 +310,21 @@ function MovieTorrentSection({ meta }: { meta: Movie_Meta }) {
     return (
         <>
             <div className="space-y-4">
-                <h3 className="text-xl font-semibold">Releases</h3>
+                <div className="flex items-center gap-3 flex-wrap">
+                    <h3 className="text-xl font-semibold">Releases</h3>
+                    <select
+                        className="rounded-md bg-gray-900 border px-2 text-sm h-8"
+                        value={source}
+                        onChange={e => setSource(e.target.value as "1337x" | "yts")}
+                        aria-label="Torrent source"
+                        data-movie-torrent-source
+                    >
+                        <option value="1337x">1337x</option>
+                        <option value="yts">YTS</option>
+                    </select>
+                </div>
                 {isLoading ? <div className="flex justify-center py-10"><LoadingSpinner /></div>
-                    : isError ? <LuffyError title="Media helper unavailable"><p>Restart Seanime and try again.</p></LuffyError>
+                    : isError ? <LuffyError title="Could not get torrents"><p>{(error as Error)?.message ?? "Try another source."}</p></LuffyError>
                         : !torrents.length ? <LuffyError title={null}>
                             <p>No torrent releases found for this movie. Try Online streaming.</p>
                         </LuffyError>
@@ -330,13 +347,14 @@ function MovieTorrentSection({ meta }: { meta: Movie_Meta }) {
                                                 {!!t.video_codec && <Badge intent="gray">{t.video_codec}</Badge>}
                                                 {!!t.audio_channels && <Badge intent="gray">{t.audio_channels}ch</Badge>}
                                             </div>
+                                            {!!t.name && <p className="text-xs text-[--muted] truncate" title={t.name}>{t.name}</p>}
                                             <p className="text-sm text-[--muted] flex items-center gap-3">
                                                 <span>{t.size}</span>
                                                 <span className={cn("flex items-center gap-1", t.seeds > 20 ? "text-green-300" : t.seeds > 0
                                                     ? "text-yellow-200"
                                                     : "text-red-300")}>
                                                     {/* YTS stops counting at 100 */}
-                                                    <LuUsers /> {t.seeds >= 100 ? "100+" : t.seeds} seeders
+                                                    <LuUsers /> {source === "yts" && t.seeds >= 100 ? "100+" : t.seeds} seeders
                                                 </span>
                                             </p>
                                         </div>

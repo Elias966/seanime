@@ -72,6 +72,8 @@ export type Movie_Meta = {
 }
 
 export type Movie_YtsTorrent = {
+    /** The release's own name, 1337x only */
+    name?: string
     hash: string
     quality: string
     type: string
@@ -262,6 +264,42 @@ export function useMovieMeta(id: string | undefined, type: Movie_Meta["type"] = 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Media helper (YTS, list)
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+/** Which torrent source a kind of content uses, remembered for next time. 1337x is the default. */
+export function useTorrentSource<T extends string>(kind: "movies" | "series", fallback: T) {
+    const key = `sea-torrent-source-${kind}`
+    const [source, setSource] = React.useState<T>(() => {
+        try {
+            return (localStorage.getItem(key) as T) || fallback
+        }
+        catch {
+            return fallback
+        }
+    })
+    const change = (value: T) => {
+        setSource(value)
+        try {
+            localStorage.setItem(key, value)
+        }
+        catch {
+        }
+    }
+    return [source, change] as const
+}
+
+// Long enough for the person to finish a human check when Firefox asks for one
+const HUMAN_CHECK_WAIT = 240000
+
+export function useMovie1337xTorrents(title: string | undefined, year: number | string | undefined) {
+    return useQuery({
+        queryKey: ["movies-1337x", title, year],
+        queryFn: () => getJson<Movie_YtsTorrent[]>(`${MEDIA_HELPER}/media/movie-torrents?${new URLSearchParams({ title: title!, year: String(year ?? "") })}`,
+            { signal: AbortSignal.timeout(HUMAN_CHECK_WAIT) }),
+        enabled: !!title,
+        retry: 0,
+        staleTime: 1000 * 60 * 10,
+    })
+}
 
 export function useMovieTorrents(imdbId: string | undefined) {
     return useQuery({
@@ -1009,12 +1047,13 @@ export function startSeriesTorrent(hash: string, title: string, series: string) 
 /** A series release: one episode, or a pack of whole seasons (season..last, both missing for "complete" packs) */
 export type Series_Torrent = { hash: string, title: string, size: number, seeds: number, season: number | null, last?: number | null, episode: number | null, pack: boolean }
 
-export function useSeriesTorrents(imdb: string | undefined, title: string, enabled: boolean) {
+export function useSeriesTorrents(imdb: string | undefined, title: string, enabled: boolean, source: "1337x" | "open" = "open") {
     return useQuery({
-        queryKey: ["series-torrents", imdb, title],
-        queryFn: () => getJson<Series_Torrent[]>(`${MEDIA_HELPER}/media/series-torrents?${new URLSearchParams({ imdb: imdb ?? "", title })}`),
+        queryKey: ["series-torrents", imdb, title, source],
+        queryFn: () => getJson<Series_Torrent[]>(`${MEDIA_HELPER}/media/series-torrents?${new URLSearchParams({ imdb: imdb ?? "", title, source })}`,
+            source === "1337x" ? { signal: AbortSignal.timeout(HUMAN_CHECK_WAIT) } : undefined),
         enabled: enabled && !!title,
-        retry: 1,
+        retry: source === "1337x" ? 0 : 1,
         staleTime: 1000 * 60 * 10,
     })
 }

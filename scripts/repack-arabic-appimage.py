@@ -25,6 +25,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 UBLOCK_VERSION = '1.75.0'
 UBLOCK_SHA256 = '393cf95709d1074d4022970e9014e434395c53a822387f1e25f43be97cf4b582'
+UBLOCK_FIREFOX_SHA256 = '5b74415860456370644bd80f16125e865b0e6c356bb5dfcfb84069967eaa5287'
 
 
 def ensure_ublock(dest):
@@ -36,6 +37,15 @@ def ensure_ublock(dest):
     html = page.read_text()
     if 'electron-shim.js' not in html:
         page.write_text(html.replace('<script src="js/vapi.js">', '<script src="js/electron-shim.js"></script>\n<script src="js/vapi.js">', 1))
+
+
+def ensure_ublock_firefox(dest):
+    """Fetch the pinned, signed uBlock Origin build for the dedicated Firefox profile."""
+    if not dest.exists() or hashlib.sha256(dest.read_bytes()).hexdigest() != UBLOCK_FIREFOX_SHA256:
+        urllib.request.urlretrieve(f'https://github.com/gorhill/uBlock/releases/download/{UBLOCK_VERSION}/uBlock0_{UBLOCK_VERSION}.firefox.signed.xpi', dest)
+        if hashlib.sha256(dest.read_bytes()).hexdigest() != UBLOCK_FIREFOX_SHA256:
+            dest.unlink()
+            raise SystemExit('uBlock Origin for Firefox download failed its checksum')
 
 
 def download_ublock(dest):
@@ -261,6 +271,9 @@ def main():
         shutil.copyfile(ROOT / 'scripts/arabic-translation/cover_store.py',
                         app_dir / 'resources/cover_store.py')
         shutil.copyfile(ROOT / 'scripts/arabic-translation/media_hub.py', app_dir / 'resources/media_hub.py')
+        shutil.copyfile(ROOT / 'scripts/arabic-translation/firefox_session.py', app_dir / 'resources/firefox_session.py')
+        ensure_ublock_firefox(ROOT / 'scripts/media-hub/ublock-firefox.xpi')
+        shutil.copyfile(ROOT / 'scripts/media-hub/ublock-firefox.xpi', app_dir / 'resources/ublock-firefox.xpi')
         shutil.copyfile(ROOT / 'scripts/media-hub/sources.json', app_dir / 'resources/sources.json')
         ensure_ublock(ROOT / 'scripts/media-hub/ublock-origin')
         shutil.copytree(ROOT / 'scripts/media-hub', app_dir / 'resources/media-hub', ignore=shutil.ignore_patterns('test-*', 'test_*', '*.log', '__pycache__'))

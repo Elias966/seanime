@@ -92,3 +92,4 @@ local_testing
 dist-server
 scripts/build.go
 scripts/media-hub/ublock-origin/
+scripts/media-hub/ublock-firefox.xpi

@@ -20,6 +20,8 @@ type TorrentSearchHookProps = {
     type: TorrentSelectionType
 }
 
+const ANIME_TORRENT_SOURCE_KEY = "sea-torrent-source-anime"
+
 export const enum Torrent_SearchType {
     SMART = "smart",
     SIMPLE = "simple",
@@ -53,6 +55,16 @@ export function useHandleTorrentSearch(props: TorrentSearchHookProps) {
             return undefined
         }
 
+        // 1337x is the default for anime too, unless another source was picked here
+        let remembered: string | null = null
+        try {
+            remembered = localStorage.getItem(ANIME_TORRENT_SOURCE_KEY)
+        }
+        catch {
+        }
+        const preferred = providerExtensions?.find(ext => ext.id === remembered) ?? providerExtensions?.find(ext => ext.id === "seanime-1337x")
+        if (preferred) return preferred
+
         const defaultExt = providerExtensions?.find(ext => ext.id === serverStatus?.settings?.library?.torrentProvider)
         if (!defaultExt) {
             return providerExtensions?.[0]
@@ -61,11 +73,19 @@ export function useHandleTorrentSearch(props: TorrentSearchHookProps) {
     }, [serverStatus?.settings?.library?.torrentProvider, providerExtensions])
 
     // Gives the ability to change the selected provider extension
-    const [selectedProviderExtensionId, setSelectedProviderExtensionId] = React.useState(defaultProviderExtension?.id || "none")
+    const [selectedProviderExtensionId, selectProviderExtension] = React.useState(defaultProviderExtension?.id || "none")
+    const setSelectedProviderExtensionId = React.useCallback((id: string) => {
+        selectProviderExtension(id)
+        try {
+            localStorage.setItem(ANIME_TORRENT_SOURCE_KEY, id)
+        }
+        catch {
+        }
+    }, [])
 
     // Update the selected provider only when the default provider changes
     React.useLayoutEffect(() => {
-        setSelectedProviderExtensionId(defaultProviderExtension?.id || "none")
+        selectProviderExtension(defaultProviderExtension?.id || "none")
     }, [defaultProviderExtension?.id])
 
     // Get the selected provider extension

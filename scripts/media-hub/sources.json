@@ -38,7 +38,7 @@
       ],
       "nativeId": null,
       "status": "verification-wall",
-      "mode": "unavailable",
+      "mode": "firefox",
       "accountRequired": false,
       "audit": {
         "level": "reachable-page",
@@ -59,9 +59,9 @@
         "checkedAt": "2026-10-29T07:39:56.876692+00:00",
         "selectedUrl": "https://worldscinema.org/"
       },
-      "reason": "Explicit browser/human verification wall; excluded without bypass.",
+      "reason": "Browser verification wall; opens in the real Firefox, where the person completes the check.",
       "browseUrl": "https://worldscinema.org/",
-      "excluded": true
+      "excluded": false
     },
     {
       "id": "rarefilmm",
@@ -320,7 +320,7 @@
       ],
       "nativeId": null,
       "status": "verification-wall",
-      "mode": "unavailable",
+      "mode": "firefox",
       "accountRequired": false,
       "audit": {
         "level": "reachable-page",
@@ -341,9 +341,9 @@
         "checkedAt": "2026-10-29T07:39:56.879291+00:00",
         "selectedUrl": "https://free-movies.to/"
       },
-      "reason": "Explicit browser/human verification wall; excluded without bypass.",
+      "reason": "Browser verification wall; opens in the real Firefox, where the person completes the check.",
       "browseUrl": "https://free-movies.to/",
-      "excluded": true
+      "excluded": false
     },
     {
       "id": "tamilmv",
@@ -502,7 +502,7 @@
       ],
       "nativeId": null,
       "status": "verification-wall",
-      "mode": "unavailable",
+      "mode": "firefox",
       "accountRequired": false,
       "audit": {
         "level": "reachable-page",
@@ -523,9 +523,9 @@
         "checkedAt": "2026-10-29T07:39:57.117124+00:00",
         "selectedUrl": "https://www.animeout.xyz/"
       },
-      "reason": "Explicit browser/human verification wall; excluded without bypass.",
+      "reason": "Browser verification wall; opens in the real Firefox, where the person completes the check.",
       "browseUrl": "https://www.animeout.xyz/",
-      "excluded": true
+      "excluded": false
     },
     {
       "id": "hi10-anime",
@@ -2063,7 +2063,7 @@
       ],
       "nativeId": null,
       "status": "verification-wall",
-      "mode": "unavailable",
+      "mode": "firefox",
       "accountRequired": false,
       "audit": {
         "level": "reachable-page",
@@ -2084,9 +2084,9 @@
         "checkedAt": "2026-10-29T07:40:01.473432+00:00",
         "selectedUrl": "https://duafile.com/"
       },
-      "reason": "Explicit browser/human verification wall; excluded without bypass.",
+      "reason": "Browser verification wall; opens in the real Firefox, where the person completes the check.",
       "browseUrl": "https://duafile.com/",
-      "excluded": true
+      "excluded": false
     },
     {
       "id": "filmex",
@@ -2519,7 +2519,7 @@
       ],
       "nativeId": null,
       "status": "verification-wall",
-      "mode": "unavailable",
+      "mode": "firefox",
       "accountRequired": false,
       "audit": {
         "level": "reachable-page",
@@ -2540,9 +2540,9 @@
         "checkedAt": "2026-10-29T07:40:02.510925+00:00",
         "selectedUrl": "https://mapple.tv/"
       },
-      "reason": "Explicit browser/human verification wall; excluded without bypass.",
+      "reason": "Browser verification wall; opens in the real Firefox, where the person completes the check.",
       "browseUrl": "https://mapple.tv/",
-      "excluded": true
+      "excluded": false
     },
     {
       "id": "beech-watch",
@@ -3496,7 +3496,7 @@
       ],
       "nativeId": null,
       "status": "verification-wall",
-      "mode": "unavailable",
+      "mode": "firefox",
       "accountRequired": false,
       "audit": {
         "level": "reachable-page",
@@ -3517,9 +3517,9 @@
         "checkedAt": "2026-10-29T07:40:06.242053+00:00",
         "selectedUrl": "https://1337x.to/movie-library/1/"
       },
-      "reason": "Explicit browser/human verification wall; excluded without bypass.",
+      "reason": "Browser verification wall; opens in the real Firefox, where the person completes the check.",
       "browseUrl": "https://1337x.to/movie-library/1/",
-      "excluded": true
+      "excluded": false
     },
     {
       "id": "yts",
@@ -3851,8 +3851,8 @@
         }
       ],
       "nativeId": null,
-      "status": "unavailable",
-      "mode": "unavailable",
+      "status": "verification-wall",
+      "mode": "firefox",
       "accountRequired": false,
       "audit": {
         "level": "reachable-page",
@@ -3873,9 +3873,9 @@
         "checkedAt": "2026-10-29T07:40:07.224855+00:00",
         "selectedUrl": "https://animepahe.pw/"
       },
-      "reason": "HTTP 403; page access failed.",
+      "reason": "Browser verification wall; opens in the real Firefox, where the person completes the check.",
       "browseUrl": "https://animepahe.pw/",
-      "excluded": true
+      "excluded": false
     },
     {
       "id": "miruro",
@@ -3995,7 +3995,7 @@
       ],
       "nativeId": null,
       "status": "verification-wall",
-      "mode": "unavailable",
+      "mode": "firefox",
       "accountRequired": false,
       "audit": {
         "level": "reachable-page",
@@ -4016,9 +4016,9 @@
         "checkedAt": "2026-10-29T07:40:07.549559+00:00",
         "selectedUrl": "https://anihq.cc/"
       },
-      "reason": "Explicit browser/human verification wall; excluded without bypass.",
+      "reason": "Browser verification wall; opens in the real Firefox, where the person completes the check.",
       "browseUrl": "https://anihq.cc/",
-      "excluded": true
+      "excluded": false
     },
     {
       "id": "anikuro",
@@ -4186,8 +4186,8 @@
         }
       ],
       "nativeId": null,
-      "status": "unavailable",
-      "mode": "unavailable",
+      "status": "verification-wall",
+      "mode": "firefox",
       "accountRequired": false,
       "audit": {
         "level": "reachable-page",
@@ -4208,9 +4208,9 @@
         "checkedAt": "2026-10-29T07:40:07.831512+00:00",
         "selectedUrl": "https://animesilo.cc/"
       },
-      "reason": "HTTP 403; page access failed.",
+      "reason": "Browser verification wall; opens in the real Firefox, where the person completes the check.",
       "browseUrl": "https://animesilo.cc/",
-      "excluded": true
+      "excluded": false
     },
     {
       "id": "animenosub",
@@ -5070,7 +5070,7 @@
       ],
       "nativeId": null,
       "status": "verification-wall",
-      "mode": "unavailable",
+      "mode": "firefox",
       "accountRequired": false,
       "audit": {
         "level": "reachable-page",
@@ -5091,9 +5091,9 @@
         "checkedAt": "2026-10-29T07:40:11.843386+00:00",
         "selectedUrl": "https://share.acgnx.se/"
       },
-      "reason": "Explicit browser/human verification wall; excluded without bypass.",
+      "reason": "Browser verification wall; opens in the real Firefox, where the person completes the check.",
       "browseUrl": "https://share.acgnx.se/",
-      "excluded": true
+      "excluded": false
     },
     {
       "id": "animetoki",
@@ -5655,8 +5655,8 @@
     "account-required": 3,
     "directory": 2,
     "reachable": 64,
-    "unavailable": 22,
+    "unavailable": 20,
     "unrelated": 1,
-    "verification-wall": 8
+    "verification-wall": 10
   }
 }

@@ -11,6 +11,7 @@ import {
     useMovieSettings,
     useSeriesSiteLinks,
     useSeriesTorrents,
+    useTorrentSource,
 } from "@/app/(main)/movies/_lib/movies.api"
 import { Button } from "@/components/ui/button"
 import { LoadingSpinner } from "@/components/ui/loading-spinner"
@@ -77,7 +78,8 @@ export function SeriesDownloadDrawer({ open, onOpenChange, title, imdb, isDrama,
 function SeriesTorrents({ title, imdb, season: initialSeason, seasons, onStarted }: {
     title: string, imdb?: string, season: number, seasons: number[], onStarted: () => void
 }) {
-    const { data, isLoading, isError } = useSeriesTorrents(imdb, title, true)
+    const [source, setSource] = useTorrentSource<"1337x" | "open">("series", "1337x")
+    const { data, isLoading, isError, error } = useSeriesTorrents(imdb, title, true, source)
     const running = useEngineTorrents(3000).data
     const [season, setSeason] = React.useState(initialSeason)
     const [selected, setSelected] = React.useState<Set<string>>(new Set())
@@ -123,8 +125,18 @@ function SeriesTorrents({ title, imdb, season: initialSeason, seasons, onStarted
         <div className="flex-1 min-h-0 flex flex-col gap-3" data-series-torrents>
             <div className="flex items-center gap-3 flex-wrap">
                 <p className="text-sm text-[--muted] flex-1">
-                    Torrents found on EZTV and Torrents-CSV. A season pack gets every episode at once; otherwise pick the episodes.
+                    A season pack gets every episode at once; otherwise pick the episodes.
                 </p>
+                <select
+                    className="rounded-md bg-gray-900 border px-2 text-sm h-8"
+                    value={source}
+                    onChange={e => setSource(e.target.value as "1337x" | "open")}
+                    aria-label="Torrent source"
+                    data-series-torrent-source
+                >
+                    <option value="1337x">1337x</option>
+                    <option value="open">EZTV and Torrents-CSV</option>
+                </select>
                 {seasons.length > 1 && <select
                     className="rounded-md bg-gray-900 border px-2 text-sm h-8"
                     value={season}
@@ -136,7 +148,7 @@ function SeriesTorrents({ title, imdb, season: initialSeason, seasons, onStarted
             </div>
             <div className="flex-1 overflow-y-auto space-y-4 pr-1">
                 {isLoading && <div className="flex items-center gap-3 text-[--muted] py-6"><LoadingSpinner className="w-6 h-6 m-0" /> Looking for torrents…</div>}
-                {isError && <p className="text-sm text-red-400">The torrent sites did not answer, try again later.</p>}
+                {isError && <p className="text-sm text-red-400">{(error as Error)?.message ?? "The torrent sites did not answer, try another source."}</p>}
                 {!isLoading && !isError && !packs.length && !episodes.length && <p className="text-sm text-[--muted] py-4">
                     No torrents were found for season {season}. Try the download sites, or another season.
                 </p>}

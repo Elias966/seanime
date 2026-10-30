@@ -109,6 +109,8 @@ def apply_audit(source, probes):
     source['audit']['selectedUrl'] = selected['url']
     source['browseUrl'] = selected['url']
     source['mode'] = ('native' if source.get('nativeId') else 'site') if source['status'] in ('reachable', 'available', 'account-required', 'directory') else 'unavailable'
+    if source['status'] == 'verification-wall':
+        source['mode'] = 'firefox'
     source['excluded'] = source['mode'] == 'unavailable'
     return source
 

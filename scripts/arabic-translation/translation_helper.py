@@ -6,6 +6,8 @@ Python standard library only. Binds loopback; all model requests stay on loopbac
 import argparse
 import copy
 import json
+import signal
+import os
 import logging
 import re
 import threading
@@ -16,10 +18,10 @@ import unicodedata
 import urllib.parse
 from artwork_cache import ArtworkCache
 from cover_store import CoverStore
-from media_hub import MediaHub
+from media_hub import MediaHub,install_x1337_extension
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-HELPER_REVISION = 'media-sources-v13'
+HELPER_REVISION = 'media-sources-v14'
 LOG = logging.getLogger('seanime-translation')
 ARABIC = re.compile(r'[\u0620-\u064a\u066e-\u06d3\u06fa-\u06ff\u0750-\u077f\u08a0-\u08c9]')
 LATIN_WORDS = re.compile(r'[A-Za-z]+')
@@ -310,6 +312,14 @@ class Handler(BaseHTTPRequestHandler):
         self.send_json(404, {'error': {'message': 'Unknown endpoint'}})
 
     def do_POST(self):
+        if self.path == '/media/firefox-open':
+            if not self.cover_origin():return self.send_json(403, {'error':'Origin not allowed'})
+            try:
+                length=int(self.headers.get('Content-Length','0'))
+                if not 0 < length <= 16384 or self.headers.get('Content-Type','').split(';')[0]!='application/json':raise ValueError('Invalid request')
+                return self.cover_json(200,self.server.media.open_in_firefox(json.loads(self.rfile.read(length))))
+            except (ValueError,TypeError,AttributeError) as e:return self.cover_json(400,{'error':str(e)})
+            except Exception:return self.cover_json(502,{'error':'Could not open Firefox. Try again.'})
         if self.path == '/media/source-preferences':
             if not self.cover_origin():return self.send_json(403, {'error':'Origin not allowed'})
             try:
@@ -368,6 +378,12 @@ def main():
     server.artwork = ArtworkCache()
     server.covers = CoverStore(server.artwork)
     server.media = MediaHub()
+    try:install_x1337_extension(args.port)
+    except OSError as e:LOG.warning('Could not add the 1337x extension: %s',e)
+    # A hidden Firefox must not outlive the app
+    def stop(*_):
+        server.media.shutdown();os._exit(0)
+    signal.signal(signal.SIGTERM,stop)
     LOG.info('Listening on 127.0.0.1:%d; local Ollama adapter and persistent artwork cache', args.port)
     server.serve_forever()
 

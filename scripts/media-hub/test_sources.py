@@ -190,7 +190,9 @@ class SourceTests(unittest.TestCase):
                 self.assertTrue(set(p['listedUrls']) <= expected)
             self.assertTrue(set(source['categories']) <= {'streaming','torrent','direct-download','drama'})
             self.assertTrue(set(source['kinds']) <= {'movies','anime'})
-            if source['status'] in ('verification-wall','unavailable','unrelated'):
+            if source['status'] == 'verification-wall':
+                self.assertEqual(source['mode'], 'firefox')
+            elif source['status'] in ('unavailable','unrelated'):
                 self.assertEqual(source['mode'], 'unavailable')
             else:
                 self.assertIn(source['mode'], ('site','native'))

@@ -11,6 +11,44 @@ from patch_media_electron import patch_main,GUARD
 import media_hub
 from media_hub import MediaHub,Page,hydra_items,torrent_rss,fetch,id_part
 
+ROW1337='<tr><td class="coll-1 name"><a href="/sub/42/0/" class="icon"><i></i></a><a href="/torrent/%d/x/">%s</a><span class="comments">1</span></td>\n<td class="coll-2 seeds">%d</td><td class="coll-3 leeches">64</td><td class="coll-date">Jun. 13th \'12</td><td class="coll-4 size mob-vip">1.9 GB<span class="seeds">9</span></td><td class="coll-5 vip"></td></tr>'
+class FakeFirefox:
+    def __init__(self,rows):self.rows=rows;self.urls=[]
+    def fetch_all(self,urls):
+        self.urls+=urls
+        return [''.join(ROW1337%r for r in self.rows) if 'search' in u else 'magnet:?xt=urn:btih:'+('%040x'%int(u.split('/')[4])) for u in urls]
+class X1337Tests(unittest.TestCase):
+    def setUp(self):
+        self.tmp=tempfile.TemporaryDirectory();self.addCleanup(self.tmp.cleanup)
+    def hub(self,rows):
+        hub=MediaHub(self.tmp.name,lambda *a:'');hub._firefox=FakeFirefox(rows);return hub
+    def test_movie_keeps_the_title_and_year(self):
+        hub=self.hub([(1,'Inception (2010) 1080p BrRip x264 - YIFY',922),(2,'Inception Dreams 2010 720p',5),(3,'Inception 2010 2160p WEB-DL',50),(4,'Inception 1999 CAM',9)])
+        out=hub.get('/media/movie-torrents',{'title':['Inception'],'year':['2010']})
+        self.assertEqual([t['quality'] for t in out],['1080p','2160p'])
+        self.assertEqual(out[0]['type'],'bluray');self.assertEqual(out[0]['video_codec'],'X264');self.assertEqual(out[0]['seeds'],922);self.assertEqual(out[0]['hash'],'%040x'%1)
+        self.assertIn('/sort-category-search/Inception%202010/Movies/seeders/desc/1/',hub._firefox.urls[0])
+    def test_series_finds_episodes_and_packs(self):
+        hub=self.hub([(1,'The Last of Us S01E02 1080p',10),(2,'The Last of Us S01 COMPLETE',20),(3,'The Last Kingdom S01E01',99),(4,'The Last of Us 2023 poster',99)])
+        out=hub.get('/media/series-torrents',{'source':['1337x'],'title':['The Last of Us']})
+        self.assertEqual([(t['season'],t['episode'],t['pack']) for t in out],[(1,None,True),(1,2,False)])
+    def test_anime_search_and_cached_hashes(self):
+        hub=self.hub([(7,'[Group] Frieren - 01 [1080p]',3)])
+        out=hub.get('/media/torrents',{'provider':['1337x'],'cat':['anime'],'q':['Frieren']})
+        self.assertEqual(out[0]['hash'],'%040x'%7);self.assertTrue(out[0]['magnet'].startswith('magnet:?xt=urn:btih:'));self.assertEqual(out[0]['iso'],'2012-06-13T00:00:00Z');self.assertEqual(out[0]['size_bytes'],int(1.9*1024**3))
+        self.assertEqual(len(hub._firefox.urls),2)
+        hub.get('/media/torrents',{'provider':['1337x'],'cat':['anime'],'q':['Frieren again']})
+        self.assertEqual(len(hub._firefox.urls),3)
+    def test_only_checked_sites_open_in_firefox(self):
+        hub=self.hub([]);opened=[]
+        hub._firefox.open_site=opened.append
+        hub.open_in_firefox({'id':'mapple'});self.assertEqual(opened,['https://mapple.tv/'])
+        with self.assertRaises(ValueError):hub.open_in_firefox({'id':'hydra'})
+    def test_extension_is_written_once(self):
+        media_hub.install_x1337_extension(11435,self.tmp.name)
+        path=Path(self.tmp.name)/'seanime-1337x.json';value=json.loads(path.read_text())
+        self.assertEqual(value['type'],'anime-torrent-provider');self.assertIn('127.0.0.1:11435',value['payload'])
+
 class MediaTests(unittest.TestCase):
     def setUp(self):
         self.tmp=tempfile.TemporaryDirectory();self.addCleanup(self.tmp.cleanup)
