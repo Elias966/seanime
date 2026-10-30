@@ -126,7 +126,7 @@ export function createEngine(options={}){
   const stored=path.join(metadataDir,parsed.infoHash+'.torrent');if(!metadata&&fs.existsSync(stored))metadata=fs.readFileSync(stored);
   if(metadata){const p=await parseTorrent(metadata);if(p.infoHash!==parsed.infoHash)throw Error('Cached metadata does not match this torrent');p.urlList=[];p.announce=['udp://tracker.opentrackr.org:1337/announce','udp://open.stealth.si:80/announce'];metadata=toTorrentFile(p)}
   const dir=typeof value.dir==='string'&&roots().includes(path.resolve(value.dir))?path.resolve(value.dir):value.mode==='download'?libraryDir():directory;fs.mkdirSync(dir,{recursive:true});
-  const t=client.add(metadata||magnet,{path:dir,deselect:value.mode!=='download'});const job={torrent:t,mode:value.mode==='download'?'download':'stream',title:String(value.title||'').slice(0,180),media,error:''};t.on('error',()=>{});if(!t.infoHash)await new Promise((resolve,reject)=>{t.once('infoHash',resolve);t.once('error',reject)});jobs.set(t.infoHash,job);
+  const t=client.add(metadata||magnet,{path:dir,deselect:value.mode!=='download'});const job={torrent:t,mode:value.mode==='download'?'download':'stream',title:String(value.title||'').slice(0,180),media,error:'',used:Date.now()};t.on('error',()=>{});if(!t.infoHash)await new Promise((resolve,reject)=>{t.once('infoHash',resolve);t.once('error',reject)});jobs.set(t.infoHash,job);
   t.on('error',()=>{job.error='Torrent connection failed'});t.on('done',()=>{record(job);if(job.mode==='download')setImmediate(()=>stopFinished(t.infoHash))});t.once('ready',()=>{try{fs.writeFileSync(path.join(metadataDir,t.infoHash+'.torrent'),t.torrentFile)}catch{}if(job.mode==='stream')for(const f of t.files)f.deselect();persist()});persist();return t.infoHash;
  }
  const server=http.createServer(async(req,res)=>{
@@ -178,21 +178,25 @@ export function createEngine(options={}){
   }
   const match=/^\/media-file\/([a-f0-9]{40})\/(\d+)$/.exec(u.pathname);
   if(match&&(req.method==='GET'||req.method==='HEAD')){
-   const t=jobs.get(match[1])?.torrent,file=t?.files?.[Number(match[2])];if(!file||!t.ready)return json(404,{error:'Torrent metadata is not ready'});
+   const job=jobs.get(match[1]),t=job?.torrent,file=t?.files?.[Number(match[2])];if(!file||!t.ready)return json(404,{error:'Torrent metadata is not ready'});
    const range=parseRange(req.headers.range,file.length);if(!range){res.writeHead(416,{'Content-Range':'bytes */'+file.length});res.end();return}
    const headers={'Content-Type':mimeFor(file.name),'Content-Length':range.end-range.start+1,'Accept-Ranges':'bytes','Cache-Control':'no-store'};if(range.status===206)headers['Content-Range']=`bytes ${range.start}-${range.end}/${file.length}`;
    res.writeHead(range.status,headers);if(req.method==='HEAD'){res.end();return}
-   const stream=file.createReadStream({start:range.start,end:range.end});stream.on('error',()=>res.destroy());res.on('close',()=>stream.destroy());stream.pipe(res);return;
+   job.open=(job.open||0)+1;job.played=true;job.used=Date.now();
+   const stream=file.createReadStream({start:range.start,end:range.end});stream.on('error',()=>res.destroy());res.on('close',()=>{stream.destroy();job.open--;job.used=Date.now()});stream.pipe(res);return;
   }
   json(404,{error:'Unknown endpoint'});
  });
  // Restore transfers only after the user explicitly opens Downloads, avoiding
  // unsolicited network activity or downloads merely from launching Seanime.
+ // A stream stops once the player has not read from it for a while (closing the player), so it doesn't keep using
+ // the connection. A paused player keeps its connection open. Streams that never started playing get more time.
+ const streamIdle=options.streamIdleMs??120000,idleTimer=setInterval(()=>{for(const [hash,j] of jobs)if(j.mode==='stream'&&!j.open&&Date.now()-j.used>(j.played?streamIdle:streamIdle*5)){jobs.delete(hash);persist();Promise.resolve().then(()=>client.remove(hash)).catch(()=>{})}},Math.min(15000,streamIdle/4));idleTimer.unref?.();
  // Only unfinished downloads are resumed after a restart. Streams were for watching at that moment, restarting them
  // would download the movie again in the background, and movies already in the library are never fetched twice.
  const inLibrary=v=>{try{const hash=new URL(v.magnet).searchParams.get('xt').split(':').pop().toLowerCase();return library.some(x=>x.hash===hash)}catch{return false}};
  let restored=false;const restore=async()=>{if(restored)return;restored=true;for(const v of saved.filter(v=>v.mode==='download'&&!inLibrary(v)).slice(0,10))try{await add(v)}catch{}};
- return {server,client,add,snapshot,restore,close:()=>new Promise(resolve=>{server.close(()=>client.destroy(resolve))})};
+ return {server,client,add,snapshot,restore,close:()=>new Promise(resolve=>{clearInterval(idleTimer);server.close(()=>client.destroy(resolve))})};
 }
 if(process.argv[1]&&fileURLToPath(import.meta.url)===path.resolve(process.argv[1])){
  const e=createEngine();e.server.listen(Number(process.env.SEANIME_MEDIA_PORT||11437),'127.0.0.1',()=>console.log('Media torrent engine listening on loopback'));

@@ -99,3 +99,18 @@ test('after a restart only unfinished downloads resume, streams and saved movies
  try{await engine.restore();assert.deepEqual(engine.snapshot().map(t=>t.hash),[h('c')])}
  finally{await engine.close();fs.rmSync(directory,{recursive:true,force:true})}
 });
+test('a stream stops by itself once the player stops reading, while it is being read it keeps going',{timeout:25000},async()=>{
+ const directory=fs.mkdtempSync(path.join(os.tmpdir(),'seanime-torrent-test-')),source=path.join(directory,'movie.mp4'),content=Buffer.alloc(24*1024*1024,5);fs.writeFileSync(source,content);
+ const seed=new WebTorrent({dht:false,tracker:false,utp:false}),client=new WebTorrent({dht:false,tracker:false,utp:false});const engine=createEngine({directory:path.join(directory,'downloads'),client,streamIdleMs:400});
+ try{
+  const torrent=await new Promise((resolve,reject)=>{seed.once('error',reject);seed.seed(source,{announce:[]},resolve)});
+  engine.server.listen(0,'127.0.0.1');await once(engine.server,'listening');const base='http://127.0.0.1:'+engine.server.address().port;
+  const hash=await engine.add({magnet:torrent.magnetURI,title:'Test movie',mode:'stream'});const receiving=client.torrents[0];receiving.addPeer('127.0.0.1:'+seed.torrentPort);if(!receiving.ready)await once(receiving,'ready');
+  // An open connection (a paused player) keeps the stream alive past the idle time
+  const open=await fetch(base+'/media-file/'+hash+'/0');const reader=open.body.getReader();await reader.read();
+  await new Promise(r=>setTimeout(r,800));assert.equal(engine.snapshot().length,1);
+  await reader.cancel();
+  for(let i=0;i<40&&engine.snapshot().length;i++)await new Promise(r=>setTimeout(r,100));
+  assert.equal(engine.snapshot().length,0);assert.equal(client.torrents.length,0);
+ }finally{await engine.close();if(!seed.destroyed)await new Promise(resolve=>seed.destroy(resolve));fs.rmSync(directory,{recursive:true,force:true})}
+});
