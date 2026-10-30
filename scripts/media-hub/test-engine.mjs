@@ -112,5 +112,7 @@ test('a stream stops by itself once the player stops reading, while it is being 
   await reader.cancel();
   for(let i=0;i<40&&engine.snapshot().length;i++)await new Promise(r=>setTimeout(r,100));
   assert.equal(engine.snapshot().length,0);assert.equal(client.torrents.length,0);
+  // Pressing play again starts the stream again
+  const again=await fetch(base+'/media-file/'+hash+'/0',{headers:{Range:'bytes=0-255'}});assert.equal(again.status,206);assert.equal(engine.snapshot().length,1);await again.arrayBuffer();
  }finally{await engine.close();if(!seed.destroyed)await new Promise(resolve=>seed.destroy(resolve));fs.rmSync(directory,{recursive:true,force:true})}
 });

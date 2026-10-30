@@ -178,6 +178,7 @@ export function createEngine(options={}){
   }
   const match=/^\/media-file\/([a-f0-9]{40})\/(\d+)$/.exec(u.pathname);
   if(match&&(req.method==='GET'||req.method==='HEAD')){
+   if(!jobs.has(match[1]))await wake(match[1]);
    const job=jobs.get(match[1]),t=job?.torrent,file=t?.files?.[Number(match[2])];if(!file||!t.ready)return json(404,{error:'Torrent metadata is not ready'});
    const range=parseRange(req.headers.range,file.length);if(!range){res.writeHead(416,{'Content-Range':'bytes */'+file.length});res.end();return}
    const headers={'Content-Type':mimeFor(file.name),'Content-Length':range.end-range.start+1,'Accept-Ranges':'bytes','Cache-Control':'no-store'};if(range.status===206)headers['Content-Range']=`bytes ${range.start}-${range.end}/${file.length}`;
@@ -189,9 +190,13 @@ export function createEngine(options={}){
  });
  // Restore transfers only after the user explicitly opens Downloads, avoiding
  // unsolicited network activity or downloads merely from launching Seanime.
- // A stream stops once the player has not read from it for a while (closing the player), so it doesn't keep using
- // the connection. A paused player keeps its connection open. Streams that never started playing get more time.
- const streamIdle=options.streamIdleMs??120000,idleTimer=setInterval(()=>{for(const [hash,j] of jobs)if(j.mode==='stream'&&!j.open&&Date.now()-j.used>(j.played?streamIdle:streamIdle*5)){jobs.delete(hash);persist();Promise.resolve().then(()=>client.remove(hash)).catch(()=>{})}},Math.min(15000,streamIdle/4));idleTimer.unref?.();
+ // A stream stops a few seconds after the player stops reading from it (the player was closed), so it doesn't keep
+ // using the connection. Seeking reconnects right away and a paused player keeps its connection open. Streams that
+ // never started playing get 10 minutes to find peers.
+ // A stopped stream starts again when the player asks for it within 30 minutes (resuming after a long pause)
+ const sleeping=new Map();
+ async function wake(hash){const v=sleeping.get(hash);if(!v||Date.now()-v.at>1800000||jobs.has(hash))return;sleeping.delete(hash);try{await add(v);const t=jobs.get(hash)?.torrent;if(t&&!t.ready)await Promise.race([new Promise(r=>t.once('ready',r)),new Promise(r=>setTimeout(r,30000))])}catch{}}
+ const streamIdle=options.streamIdleMs??5000,idleTimer=setInterval(()=>{for(const [hash,j] of jobs)if(j.mode==='stream'&&!j.open&&Date.now()-j.used>(j.played?streamIdle:Math.max(streamIdle,600000))){if(j.played)sleeping.set(hash,{magnet:j.torrent.magnetURI,mode:'stream',title:j.title,media:j.media,at:Date.now()});jobs.delete(hash);persist();Promise.resolve().then(()=>client.remove(hash)).catch(()=>{})}},Math.min(1000,streamIdle/4));idleTimer.unref?.();
  // Only unfinished downloads are resumed after a restart. Streams were for watching at that moment, restarting them
  // would download the movie again in the background, and movies already in the library are never fetched twice.
  const inLibrary=v=>{try{const hash=new URL(v.magnet).searchParams.get('xt').split(':').pop().toLowerCase();return library.some(x=>x.hash===hash)}catch{return false}};
