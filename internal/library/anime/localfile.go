@@ -1,6 +1,7 @@
 package anime
 
 import (
+	"regexp"
 	"seanime/internal/library/filesystem"
 
 	"github.com/5rahim/habari"
@@ -73,6 +74,12 @@ func newLocalFile(opath string, info *filesystem.SeparatedFilePath) *LocalFile {
 	// Parse filename
 	fElements := habari.Parse(info.Filename)
 	parsedInfo := NewLocalFileParsedData(info.Filename, fElements)
+	// Season packs often name episodes by a leading number only ("01. Title.mkv", "01 - Title.mkv"), which the parser misses
+	if parsedInfo.Episode == "" && len(parsedInfo.EpisodeRange) == 0 {
+		if m := leadingEpisodeRegex.FindStringSubmatch(info.Filename); m != nil {
+			parsedInfo.Episode = m[1]
+		}
+	}
 
 	// Parse dir names
 	parsedFolderInfo := make([]*LocalFileParsedData, 0)
@@ -101,6 +108,8 @@ func newLocalFile(opath string, info *filesystem.SeparatedFilePath) *LocalFile {
 
 	return localFile
 }
+
+var leadingEpisodeRegex = regexp.MustCompile(`^(\d{1,3})(?:\s*[.\-_)]\s*|\s+)\D`)
 
 // NewLocalFileParsedData Converts habari.Metadata into LocalFileParsedData, which is more suitable.
 func NewLocalFileParsedData(original string, elements *habari.Metadata) *LocalFileParsedData {

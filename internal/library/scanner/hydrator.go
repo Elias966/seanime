@@ -278,7 +278,9 @@ func (fh *FileHydrator) hydrateGroupMetadata(
 		// No absolute episode count
 		// "media.GetTotalEpisodeCount() == -1" is a fix for media with unknown episode count, we will just assume that the episode number is correct
 		// devnote(don't know if this is still revelant): We might want to fetch the media when the episode count is unknown in order to get the correct episode count
-		if episode > -1 && (episode <= media.GetCurrentEpisodeCount() || media.GetTotalEpisodeCount() == -1) {
+		// Sites often release an episode before AniList counts it as aired, so the next episode to air counts as main too
+		airingNext := media.NextAiringEpisode != nil && episode == media.NextAiringEpisode.Episode
+		if episode > -1 && (episode <= media.GetCurrentEpisodeCount() || media.GetTotalEpisodeCount() == -1 || airingNext) {
 			// Episode 0 - Might be a special
 			// By default, we will assume that AniDB doesn't include Episode 0 as part of the main episodes (which is often the case)
 			if episode == 0 {

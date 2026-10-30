@@ -1,3 +1,4 @@
+import { useAnimeEntryManualMatch } from "@/api/hooks/anime_entries.hooks"
 import { useScanLocalFiles } from "@/api/hooks/scan.hooks"
 import React from "react"
 
@@ -32,7 +33,7 @@ export function sendDownloadAction(action: OnlineDownloadAction, payload: Record
 let downloads: Record<string, OnlineDownload> = {}
 const listeners = new Set<() => void>()
 let attached = false
-const unpackedListeners = new Set<(e: { mediaId: number, dir: string }) => void>()
+const unpackedListeners = new Set<(e: { mediaId: number, dir: string, files?: string[] }) => void>()
 
 function attach() {
     if (attached || typeof window === "undefined" || !window.electron?.on) return
@@ -147,18 +148,37 @@ export function usePreparingDownloads() {
     return React.useMemo(() => Object.values(all).sort((a, b) => b.started - a.started), [all])
 }
 
-/** Scans the anime library after a downloaded season archive was unpacked into it, so its episodes show up. */
+/** Scans the anime library after an episode was saved or a season archive was unpacked into it, so its episodes show up. */
 export function useScanAfterUnpack() {
     const { mutate: scan } = useScanLocalFiles()
-    const scanRef = React.useRef(scan)
-    scanRef.current = scan
+    const { mutate: match } = useAnimeEntryManualMatch()
+    const scanRef = React.useRef({ scan, match })
+    scanRef.current = { scan, match }
     React.useEffect(() => {
         attach()
         let timer: number | undefined
-        // Several seasons finishing together share one scan
-        const listener = () => {
+        let saved: { mediaId: number, files: string[] }[] = []
+        // Several downloads finishing together share one scan
+        const listener = (e: { mediaId: number, files?: string[] }) => {
+            if (e.mediaId && e.files?.length) saved.push({ mediaId: e.mediaId, files: e.files })
             window.clearTimeout(timer)
-            timer = window.setTimeout(() => scanRef.current({ enhanced: false, enhanceWithOfflineDatabase: false, skipLockedFiles: true, skipIgnoredFiles: true }), 3000)
+            timer = window.setTimeout(() => {
+                const batch = saved
+                saved = []
+                scanRef.current.scan({ enhanced: false, enhanceWithOfflineDatabase: false, skipLockedFiles: true, skipIgnoredFiles: true }, {
+                    // The scanner only knows the anime in the user's lists; files it left unmatched go to the anime they were downloaded for
+                    onSuccess: lfs => {
+                        const norm = (p: string) => p.replace(/\\/g, "/").toLowerCase()
+                        const unmatched = new Set((lfs ?? []).filter(lf => !lf.mediaId).map(lf => norm(lf.path)))
+                        const byMedia = new Map<number, string[]>()
+                        for (const s of batch) for (const f of s.files) {
+                            const lf = (lfs ?? []).find(lf => norm(lf.path) === norm(f))
+                            if (lf && unmatched.has(norm(f))) byMedia.set(s.mediaId, [...(byMedia.get(s.mediaId) ?? []), lf.path])
+                        }
+                        byMedia.forEach((paths, mediaId) => scanRef.current.match({ paths, mediaId }))
+                    },
+                })
+            }, 3000)
         }
         unpackedListeners.add(listener)
         return () => {

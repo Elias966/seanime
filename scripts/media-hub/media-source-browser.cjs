@@ -1,5 +1,5 @@
 /* Isolated source browsing and capability-scoped media relay. GPL-3.0. */
-const http=require('node:http'),https=require('node:https'),dns=require('node:dns').promises,net=require('node:net'),crypto=require('node:crypto'),fs=require('node:fs'),path=require('node:path'),{extractArchive,ARCHIVE}=require('./archive-extract.cjs');const {probe,RangedItem}=require('./ranged-download.cjs');
+const http=require('node:http'),https=require('node:https'),dns=require('node:dns').promises,net=require('node:net'),crypto=require('node:crypto'),fs=require('node:fs'),path=require('node:path'),{extractArchive,ARCHIVE,VIDEO}=require('./archive-extract.cjs');const {probe,RangedItem}=require('./ranged-download.cjs');
 function publicIP(ip){
  if(ip.startsWith('::ffff:'))return publicIP(ip.slice(7));
  if(net.isIP(ip)===4){const[a,b]=ip.split('.').map(Number);return !(a===0||a===10||a===127||a>=224||a===169&&b===254||a===172&&b>=16&&b<=31||a===192&&(b===168||b===0)||a===100&&b>=64&&b<=127||a===198&&(b===18||b===19))}
@@ -101,7 +101,7 @@ function attachDownloads(win,registry){
   if(unpacking.has(r.id)||!r.path||!ARCHIVE.test(r.path)||!fs.existsSync(r.path))return;unpacking.add(r.id);
   const archive=r.path,dir=path.dirname(archive);let sent=0;r.extract={state:'extracting',done:0,total:0};send({type:'download',...r});save();
   extractArchive(archive,dir,(done,total)=>{r.extract={state:'extracting',done,total};if(Date.now()-sent>500){sent=Date.now();send({type:'download',...r})}})
-   .then(videos=>{fs.rmSync(archive,{force:true});r.extract={state:'done',episodes:videos.length};r.archive=path.basename(archive);r.path=dir;send({type:'download',...r});if(r.library)send({type:'unpacked',id:r.id,mediaId:r.mediaId,dir})})
+   .then(videos=>{fs.rmSync(archive,{force:true});r.extract={state:'done',episodes:videos.length};r.archive=path.basename(archive);r.path=dir;send({type:'download',...r});if(r.library)send({type:'unpacked',id:r.id,mediaId:r.mediaId,dir,files:videos})})
    .catch(e=>{r.extract={state:'failed',error:e.message};send({type:'download',...r})})
    .finally(()=>{unpacking.delete(r.id);save()});
  };
@@ -134,7 +134,7 @@ function attachDownloads(win,registry){
   reports.set(id,report);report('progressing');save();
   item.on('updated',(_,state)=>{const now=Date.now();if(state==='progressing'&&!item.isPaused()&&now-last<700)return;last=now;report(state==='interrupted'?'interrupted':item.isPaused()?'paused':'progressing')});
   // A cancelled or failed download leaves a partial file, which is removed.
-  item.once('done',(_,state)=>{items.delete(id);reports.delete(id);r.finished=Date.now();report(state);save();if(state!=='completed')fs.rm(file,{force:true},()=>{});else unpack(r)});
+  item.once('done',(_,state)=>{items.delete(id);reports.delete(id);r.finished=Date.now();report(state);save();if(state!=='completed')fs.rm(file,{force:true},()=>{});else if(ARCHIVE.test(file))unpack(r);else if(r.library&&VIDEO.test(file))send({type:'unpacked',id:r.id,mediaId:r.mediaId,dir:path.dirname(file),files:[file]})});
   };
  ipcMain.on('media-source:download',(e,msg)=>{
   if(e.sender!==win.webContents||!msg||typeof msg!=='object')return;const source=sources.find(s=>s.id===msg.sourceId);
