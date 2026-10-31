@@ -100,7 +100,7 @@ func (c *Client) initializeClient() error {
 
 	// Define torrent client settings
 	cfg := torrent.NewDefaultClientConfig()
-	cfg.Seed = true
+	cfg.Seed = false
 	cfg.DisableIPv6 = settings.DisableIPV6
 	if runtime.GOOS == "ios" || runtime.GOOS == "android" {
 		cfg.DisableIPv6 = true

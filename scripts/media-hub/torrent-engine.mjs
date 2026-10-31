@@ -143,7 +143,7 @@ export function createEngine(options={}){
   return found;
  })().finally(()=>{scanning=undefined})}
  // Finished movie downloads do not seed: the transfer is stopped and the files stay on disk
- async function stopFinished(hash){const j=jobs.get(hash);if(!j||j.mode!=='download'||j.torrent.progress<1)return;jobs.delete(hash);persist();try{await client.remove(hash)}catch{}pump()}
+ async function stopFinished(hash){const j=jobs.get(hash);if(!j||j.mode!=='download'||(!j.torrent.done&&j.torrent.progress<1))return;jobs.delete(hash);persist();try{await client.remove(hash)}catch{}pump()}
  async function add(value){
   let metadata;const media=cleanMedia(value.media);
   if(value.torrentUrl){
@@ -151,7 +151,7 @@ export function createEngine(options={}){
    const response=await fetch(u,{signal:AbortSignal.timeout(25000)});if(!response.ok)throw Error('Torrent metadata unavailable');let bytes=0,parts=[];for await(const b of response.body){bytes+=b.length;if(bytes>4*1024*1024)throw Error('Torrent metadata too large');parts.push(Buffer.from(b))}metadata=Buffer.concat(parts);
   }
   const parsed=await parseTorrent(metadata||cleanMagnet(value.magnet));
-  const magnet=cleanMagnet('magnet:?xt=urn:btih:'+parsed.infoHash+'&dn='+encodeURIComponent(value.title||parsed.name||'Media')),found=await client.get(magnet);if(found){const j=jobs.get(found.infoHash);if(j&&media)j.media=media;if(value.mode==='download'&&j){j.mode='download';const select=()=>found.select(0,found.pieces.length-1,0);if(found.ready)select();else found.once('ready',select);persist()}return found.infoHash}
+  const magnet=cleanMagnet('magnet:?xt=urn:btih:'+parsed.infoHash+'&dn='+encodeURIComponent(value.title||parsed.name||'Media')),found=await client.get(magnet);if(found){const j=jobs.get(found.infoHash);if(j&&media)j.media=media;if(value.mode==='download'&&j){j.mode='download';const select=()=>found.select(0,found.pieces.length-1,0);if(found.ready)select();else found.once('ready',select);persist();/* Already complete from streaming: no 'done' comes again */if(found.progress>=1){record(j);setImmediate(()=>stopFinished(found.infoHash))}}return found.infoHash}
   if(jobs.size>=10){
    if(value.mode!=='download'||value.folder===undefined)throw Error('Stop an existing transfer before adding another');
    const folder=seriesFolder(value.folder);if(!folder)throw Error('Invalid series name');
@@ -161,7 +161,7 @@ export function createEngine(options={}){
   const folder=value.mode==='download'&&value.folder!==undefined?seriesFolder(value.folder):undefined;if(value.folder!==undefined&&value.mode==='download'&&!folder)throw Error('Invalid series name');
   const dir=folder?path.join(libraryDir(),'Series',folder):typeof value.dir==='string'&&roots().includes(path.resolve(value.dir))?path.resolve(value.dir):value.mode==='download'?libraryDir():directory;fs.mkdirSync(dir,{recursive:true});
   const t=client.add(metadata||magnet,{path:dir,deselect:value.mode!=='download'});const job={torrent:t,mode:value.mode==='download'?'download':'stream',title:String(value.title||'').slice(0,180),media,folder,error:'',used:Date.now()};t.on('error',()=>{});if(!t.infoHash)await new Promise((resolve,reject)=>{t.once('infoHash',resolve);t.once('error',reject)});jobs.set(t.infoHash,job);
-  t.on('error',()=>{job.error='Torrent connection failed'});t.on('done',()=>{record(job);if(job.mode==='download')setImmediate(()=>stopFinished(t.infoHash))});t.once('ready',()=>{try{fs.writeFileSync(path.join(metadataDir,t.infoHash+'.torrent'),t.torrentFile)}catch{}if(job.mode==='stream')for(const f of t.files)f.deselect();persist()});persist();return t.infoHash;
+  t.on('error',()=>{job.error='Torrent connection failed'});t.on('done',()=>{record(job);if(job.mode==='download')setImmediate(()=>stopFinished(t.infoHash));/* A stream that has the whole torrent plays from disk and shares nothing */else if(t.progress>=1){t.pause();for(const w of [...t.wires])w.destroy()}});t.once('ready',()=>{try{fs.writeFileSync(path.join(metadataDir,t.infoHash+'.torrent'),t.torrentFile)}catch{}if(job.mode==='stream')for(const f of t.files)f.deselect();persist()});persist();return t.infoHash;
  }
  const server=http.createServer(async(req,res)=>{
   const u=new URL(req.url,'http://127.0.0.1'),origin=req.headers.origin;
@@ -274,11 +274,11 @@ export function createEngine(options={}){
  // unsolicited network activity or downloads merely from launching Seanime.
  // A stream stops a few seconds after the player stops reading from it (the player was closed), so it doesn't keep
  // using the connection. Seeking reconnects right away and a paused player keeps its connection open. Streams that
- // never started playing get 10 minutes to find peers.
+ // never started playing get 10 minutes to find peers and 1 minute once they have them.
  // A stopped stream starts again when the player asks for it within 30 minutes (resuming after a long pause)
  const sleeping=new Map();
  async function wake(hash){const v=sleeping.get(hash);if(!v||Date.now()-v.at>1800000||jobs.has(hash))return;sleeping.delete(hash);try{await add(v);const t=jobs.get(hash)?.torrent;if(t&&!t.ready)await Promise.race([new Promise(r=>t.once('ready',r)),new Promise(r=>setTimeout(r,30000))])}catch{}}
- const streamIdle=options.streamIdleMs??5000,idleTimer=setInterval(()=>{for(const [hash,j] of jobs)if(j.mode==='stream'&&!j.open&&Date.now()-j.used>(j.played?streamIdle:Math.max(streamIdle,600000))){if(j.played)sleeping.set(hash,{magnet:j.torrent.magnetURI,mode:'stream',title:j.title,media:j.media,at:Date.now()});jobs.delete(hash);persist();Promise.resolve().then(()=>client.remove(hash)).catch(()=>{}).then(pump)}},Math.min(1000,streamIdle/4));idleTimer.unref?.();
+ const streamIdle=options.streamIdleMs??5000,idleTimer=setInterval(()=>{for(const [hash,j] of jobs)if(j.mode==='stream'&&!j.open&&Date.now()-j.used>(j.played?streamIdle:Math.max(streamIdle,j.torrent.ready?60000:600000))){if(j.played)sleeping.set(hash,{magnet:j.torrent.magnetURI,mode:'stream',title:j.title,media:j.media,at:Date.now()});jobs.delete(hash);persist();Promise.resolve().then(()=>client.remove(hash)).catch(()=>{}).then(pump)}},Math.min(1000,streamIdle/4));idleTimer.unref?.();
  // Only unfinished downloads are resumed after a restart. Streams were for watching at that moment, restarting them
  // would download the movie again in the background, and movies already in the library are never fetched twice.
  const inLibrary=v=>{try{const hash=new URL(v.magnet).searchParams.get('xt').split(':').pop().toLowerCase();return library.some(x=>x.hash===hash)}catch{return false}};

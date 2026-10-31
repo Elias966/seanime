@@ -667,6 +667,7 @@ func (a *App) InitOrRefreshModules() {
 			IsBuiltinClientEnabled: a.FeatureFlags.BuiltinTorrentClient,
 		})
 
+		a.TorrentClientRepository.InitSeedingGuard()
 		a.TorrentClientRepository.InitActiveTorrentCount(settings.Torrent.ShowActiveTorrentCount, a.WSEventManager)
 
 		// Set AutoDownloader qBittorrent client

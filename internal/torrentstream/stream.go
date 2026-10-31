@@ -194,6 +194,7 @@ func (r *Repository) StartStream(ctx context.Context, opts *StartStreamOptions) 
 	if prepared, ok := r.preloadedStream.Get(); ok {
 		if streamOptionsMatch(opts, prepared.Options) {
 			r.logger.Info().Msg("torrentstream: Using pre-downloaded stream")
+			prepared.Torrent.AllowDataDownload()
 			torrentToStream = &playbackTorrent{
 				Torrent: prepared.Torrent,
 				File:    prepared.File,
@@ -536,7 +537,9 @@ func (r *Repository) StopStream(fromNativePlayer ...bool) error {
 	// Also, the torrent might be a batch - so we don't want to download the whole thing
 	if r.client.currentTorrent.IsPresent() {
 		currentTorrent := r.client.currentTorrent.MustGet()
-		shouldDrop := r.client.currentTorrentStatus.ProgressPercentage < 70
+		shouldDrop := true
+		// Nearly finished files stay on disk, the transfer stops either way
+		keepFiles := r.client.currentTorrentStatus.ProgressPercentage >= 70
 
 		// Don't drop if this is the prepared torrent
 		if r.preloadedStream.IsPresent() {
@@ -548,10 +551,12 @@ func (r *Repository) StopStream(fromNativePlayer ...bool) error {
 		}
 
 		if shouldDrop {
-			r.client.repository.logger.Debug().Msg("torrentstream: Dropping torrent, completion is less than 70%")
+			r.client.repository.logger.Debug().Msg("torrentstream: Dropping torrent, the stream stopped")
 			infoHash := currentTorrent.InfoHash()
 			currentTorrent.Drop()
-			r.client.removeTorrentFiles(infoHash)
+			if !keepFiles {
+				r.client.removeTorrentFiles(infoHash)
+			}
 		}
 		r.client.repository.logger.Debug().Msg("torrentstream: Resetting current torrent and status")
 	}
@@ -561,6 +566,18 @@ func (r *Repository) StopStream(fromNativePlayer ...bool) error {
 	r.client.repository.sendStateEvent(eventTorrentStopped, nil) // Send torrent stopped event
 	r.client.repository.mediaPlayerRepository.Stop()             // Stop the media player gracefully if it's running
 	r.client.mu.Unlock()
+
+	// A prepared next episode stops with the stream, and is only dropped if it isn't played soon after
+	if prepared, ok := r.preloadedStream.Get(); ok {
+		prepared.Torrent.DisallowDataDownload()
+		time.AfterFunc(time.Minute, func() {
+			r.streamActionMu.Lock()
+			defer r.streamActionMu.Unlock()
+			if current, ok := r.preloadedStream.Get(); ok && current == prepared && r.client.currentTorrent.IsAbsent() {
+				r.cancelPreparedStream()
+			}
+		})
+	}
 
 	if !fromNative {
 		go func() {

@@ -38,6 +38,7 @@ type (
 		metadataProviderRef         *util.Ref[metadata_provider.Provider]
 		activeTorrentCountCtxCancel context.CancelFunc
 		activeTorrentCount          *ActiveCount
+		seedingGuardCtxCancel       context.CancelFunc
 	}
 
 	NewRepositoryOptions struct {
@@ -82,8 +83,55 @@ func (r *Repository) Shutdown() {
 		r.activeTorrentCountCtxCancel()
 		r.activeTorrentCountCtxCancel = nil
 	}
+	if r.seedingGuardCtxCancel != nil {
+		r.seedingGuardCtxCancel()
+		r.seedingGuardCtxCancel = nil
+	}
 	if r.seanimeClient != nil {
 		r.seanimeClient.Close()
+	}
+}
+
+// InitSeedingGuard stops any torrent the client is seeding, including ones added before limits were set
+// and clients that ignore them. It never starts the client.
+func (r *Repository) InitSeedingGuard() {
+	if r.seedingGuardCtxCancel != nil {
+		r.seedingGuardCtxCancel()
+	}
+
+	var ctx context.Context
+	ctx, r.seedingGuardCtxCancel = context.WithCancel(context.Background())
+	go func(ctx context.Context) {
+		ticker := time.NewTicker(time.Second * 10)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+				r.stopSeeding()
+			}
+		}
+	}(ctx)
+}
+
+func (r *Repository) stopSeeding() {
+	defer util.HandlePanicInModuleThen("torrent_client/stopSeeding", func() {})
+	if r.provider == SeanimeClient {
+		return // It stops its own torrents
+	}
+	torrents, err := r.GetList(&GetListOptions{})
+	if err != nil {
+		return
+	}
+	hashes := make([]string, 0)
+	for _, t := range torrents {
+		if t.Status == TorrentStatusSeeding {
+			hashes = append(hashes, t.Hash)
+		}
+	}
+	if len(hashes) > 0 {
+		_ = r.PauseTorrents(hashes)
 	}
 }
 
@@ -351,13 +399,14 @@ func (r *Repository) GetActiveTorrents(opts *GetListOptions) ([]*Torrent, error)
 	return active, nil
 }
 
+// AddMagnets adds magnets that stop as soon as they finish downloading: nothing is left seeding.
 func (r *Repository) AddMagnets(magnets []string, dest string) error {
-	return r.addMagnets(magnets, dest, false)
+	return r.addMagnets(magnets, dest, true)
 }
 
-// AddMagnetsWithoutSeeding adds magnets that stop as soon as they finish downloading (used for movies).
+// AddMagnetsWithoutSeeding is AddMagnets, kept for the callers that ask for it by name.
 func (r *Repository) AddMagnetsWithoutSeeding(magnets []string, dest string) error {
-	return r.addMagnets(magnets, dest, true)
+	return r.AddMagnets(magnets, dest)
 }
 
 func (r *Repository) addMagnets(magnets []string, dest string, noSeed bool) error {

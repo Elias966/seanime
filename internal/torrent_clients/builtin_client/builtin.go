@@ -173,7 +173,7 @@ func New(opts *NewClientOptions) (*Client, error) {
 	cfg := anacrolix.NewDefaultClientConfig()
 	cfg.DataDir = opts.Dir
 	cfg.ListenPort = opts.Port
-	cfg.Seed = true
+	cfg.Seed = false
 	cfg.DownloadRateLimiter = downloadLimiter
 	cfg.UploadRateLimiter = uploadLimiter
 	cfg.Logger = alog.Logger{}.FilterLevel(alog.Never)
@@ -1273,9 +1273,45 @@ func (c *Client) runScheduler() {
 			return
 		case now := <-ticker.C:
 			c.sampleRates(now)
+			c.stopFinished()
 			c.reconcileQueue()
 		}
 	}
+}
+
+// stopFinished stops every torrent that has all its wanted files, so nothing seeds after it finishes.
+func (c *Client) stopFinished() {
+	c.mu.RLock()
+	finished := make([]string, 0)
+	for hash, entry := range c.torrents {
+		if entry.torrent != nil && !entry.model.Paused && isTorrentFinished(entry) {
+			finished = append(finished, hash)
+		}
+	}
+	c.mu.RUnlock()
+	for _, hash := range finished {
+		if err := c.PauseTorrent(hash); err != nil {
+			c.logger.Warn().Err(err).Str("hash", hash).Msg("builtin client: Could not stop finished torrent")
+		}
+	}
+}
+
+func isTorrentFinished(entry *torrentEntry) bool {
+	t := entry.torrent
+	if t.Info() == nil {
+		return false
+	}
+	wanted := 0
+	for index, file := range t.Files() {
+		if priority, ok := entry.filePriorities[index]; ok && priority == 0 {
+			continue
+		}
+		wanted++
+		if file.BytesCompleted() < file.Length() {
+			return false
+		}
+	}
+	return wanted > 0
 }
 
 func (c *Client) sampleRates(now time.Time) {

@@ -9,10 +9,13 @@ import (
 	"strings"
 	"testing"
 
+	anacrolix "github.com/anacrolix/torrent"
+	"github.com/anacrolix/torrent/bencode"
 	"github.com/anacrolix/torrent/metainfo"
 	"github.com/anacrolix/torrent/storage"
 	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/require"
+	"time"
 )
 
 const testMagnet = "magnet:?xt=urn:btih:0123456789abcdef0123456789abcdef01234567&dn=Seanime%20Test"
@@ -191,4 +194,51 @@ func TestRemovePausedTorrent(t *testing.T) {
 	// Verify files/folder are deleted
 	_, err = os.Stat(mockFolderPath)
 	require.True(t, os.IsNotExist(err))
+}
+
+func TestFinishedTorrentStopsSeeding(t *testing.T) {
+	logger := zerolog.Nop()
+	database, err := db.NewDatabase("", "seanime-test", &logger)
+	require.NoError(t, err)
+
+	// A local seeder with one small file
+	seedDir := t.TempDir()
+	content := make([]byte, 1<<20)
+	require.NoError(t, os.WriteFile(filepath.Join(seedDir, "video.mkv"), content, 0o644))
+	info := metainfo.Info{PieceLength: 1 << 16}
+	require.NoError(t, info.BuildFromFilePath(filepath.Join(seedDir, "video.mkv")))
+	infoBytes, err := bencode.Marshal(info)
+	require.NoError(t, err)
+	mi := metainfo.MetaInfo{InfoBytes: infoBytes}
+	seedCfg := anacrolix.NewDefaultClientConfig()
+	seedCfg.DataDir = seedDir
+	seedCfg.Seed = true
+	seedCfg.ListenPort = 0
+	seedCfg.NoDHT = true
+	seeder, err := anacrolix.NewClient(seedCfg)
+	if err != nil && strings.Contains(err.Error(), "operation not permitted") {
+		t.Skip("environment does not permit a localhost listener")
+	}
+	require.NoError(t, err)
+	defer seeder.Close()
+	seed, err := seeder.AddTorrent(&mi)
+	require.NoError(t, err)
+	require.True(t, seed.Seeding() || seed.BytesMissing() == 0)
+	seed.VerifyData()
+
+	client, err := New(&NewClientOptions{Logger: &logger, Database: database, Dir: t.TempDir(), Port: -1, MaxActiveDownloads: 1})
+	require.NoError(t, err)
+	defer client.Close()
+	torrent, err := client.AddMagnet(mi.Magnet(nil, &info).String(), t.TempDir())
+	require.NoError(t, err)
+	hash := torrent.InfoHash().HexString()
+	torrent.AddClientPeer(seeder)
+
+	require.Eventually(t, func() bool {
+		client.mu.RLock()
+		defer client.mu.RUnlock()
+		entry := client.torrents[hash]
+		return entry != nil && entry.torrent == nil && entry.model.Paused
+	}, 30*time.Second, 200*time.Millisecond, "the finished torrent should be stopped")
+	require.Equal(t, int64(len(content)), client.torrents[hash].model.Completed)
 }
