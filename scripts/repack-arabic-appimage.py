@@ -96,6 +96,8 @@ def patch_asar(path, web_dir=None):
     artwork_name = 'offline-artwork.' + sha256(artwork_data)[:8] + '.js'
     progress_name = 'translation-progress.' + sha256(progress_data)[:8] + '.js'
     queue_name = 'subtitle-translation-queue.' + sha256(queue_data)[:8] + '.js'
+    if b'SEANIME_ARABIC_FONT_REPAIR' not in (public / 'jassub/jassub-worker.js').read_bytes():
+        raise ValueError('JASSUB worker lost the Arabic font repair; refusing to package boxes')
     changed = {
         'web-denshi/' + media_name: media_data,
         'web-denshi/' + hls_name: hls_data,

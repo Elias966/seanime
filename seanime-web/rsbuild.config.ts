@@ -34,8 +34,11 @@ export default defineConfig({
 
                     if (!fs.existsSync(outDir)) fs.mkdirSync(outDir, { recursive: true })
 
+                    // The committed worker carries the Arabic font repair, regenerating it would turn Arabic into boxes
+                    const repaired = fs.existsSync(outFile) && fs.readFileSync(outFile, "utf8").includes("SEANIME_ARABIC_FONT_REPAIR")
+
                     // transpile using esbuild (goated)
-                    buildSync({
+                    if (!repaired) buildSync({
                         entryPoints: [source],
                         outfile: outFile,
                         bundle: true,
